@@ -24,21 +24,25 @@ async fn main() {
     let provider = SignerMiddleware::new(provider_service, wallet);
 
     // connect contracts
-    // let [trove_manager, sorted_troves, price_feed] = contracts::get_contracts(&provider);
-    // println!("contracts connected");
-    let [bay_vault, solar_distributor] = contracts::get_contracts(&provider);
+
+    let [_bay_vault_factory, _solar_distributor] = contracts::get_contracts(&provider);
     println!("contracts connected");
 
-    let init_value: String = bay_vault
-        .method::<_, String>("name", ())
-        .expect("fail method")
-        .call()
-        .await
-        .expect("fail wait");
+    let vaults = contracts::get_bay_vaults(&provider);
 
-    println!(
-        "vault address: {}, name: {}",
-        bay_vault.address(),
-        init_value
-    );
+    for v in vaults {
+        let name: String =
+            v.0.method::<_, String>("name", ())
+                .expect("fail method")
+                .call()
+                .await
+                .expect("fail wait");
+
+        println!(
+            "name: {}, vault address: {}, strat address: {}",
+            name,
+            v.0.address(),
+            v.1.address()
+        );
+    }
 }

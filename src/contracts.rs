@@ -11,42 +11,69 @@ mod abis;
 #[path = "./utils/addresses.rs"]
 mod addresses;
 
-// fn get_sorted_troves(
-//     provider: &SignerMiddleware<Provider<Http>, LocalWallet>,
-// ) -> Contract<&SignerMiddleware<Provider<Http>, LocalWallet>> {
-//     let abi_original: String = abis::sorted_troves();
-//     let abi: Abi = serde_json::from_str(&abi_original).expect("failed");
-//     let address: Address = (addresses::contracts()).i_sorted_trove;
-//     let contract = Contract::new(address, abi, provider);
-//     return contract;
-// }
-
-// fn get_trove_manager(
-//     provider: &SignerMiddleware<Provider<Http>, LocalWallet>,
-// ) -> Contract<&SignerMiddleware<Provider<Http>, LocalWallet>> {
-//     let abi_original: String = abis::trove_manager();
-//     let abi: Abi = serde_json::from_str(&abi_original).expect("failed");
-//     let address: Address = (addresses::contracts()).i_trove_manager;
-//     let contract = Contract::new(address, abi, provider);
-//     return contract;
-// }
-
-// fn get_price_feed(
-//     provider: &SignerMiddleware<Provider<Http>, LocalWallet>,
-// ) -> Contract<&SignerMiddleware<Provider<Http>, LocalWallet>> {
-//     let abi_original: String = abis::price_feed();
-//     let abi: Abi = serde_json::from_str(&abi_original).expect("failed");
-//     let address: Address = (addresses::contracts()).i_price_feed_v3;
-//     let contract = Contract::new(address, abi, provider);
-//     return contract;
-// }
-
-fn get_bay_vault(
+pub fn get_bay_vaults(
     provider: &SignerMiddleware<Provider<Http>, LocalWallet>,
+) -> Vec<(
+    Contract<&SignerMiddleware<Provider<Http>, LocalWallet>>,
+    Contract<&SignerMiddleware<Provider<Http>, LocalWallet>>,
+)> {
+    let abi_original: String = abis::bay_vault();
+    let abi: Abi = serde_json::from_str(&abi_original).expect("failed");
+
+    let mut contracts: Vec<(
+        Contract<&SignerMiddleware<Provider<Http>, LocalWallet>>,
+        Contract<&SignerMiddleware<Provider<Http>, LocalWallet>>,
+    )> = vec![];
+
+    for v in (addresses::contracts()).vaults.iter() {
+        let va: Address = v.1.clone().i_bay_vault;
+        let sa: Address = v.1.clone().i_strategy;
+
+        let vac = Contract::new(va, abi.clone(), provider);
+        let sac = Contract::new(sa, abi.clone(), provider);
+
+        contracts.push((vac, sac));
+    }
+
+    return contracts;
+}
+
+fn get_bay_vault_factory(
+    provider: &SignerMiddleware<Provider<Http>, LocalWallet>,
+) -> Contract<&SignerMiddleware<Provider<Http>, LocalWallet>> {
+    let abi_original: String = abis::bay_vault_factory();
+    let abi: Abi = serde_json::from_str(&abi_original).expect("failed");
+    let address: Address = (addresses::contracts()).i_bay_vault_factory;
+    let contract = Contract::new(address, abi, provider);
+    return contract;
+}
+
+pub fn _get_bay_vault(
+    provider: &SignerMiddleware<Provider<Http>, LocalWallet>,
+    pid: u8,
 ) -> Contract<&SignerMiddleware<Provider<Http>, LocalWallet>> {
     let abi_original: String = abis::bay_vault();
     let abi: Abi = serde_json::from_str(&abi_original).expect("failed");
-    let address: Address = (addresses::contracts()).i_bay_vault;
+    let address: Address = (addresses::contracts())
+        .vaults
+        .get(&pid)
+        .unwrap()
+        .i_bay_vault;
+    let contract = Contract::new(address, abi, provider);
+    return contract;
+}
+
+fn _get_strategy(
+    provider: &SignerMiddleware<Provider<Http>, LocalWallet>,
+    pid: u8,
+) -> Contract<&SignerMiddleware<Provider<Http>, LocalWallet>> {
+    let abi_original: String = abis::bay_vault();
+    let abi: Abi = serde_json::from_str(&abi_original).expect("failed");
+    let address: Address = (addresses::contracts())
+        .vaults
+        .get(&pid)
+        .unwrap()
+        .i_strategy;
     let contract = Contract::new(address, abi, provider);
     return contract;
 }
@@ -65,11 +92,9 @@ pub fn get_contracts(
     provider: &SignerMiddleware<Provider<Http>, LocalWallet>,
 ) -> [Contract<&SignerMiddleware<Provider<Http>, LocalWallet>>; 2] {
     let static_provider = &provider;
-    // let trove_manager = get_trove_manager(static_provider);
-    // let sorted_troves = get_sorted_troves(static_provider);
-    // let price_feed = get_price_feed(static_provider);
-    let bay_vault = get_bay_vault(static_provider);
+
+    let bay_vault_factory = get_bay_vault_factory(static_provider);
     let solar_distributor = get_solar_distributor(static_provider);
-    // return [trove_manager, sorted_troves, price_feed];
-    return [bay_vault, solar_distributor];
+
+    return [bay_vault_factory, solar_distributor];
 }
