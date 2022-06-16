@@ -28,4 +28,17 @@ async fn main() {
     // println!("contracts connected");
     let [bay_vault, solar_distributor] = contracts::get_contracts(&provider);
     println!("contracts connected");
+
+    let init_value: String = bay_vault
+        .method::<_, String>("name", ())
+        .expect("fail method")
+        .call()
+        .await
+        .expect("fail wait");
+
+    println!(
+        "vault address: {}, name: {}",
+        bay_vault.address(),
+        init_value
+    );
 }
