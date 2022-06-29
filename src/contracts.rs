@@ -16,6 +16,8 @@ pub fn get_bay_vaults(
 ) -> Vec<(
     Contract<&SignerMiddleware<Provider<Http>, LocalWallet>>,
     Contract<&SignerMiddleware<Provider<Http>, LocalWallet>>,
+    Address,
+    Address,
 )> {
     let abi_original: String = abis::bay_vault();
     let abi: Abi = serde_json::from_str(&abi_original).expect("failed");
@@ -23,6 +25,8 @@ pub fn get_bay_vaults(
     let mut contracts: Vec<(
         Contract<&SignerMiddleware<Provider<Http>, LocalWallet>>,
         Contract<&SignerMiddleware<Provider<Http>, LocalWallet>>,
+        Address,
+        Address,
     )> = vec![];
 
     for v in (addresses::contracts()).vaults.iter() {
@@ -32,7 +36,7 @@ pub fn get_bay_vaults(
         let vac = Contract::new(va, abi.clone(), provider);
         let sac = Contract::new(sa, abi.clone(), provider);
 
-        contracts.push((vac, sac));
+        contracts.push((vac, sac, va, sa));
     }
 
     return contracts;

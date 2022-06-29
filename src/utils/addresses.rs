@@ -19,6 +19,10 @@ pub struct Contracts {
     // pub i_bay_vault: Address,
 }
 
+pub fn vaults() -> Vec<&'static str> {
+    return vec!["0xfFE8Ea8C8Ab569c6104e42C787370f1290fa629E"];
+}
+
 pub fn contracts() -> Contracts {
     let mut vaults: HashMap<u8, Vault> = HashMap::new();
     vaults.insert(
