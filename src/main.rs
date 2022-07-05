@@ -187,8 +187,8 @@ async fn main() -> Result<()> {
         (moonbeam_url, moonbeam_client),
     ];
     let protocols = vec![
-        (solarbeam_chef_address, solarbeam_chef),
         (stella_chef_address, stella_chef),
+        (solarbeam_chef_address, solarbeam_chef),
     ];
 
     // lpToken address, allocPoint uint256, lastRewardTimestamp uint256, accSolarPerShare uint256, depositFeeBP uint16, harvestInterval uint256, totalLp uint256
@@ -244,80 +244,47 @@ async fn main() -> Result<()> {
                     println!("rwrd[{}]", i);
 
                     let s = format!("{:?}", symbols[i].clone());
-                    println!("s: {}", s);
-                    let tcsa = ethers::utils::to_checksum(&addresses[i].to_owned(), None); //1285
-                    println!("tcsa: {:?}", tcsa);
-                    // let token_filter = doc! { "symbol": s };
-                    let token_filter = doc! { "address": tcsa };
+                    println!("symbol: {}", s);
+                    let token_addr = ethers::utils::to_checksum(&addresses[i].to_owned(), None);
+                    println!("token_addr: {:?}", token_addr);
+
+                    let token_filter = doc! { "address": token_addr };
                     let token = tokens_collection.find_one(token_filter, None).await?;
                     let token_price = token.unwrap().price;
-                    println!("token: {:?}", token_price);
+                    println!("token_price: {:?}", token_price);
 
-                    // let a = addresses[i].to_string();
-                    // println!("a: {} | {}", addresses[i], a);
-
-                    // let a = lp_token.to_owned();
-                    // println!(
-                    //     "a: {} | {:?} | {:?} | {}",
-                    //     a,
-                    //     a.to_string(),
-                    //     lp_token.to_owned(),
-                    //     a.to_string() == "0x069C2065100b4D3D982383f7Ef3EcD1b95C05894"
-                    // );
-                    let csa = ethers::utils::to_checksum(&lp_token.to_owned(), None); //1285
-                    println!("csa: {:?}", csa);
+                    let pool_addr = ethers::utils::to_checksum(&lp_token.to_owned(), None);
+                    println!("pool_addr: {:?}", pool_addr);
 
                     let ms = format!("{:?}", lp_token.to_owned());
-                    println!(
-                        "ms: {} | {}",
-                        ms,
-                        ms == "0x069c2065100b4d3d982383f7ef3ecd1b95c05894"
-                    );
-                    let pool_filter = doc! { "address": csa }; // "0xDfEeFA89639125D22ca86E28ce87B164f41AFaE6" };
+                    println!("ms: {}", ms,);
+                    let pool_filter = doc! { "address": pool_addr };
                     let pool = pools_collection.find_one(pool_filter, None).await?;
-                    // println!("pool: {:?}", pool.unwrap());
+
                     if pool.is_some() {
                         let pool_price = pool.unwrap().price;
-                        println!("pool: {:?}", pool_price);
+                        println!("pool_price: {:?}", pool_price);
 
-                        // let mut cursor = poolsCollection.find(poolFilter, None).await?;
-                        // while let Some(pool) = cursor.try_next().await? {
-                        //     println!("price: {:?}", pool.price);
-                        // }
-
-                        // TODO: fetch prices from db, fix overflows/typecasting
-                        println!("thiss");
-                        let solar_price = 1;
-                        let spl: U256 = ethers::prelude::U256::from(1);
-
-                        let lp_price = 1;
-                        let lpp: U256 = ethers::prelude::U256::from(1);
-
-                        let sepd: u128 = rewards_per_sec[0].as_u128() * 60 * 60 * 24;
-                        let ptvl: u128 = total_lp.as_u128();
-
-                        let sepdl: U256 = rewards_per_sec[0];
-                        let ptvll: U256 = total_lp;
-                        let v = ((sepdl.full_mul(spl)).checked_div(ptvll.full_mul(spl))).unwrap();
-                        // .mul(365);
-
-                        println!("v {}", v);
+                        let rewards_per_day: u128 = rewards_per_sec[i].as_u128() * 60 * 60 * 24;
+                        let pool_tvl: u128 = total_lp.as_u128();
 
                         // poolAPR
                         println!(
-                            "{} {} {} {}",
-                            rewards_per_sec[0].as_u128(),
-                            total_lp.as_u128(),
-                            sepd,
-                            ptvl
+                            "rewards/sec: {} rewards/day: {} pool_tvl: {}",
+                            rewards_per_sec[i].as_u128(),
+                            rewards_per_day,
+                            pool_tvl
                         );
-                        let farm_apr =
-                            ((sepd as f64 * token_price) / (ptvl as f64 * pool_price)) * 365.0;
+                        let farm_apr = ((rewards_per_day as f64 * token_price)
+                            / (pool_tvl as f64 * pool_price))
+                            * 365.0
+                            * 100.0;
                         println!("farmAPR: {}", farm_apr);
                         total_farm_apr += farm_apr;
 
                         // feeAPR
                         // let trading_apr = (lastDayVolume * 0.002 * 365 * 100) / pairLiquidity;
+                        // let trading_apr = (0.002 * 365.0 * 100.0) / (pool_tvl as f64 * pool_price);
                     } else {
                         // TODO: doesn't work for stable amm pools, veSolar
                         println!("can't find pool");
