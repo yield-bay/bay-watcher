@@ -369,8 +369,9 @@ async fn main() -> Result<()> {
                         //     value_usd: rewards_per_day as f64 * token_price,
                         //     freq: Freq::Daily,
                         // });
+                        let ten: i128 = 10;
                         rewards.push(bson! ({
-                            "amount": rewards_per_day as f64,
+                            "amount": rewards_per_day as f64 / ten.pow(decimals[i].as_u128().try_into().unwrap()) as f64,
                             "token":  {
                                 "name": token.clone().unwrap().name,
                                 "address": token.clone().unwrap().address,
@@ -379,7 +380,7 @@ async fn main() -> Result<()> {
                                 "price": token.clone().unwrap().price,
                                 "logo": token.clone().unwrap().logo,
                             },
-                            "value_usd": rewards_per_day as f64 * token_price,
+                            "value_usd": (rewards_per_day as f64 / ten.pow(decimals[i].as_u128().try_into().unwrap()) as f64) * token_price,
                             "freq": Freq::Daily.to_string(),
                         }));
 
@@ -437,7 +438,8 @@ async fn main() -> Result<()> {
                                 "farm": total_farm_apr,
                                 "trading": 0.0,
                             },
-                            "rewards": rewards
+                            "rewards": rewards,
+                            "url": ""
                         }
                     };
                     let options = FindOneAndUpdateOptions::builder()
