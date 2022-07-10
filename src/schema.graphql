@@ -1,0 +1,112 @@
+schema {
+  query: Query
+}
+
+type Token {
+  id: ID!
+  symbol: String!
+  name: String!
+  # decimals: BigInt!
+  # totalSupply: BigInt!
+  # tradeVolume: BigDecimal!
+  # tradeVolumeUSD: BigDecimal!
+  # untrackedVolumeUSD: BigDecimal!
+  # txCount: BigInt!
+  # totalLiquidity: BigDecimal!
+  # derivedETH: BigDecimal
+}
+
+type PairDayData {
+  id: ID!
+  date: Int!
+  pairAddress: String! # Bytes!
+  token0: Token!
+  token1: Token!
+  # reserve0: BigDecimal!
+  # reserve1: BigDecimal!
+  # totalSupply: BigDecimal!
+  # reserveUSD: BigDecimal!
+  # dailyVolumeToken0: BigDecimal!
+  # dailyVolumeToken1: BigDecimal!
+  dailyVolumeUSD: String! #BigDecimal!
+  # dailyTxns: BigInt!
+}
+
+type Query {
+  pairDayDatas(
+    block: Block_height
+    first: Int = 100
+    orderBy: PairDayData_orderBy
+    orderDirection: OrderDirection
+    skip: Int = 0
+    # subgraphError: _SubgraphErrorPolicy_! = deny
+    where: PairDayData_filter
+  ): [PairDayData!]!
+}
+
+type Block_height {
+  hash: String! #Bytes
+  number: Int
+  number_gte: Int
+}
+
+input PairDayData_filter {
+  id: ID
+  id_not: ID
+  id_gt: ID
+  id_lt: ID
+  id_gte: ID
+  id_lte: ID
+  id_in: [ID!]
+  id_not_in: [ID!]
+  date: Int
+  date_not: Int
+  date_gt: Int
+  date_lt: Int
+  date_gte: Int
+  date_lte: Int
+  date_in: [Int!]
+  date_not_in: [Int!]
+  pairAddress: String! #Bytes
+  # pairAddress_not: Bytes
+  # pairAddress_in: [Bytes!]
+  # pairAddress_not_in: [Bytes!]
+  # pairAddress_contains: Bytes
+  # pairAddress_not_contains: Bytes
+}
+
+enum PairDayData_orderBy {
+  id
+  date
+  pairAddress
+  token0
+  token1
+  # reserve0
+  # reserve1
+  # totalSupply
+  # reserveUSD
+  # dailyVolumeToken0
+  # dailyVolumeToken1
+  dailyVolumeUSD
+  # dailyTxns
+}
+# input PairDayData_orderBy {
+#   id: Sort
+#   date: Sort
+#   pairAddress: Sort
+#   token0: Sort
+#   token1: Sort
+#   reserve0: Sort
+#   reserve1: Sort
+#   totalSupply: Sort
+#   reserveUSD: Sort
+#   dailyVolumeToken0: Sort
+#   dailyVolumeToken1: Sort
+#   dailyVolumeUSD: Sort
+#   dailyTxns: Sort
+# }
+
+enum OrderDirection {
+  asc
+  desc
+}

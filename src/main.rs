@@ -14,8 +14,27 @@ use mongodb::{
 };
 use serde::{Deserialize, Serialize};
 
+use reqwest::Client as ReqwestClient;
+// use ::reqwest::blocking::Client as ReqwestClient;
+// use anyhow::*;
+use clap::Parser;
+use graphql_client::{reqwest::post_graphql_blocking as post_graphql, GraphQLQuery};
+// use graphql_client::{reqwest::post_graphql_blocking as post_graphql, GraphQLQuery};
+// use log::*;
+// use prettytable::*;
+
 use core::time;
 use std::{convert::TryFrom, fmt, sync::Arc, thread};
+
+use crate::pd_ds::Variables;
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/schema.graphql",
+    query_path = "src/query_1.graphql",
+    response_derives = "Debug"
+)]
+struct PDDs;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct DBPool {
@@ -381,6 +400,8 @@ async fn c(// protocols: Vec<(
 
                 let pool_addr = ethers::utils::to_checksum(&lp_token.to_owned(), None);
                 println!("pool_addr: {:?}", pool_addr);
+                let pool_addr1 = ethers::utils::to_checksum(&lp_token.to_owned(), None);
+                println!("pool_addr1: {:?}", pool_addr1);
 
                 let ms = format!("{:?}", lp_token.to_owned());
                 println!("ms: {}", ms,);
@@ -493,6 +514,36 @@ async fn c(// protocols: Vec<(
                         // let trading_apr = (0.002 * 365.0 * 100.0) / (pool_tvl as f64 * pool_price);
                     }
 
+                    // let variables = Variables {
+                    //     pa: "0xE28459075c806b1bFa72A38E669CCd6Fb4125f6a".to_string(), // format!("{:?}", lp_token.to_owned()),
+                    // };
+
+                    // // let rclient = ReqwestClient::builder()
+                    // //     .user_agent("graphql-rust/0.10.0")
+                    // //     .build()?;
+
+                    // // let response_body = post_graphql::<PDDs, _>(
+                    // //     &rclient,
+                    // //     "https://api.thegraph.com/subgraphs/name/stellaswap/stella-swap/graphql",
+                    // //     variables,
+                    // // )
+                    // // .unwrap();
+                    // println!("vars");
+                    // let request_body = PDDs::build_query(variables);
+                    // // println!("rbd {:?}", request_body);
+                    // let rclient = reqwest::Client::new();
+                    // println!("rcl");
+                    // let mut res = rclient
+                    //     .post("https://api.thegraph.com/subgraphs/name/stellaswap/stella-swap")
+                    //     .json(&request_body)
+                    //     .send()
+                    //     .await?;
+                    // println!("rres {:?}", res);
+                    // let response_body: Response<pd_ds::ResponseData> = res.json().await?;
+
+                    // // println!("{:#?}", response_body);
+                    // println!("respbody: {:#?}", response_body);
+
                     let ff = doc! {
                         "chain": p.2.clone(),
                         "protocol": p.3.clone(),
@@ -506,7 +557,7 @@ async fn c(// protocols: Vec<(
                             "tvl": pool_tvl as f64 * pool_price / ten.powf(18.0),
                             "asset": {
                                 "name": asset.name,
-                                "address": asset.address,
+                                "address": pool_addr1,
                                 "tokens": [
                                     {
                                         "name": asset.tokens[0].name.clone(),
