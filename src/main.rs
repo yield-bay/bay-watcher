@@ -8,13 +8,14 @@ use ethers::{
 };
 use eyre::Result;
 use mongodb::{
-    bson::{bson, doc, Array, Bson},
+    bson::{bson, doc},
     options::{ClientOptions, FindOneAndUpdateOptions},
     Client,
 };
 use serde::{Deserialize, Serialize};
 
-use std::{convert::TryFrom, fmt, sync::Arc};
+use core::time;
+use std::{convert::TryFrom, fmt, sync::Arc, thread};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct DBPool {
@@ -121,7 +122,7 @@ pub struct Reward {
     amount: f64,
     token: Token,
     value_usd: f64,
-    freq: Freq,
+    freq: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
@@ -134,14 +135,24 @@ pub struct APR {
 struct Farm {
     chain: String,
     protocol: String,
-    farm_type: FarmType,
-    farm_implementation: FarmImplementation,
+    farm_type: String,
+    farm_implementation: String,
     asset: Asset,
     id: i32,
     tvl: f64,
     rewards: Vec<Reward>,
     apr: APR,
     url: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct NodeList<T> {
+    data: Vec<T>,
+}
+
+#[derive(Deserialize, Debug)]
+struct SData {
+    farms: NodeList<Farm>,
 }
 
 abigen!(
@@ -160,6 +171,98 @@ async fn main() -> Result<()> {
     println!("\nStart!\n");
     dotenv().ok();
 
+    // // Parse a connection string into an options struct.
+    // let mongo_uri = dotenv::var("DB_CONN_STRING").unwrap();
+    // println!("mongo_uri: {}", mongo_uri);
+
+    // // Parse a connection string into an options struct.
+    // let mut client_options = ClientOptions::parse(mongo_uri).await?;
+
+    // // Manually set an option.
+    // client_options.app_name = Some("My App".to_string());
+
+    // // Get a handle to the deployment.
+    // let client = Client::with_options(client_options)?;
+
+    // // Get a handle to a database.
+    // let db = client.database("myFirstDatabase");
+
+    // Get a handle to a collection in the database.
+    // let pools_collection = db.collection::<DBPool>("pools");
+    // let tokens_collection = db.collection::<DBToken>("tokens");
+
+    // let farms_collection = db.collection::<Farm>("farms");
+
+    // let pk = dotenv::var("PRIVATE_KEY").unwrap();
+    // let wallet: LocalWallet = pk.parse().expect("fail parse");
+
+    // let moonriver_url = dotenv::var("MOONRIVER_URL").unwrap();
+    // let moonbeam_url = dotenv::var("MOONBEAM_URL").unwrap();
+
+    // let moonriver_provider_service =
+    //     Provider::<Http>::try_from(moonriver_url.clone()).expect("failed");
+    // let moonriver_provider = SignerMiddleware::new(moonriver_provider_service, wallet.clone());
+
+    // let moonbeam_provider_service =
+    //     Provider::<Http>::try_from(moonbeam_url.clone()).expect("failed");
+    // let moonbeam_provider = SignerMiddleware::new(moonbeam_provider_service, wallet.clone());
+
+    // let moonriver_client = SignerMiddleware::new(moonriver_provider.clone(), wallet.clone());
+    // let moonriver_client = Arc::new(moonriver_client);
+
+    // let moonbeam_client = SignerMiddleware::new(moonbeam_provider.clone(), wallet.clone());
+    // let moonbeam_client = Arc::new(moonbeam_client);
+
+    // let solarbeam_chef_address = "0x0329867a8c457e9F75e25b0685011291CD30904F".parse::<Address>()?;
+    // let solarbeam_chef = IChefV2::new(solarbeam_chef_address, Arc::clone(&moonriver_client));
+
+    // let stella_chef_address = "0xF3a5454496E26ac57da879bf3285Fa85DEBF0388".parse::<Address>()?;
+    // let stella_chef = IChefV2::new(stella_chef_address, Arc::clone(&moonbeam_client));
+
+    // let _chains = vec![
+    //     (moonriver_url, moonriver_client),
+    //     (moonbeam_url, moonbeam_client),
+    // ];
+    // let protocols = vec![
+    //     (
+    //         stella_chef_address,
+    //         stella_chef,
+    //         "moonbeam".to_string(),
+    //         "stellaswap".to_string(),
+    //     ),
+    //     (
+    //         solarbeam_chef_address,
+    //         solarbeam_chef,
+    //         "moonriver".to_string(),
+    //         "solarbeam".to_string(),
+    //     ),
+    // ];
+    let delay = time::Duration::from_secs(120);
+    loop {
+        c().await;
+        thread::sleep(delay);
+    }
+
+    Ok(())
+}
+
+async fn c(// protocols: Vec<(
+    //     H160,
+    //     IChefV2<
+    //         SignerMiddleware<
+    //             SignerMiddleware<Provider<Http>, Wallet<SigningKey>>,
+    //             Wallet<SigningKey>,
+    //         >,
+    //     >,
+    //     String,
+    //     String,
+    // )>,
+    // pools_collection: Collection<DBPool>,
+    // tokens_collection: Collection<DBToken>,
+    // farms_collection: Collection<Farm>,
+) -> Result<()> {
+    // Result<()> {
+
     // Parse a connection string into an options struct.
     let mongo_uri = dotenv::var("DB_CONN_STRING").unwrap();
     println!("mongo_uri: {}", mongo_uri);
@@ -173,20 +276,9 @@ async fn main() -> Result<()> {
     // Get a handle to the deployment.
     let client = Client::with_options(client_options)?;
 
-    // List the names of the databases in that deployment.
-    for db_name in client.list_database_names(None, None).await? {
-        println!("{}", db_name);
-    }
-
     // Get a handle to a database.
     let db = client.database("myFirstDatabase");
 
-    // List the names of the collections in that database.
-    for collection_name in db.list_collection_names(None).await? {
-        println!("{}", collection_name);
-    }
-
-    // Get a handle to a collection in the database.
     let pools_collection = db.collection::<DBPool>("pools");
     let tokens_collection = db.collection::<DBToken>("tokens");
 
@@ -237,9 +329,7 @@ async fn main() -> Result<()> {
         ),
     ];
 
-    // lpToken address, allocPoint uint256, lastRewardTimestamp uint256, accSolarPerShare uint256, depositFeeBP uint16, harvestInterval uint256, totalLp uint256
-
-    for p in protocols {
+    for p in protocols.clone() {
         let pool_length = p.1.pool_length().call().await?;
 
         for pid in 0..pool_length.as_u32() {
@@ -287,7 +377,7 @@ async fn main() -> Result<()> {
             if rewards_per_sec.len() > 0 {
                 let mut total_farm_apr = 0.0;
                 let mut farm_type = FarmType::StandardAmm;
-                let mut farm_implementation = FarmImplementation::Solidity;
+                let farm_implementation = FarmImplementation::Solidity;
 
                 let pool_addr = ethers::utils::to_checksum(&lp_token.to_owned(), None);
                 println!("pool_addr: {:?}", pool_addr);
@@ -408,11 +498,12 @@ async fn main() -> Result<()> {
                         "protocol": p.3.clone(),
                         "id": pid as i32,
                     };
+                    let ten: f64 = 10.0;
                     let uu = doc! {
                         "$set" : {
                             "farm_type": farm_type.to_string(),
                             "farm_implementation": farm_implementation.to_string(),
-                            "tvl": pool_tvl as f64 * pool_price,
+                            "tvl": pool_tvl as f64 * pool_price / ten.powf(18.0),
                             "asset": {
                                 "name": asset.name,
                                 "address": asset.address,
@@ -454,8 +545,8 @@ async fn main() -> Result<()> {
                         .await?;
                 } else {
                     // TODO: doesn't work for stable amm pools, veSolar
-                    println!("can't find pool");
                     farm_type = FarmType::StableAmm;
+                    println!("can't find pool. farm_type: {:?}", farm_type.to_string());
                 }
 
                 // for i in 0..symbols.len() {
@@ -580,6 +671,10 @@ async fn main() -> Result<()> {
             }
         }
     }
-
-    Ok(())
+    Ok((
+        // protocols,
+        // pools_collection,
+        // tokens_collection,
+        // farms_collection,
+    ))
 }

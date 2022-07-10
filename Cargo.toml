@@ -18,3 +18,11 @@ tokio = { version = "1.19.2", features = ["full"] }
 dotenv = "0.15.0"
 rust-crypto = "0.2.36"
 futures = "0.3"
+cynic = { version = "0.10", features = ["surf"] }
+surf = "2.0.0"
+reqwest = { version = "0.11", features = ["json"] }
+#gql_client = "0.2.1"
+gql_client = "1.0.6"
+
+[dev-dependencies]
+insta = "0.16"
