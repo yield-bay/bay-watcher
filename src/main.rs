@@ -578,12 +578,8 @@ async fn c(// protocols: Vec<(
                                     }
                                 ],
                             },
-                            "apr": {
-                                "farm": total_farm_apr,
-                                "trading": 0.0,
-                                "reward": total_farm_apr,
-                                "base": 0.0,
-                            },
+                            "apr.farm": total_farm_apr,
+                            "apr.reward": total_farm_apr,
                             "rewards": rewards,
                             "url": ""
                         }
