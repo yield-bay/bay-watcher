@@ -147,7 +147,9 @@ pub struct Reward {
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct APR {
     farm: f64,
+    reward: f64,
     trading: f64,
+    base: f64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -579,6 +581,8 @@ async fn c(// protocols: Vec<(
                             "apr": {
                                 "farm": total_farm_apr,
                                 "trading": 0.0,
+                                "reward": total_farm_apr,
+                                "base": 0.0,
                             },
                             "rewards": rewards,
                             "url": ""
