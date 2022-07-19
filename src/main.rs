@@ -331,11 +331,20 @@ async fn c(// protocols: Vec<(
     let stella_chef_address = "0xF3a5454496E26ac57da879bf3285Fa85DEBF0388".parse::<Address>()?;
     let stella_chef = IChefV2::new(stella_chef_address, Arc::clone(&moonbeam_client));
 
+    let beam_chef_address = "0xC6ca172FC8BDB803c5e12731109744fb0200587b".parse::<Address>()?;
+    let beam_chef = IChefV2::new(beam_chef_address, Arc::clone(&moonbeam_client));
+
     let _chains = vec![
         (moonriver_url, moonriver_client),
         (moonbeam_url, moonbeam_client),
     ];
     let protocols = vec![
+        (
+            beam_chef_address,
+            beam_chef,
+            "moonbeam".to_string(),
+            "beamswap".to_string(),
+        ),
         (
             stella_chef_address,
             stella_chef,
@@ -431,59 +440,60 @@ async fn c(// protocols: Vec<(
 
                         let token_filter = doc! { "address": token_addr };
                         let token = tokens_collection.find_one(token_filter, None).await?;
-                        let token_price = token.clone().unwrap().price;
-                        println!("token_price: {:?}", token_price);
+                        if token.is_some() {
+                            let token_price = token.clone().unwrap().price;
+                            println!("token_price: {:?}", token_price);
 
-                        pool_price = pool.clone().unwrap().price;
-                        println!("pool_price: {:?}", pool_price);
+                            pool_price = pool.clone().unwrap().price;
+                            println!("pool_price: {:?}", pool_price);
 
-                        let rewards_per_day: u128 = rewards_per_sec[i].as_u128() * 60 * 60 * 24;
-                        pool_tvl = total_lp.as_u128();
+                            let rewards_per_day: u128 = rewards_per_sec[i].as_u128() * 60 * 60 * 24;
+                            pool_tvl = total_lp.as_u128();
 
-                        // pool.clone().unwrap().token0symbol.push_str(
-                        //     format!("-{}", pool.clone().unwrap().token1symbol.as_str()).as_str(),
-                        // );
-                        asset = Asset {
-                            name: format!(
-                                "{}-{} LP",
-                                pool.clone().unwrap().token0symbol.as_str(),
-                                pool.clone().unwrap().token1symbol.as_str()
-                            ),
-                            address: format!("{:?}", lp_token.to_owned()),
-                            tokens: vec![
-                                Token {
-                                    name: pool.clone().unwrap().token0name,
-                                    address: pool.clone().unwrap().token0address,
-                                    symbol: pool.clone().unwrap().token0symbol,
-                                    decimals: pool.clone().unwrap().token0decimals,
-                                    price: 0.0,
-                                    logo: pool.clone().unwrap().token0Logo,
-                                },
-                                Token {
-                                    name: pool.clone().unwrap().token1name,
-                                    address: pool.clone().unwrap().token1address,
-                                    symbol: pool.clone().unwrap().token1symbol,
-                                    decimals: pool.clone().unwrap().token1decimals,
-                                    price: 0.0,
-                                    logo: pool.clone().unwrap().token1Logo,
-                                },
-                            ],
-                        };
-                        // rewards.push(Reward {
-                        //     amount: rewards_per_day as f64,
-                        //     token: Token {
-                        //         name: token.clone().unwrap().name,
-                        //         address: token.clone().unwrap().address,
-                        //         symbol: token.clone().unwrap().symbol,
-                        //         decimals: token.clone().unwrap().decimals,
-                        //         price: token.clone().unwrap().price,
-                        //         logo: token.clone().unwrap().logo,
-                        //     },
-                        //     value_usd: rewards_per_day as f64 * token_price,
-                        //     freq: Freq::Daily,
-                        // });
-                        let ten: i128 = 10;
-                        rewards.push(bson! ({
+                            // pool.clone().unwrap().token0symbol.push_str(
+                            //     format!("-{}", pool.clone().unwrap().token1symbol.as_str()).as_str(),
+                            // );
+                            asset = Asset {
+                                name: format!(
+                                    "{}-{} LP",
+                                    pool.clone().unwrap().token0symbol.as_str(),
+                                    pool.clone().unwrap().token1symbol.as_str()
+                                ),
+                                address: format!("{:?}", lp_token.to_owned()),
+                                tokens: vec![
+                                    Token {
+                                        name: pool.clone().unwrap().token0name,
+                                        address: pool.clone().unwrap().token0address,
+                                        symbol: pool.clone().unwrap().token0symbol,
+                                        decimals: pool.clone().unwrap().token0decimals,
+                                        price: 0.0,
+                                        logo: pool.clone().unwrap().token0Logo,
+                                    },
+                                    Token {
+                                        name: pool.clone().unwrap().token1name,
+                                        address: pool.clone().unwrap().token1address,
+                                        symbol: pool.clone().unwrap().token1symbol,
+                                        decimals: pool.clone().unwrap().token1decimals,
+                                        price: 0.0,
+                                        logo: pool.clone().unwrap().token1Logo,
+                                    },
+                                ],
+                            };
+                            // rewards.push(Reward {
+                            //     amount: rewards_per_day as f64,
+                            //     token: Token {
+                            //         name: token.clone().unwrap().name,
+                            //         address: token.clone().unwrap().address,
+                            //         symbol: token.clone().unwrap().symbol,
+                            //         decimals: token.clone().unwrap().decimals,
+                            //         price: token.clone().unwrap().price,
+                            //         logo: token.clone().unwrap().logo,
+                            //     },
+                            //     value_usd: rewards_per_day as f64 * token_price,
+                            //     freq: Freq::Daily,
+                            // });
+                            let ten: i128 = 10;
+                            rewards.push(bson! ({
                             "amount": rewards_per_day as f64 / ten.pow(decimals[i].as_u128().try_into().unwrap()) as f64,
                             "token":  {
                                 "name": token.clone().unwrap().name,
@@ -497,23 +507,24 @@ async fn c(// protocols: Vec<(
                             "freq": Freq::Daily.to_string(),
                         }));
 
-                        // poolAPR
-                        println!(
-                            "rewards/sec: {} rewards/day: {} pool_tvl: {}",
-                            rewards_per_sec[i].as_u128(),
-                            rewards_per_day,
-                            pool_tvl
-                        );
-                        let farm_apr = ((rewards_per_day as f64 * token_price)
-                            / (pool_tvl as f64 * pool_price))
-                            * 365.0
-                            * 100.0;
-                        println!("farmAPR: {}", farm_apr);
-                        total_farm_apr += farm_apr;
+                            // poolAPR
+                            println!(
+                                "rewards/sec: {} rewards/day: {} pool_tvl: {}",
+                                rewards_per_sec[i].as_u128(),
+                                rewards_per_day,
+                                pool_tvl
+                            );
+                            let farm_apr = ((rewards_per_day as f64 * token_price)
+                                / (pool_tvl as f64 * pool_price))
+                                * 365.0
+                                * 100.0;
+                            println!("farmAPR: {}", farm_apr);
+                            total_farm_apr += farm_apr;
 
-                        // feeAPR
-                        // let trading_apr = (lastDayVolume * 0.002 * 365 * 100) / pairLiquidity;
-                        // let trading_apr = (0.002 * 365.0 * 100.0) / (pool_tvl as f64 * pool_price);
+                            // feeAPR
+                            // let trading_apr = (lastDayVolume * 0.002 * 365 * 100) / pairLiquidity;
+                            // let trading_apr = (0.002 * 365.0 * 100.0) / (pool_tvl as f64 * pool_price);
+                        }
                     }
 
                     // let variables = Variables {
