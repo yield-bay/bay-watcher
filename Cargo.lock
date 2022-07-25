@@ -1520,8 +1520,7 @@ checksum = "9b919933a397b79c37e33b77bb2aa3dc8eb6e165ad809e58ff75bc7db2e34574"
 [[package]]
 name = "gql_client"
 version = "1.0.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2ad0b978ded703acd23762f99e0f701450c9d0066912c0d7f9bf65bf017d87d"
+source = "git+https://github.com/yield-bay/gql-client-rs?rev=ab80db6b2239eee072870b4bf4ea2975ed900be7#ab80db6b2239eee072870b4bf4ea2975ed900be7"
 dependencies = [
  "log",
  "reqwest",

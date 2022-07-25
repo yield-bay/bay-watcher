@@ -1,6 +1,7 @@
-use std::{collections::HashMap, str::FromStr};
+use std::{collections::HashMap, str::FromStr, thread, time};
 
 use chrono::prelude::Utc;
+use dotenv::dotenv;
 use ethers::{
     middleware::SignerMiddleware,
     prelude::Address,
@@ -20,6 +21,16 @@ mod subgraph;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let delay = time::Duration::from_secs(60 * 2);
+    loop {
+        run_jobs().await;
+        thread::sleep(delay);
+    }
+}
+
+async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
+    dotenv().ok();
+
     // Parse a connection string into an options struct.
     let mongo_uri = dotenv::var("DB_CONN_STRING").unwrap();
     println!("mongo_uri: {}", mongo_uri);
@@ -52,85 +63,85 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "https://api.thegraph.com/subgraphs/name/solarbeamio/solarflare-blocklytics";
 
     let tokens_query = r#"
-        query {
-            tokens(orderBy: tradeVolumeUSD, orderDirection: desc, first: 1000) {
-                id
-                symbol
-                name
-                decimals
-                totalLiquidity
-                derivedETH
-                tokenDayData(first: 1, orderBy: date, orderDirection: desc) {
-                    priceUSD
-                }
-            }
-            bundles(first: 1) {
-                ethPrice
-            }
-        }
-    "#;
+         query {
+             tokens(orderBy: tradeVolumeUSD, orderDirection: desc, first: 1000) {
+                 id
+                 symbol
+                 name
+                 decimals
+                 totalLiquidity
+                 derivedETH
+                 tokenDayData(first: 1, orderBy: date, orderDirection: desc) {
+                     priceUSD
+                 }
+             }
+             bundles(first: 1) {
+                 ethPrice
+             }
+         }
+     "#;
 
     let pairs_query = r#"
-        query {
-            pairs(orderBy: reserveUSD, orderDirection: desc, first: 1000) {
-                id
-                reserveUSD
-                volumeUSD
-                untrackedVolumeUSD
-                totalSupply
-                reserve0
-                reserve1
-                token0Price
-                token1Price
-                token0 {
-                    id
-                    symbol
-                    name
-                    decimals
-                    totalLiquidity
-                    tokenDayData(first: 1, orderBy: date, orderDirection: desc) {
-                        priceUSD
-                    }
-                }
-                token1 {
-                    id
-                    symbol
-                    name
-                    decimals
-                    totalLiquidity
-                    tokenDayData(first: 1, orderBy: date, orderDirection: desc) {
-                        priceUSD
-                    }
-                }
-            }
-        }
-    "#;
+         query {
+             pairs(orderBy: reserveUSD, orderDirection: desc, first: 1000) {
+                 id
+                 reserveUSD
+                 volumeUSD
+                 untrackedVolumeUSD
+                 totalSupply
+                 reserve0
+                 reserve1
+                 token0Price
+                 token1Price
+                 token0 {
+                     id
+                     symbol
+                     name
+                     decimals
+                     totalLiquidity
+                     tokenDayData(first: 1, orderBy: date, orderDirection: desc) {
+                         priceUSD
+                     }
+                 }
+                 token1 {
+                     id
+                     symbol
+                     name
+                     decimals
+                     totalLiquidity
+                     tokenDayData(first: 1, orderBy: date, orderDirection: desc) {
+                         priceUSD
+                     }
+                 }
+             }
+         }
+     "#;
 
     let _one_day_blocks_query = r#"
-        query OneDayBlocks($start: Int!, $end: Int!) {
-            blocks(
-                first: 1
-                orderBy: timestamp
-                orderDirection: asc
-                where: { timestamp_gt: $start, timestamp_lt: $end }
-            ) {
-                id
-                number
-                timestamp
-            }
-        }
-    "#;
+         query OneDayBlocks($start: Int!, $end: Int!) {
+             blocks(
+                 first: 1
+                 orderBy: timestamp
+                 orderDirection: asc
+                 where: { timestamp_gt: $start, timestamp_lt: $end }
+             ) {
+                 id
+                 number
+                 timestamp
+             }
+         }
+     "#;
 
     let _one_day_pools_query = r#"
-        query OneDayPools($blocknum: Int!) {
-            pairs(orderBy: reserveUSD, orderDirection: desc, first: 1000, block: { number: $blocknum }) {
-                id
-                reserveUSD
-                volumeUSD
-                untrackedVolumeUSD
-            }
-        }
-    "#;
+         query OneDayPools($blocknum: Int!) {
+             pairs(orderBy: reserveUSD, orderDirection: desc, first: 1000, block: { number: $blocknum }) {
+                 id
+                 reserveUSD
+                 volumeUSD
+                 untrackedVolumeUSD
+             }
+         }
+     "#;
 
     let solarbeam_client = Client::new_with_headers(solarbeam_subgraph.clone(), headers.clone());
     let stellaswap_client = Client::new_with_headers(stellaswap_subgraph.clone(), headers.clone());
@@ -216,7 +227,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 let timestamp = Utc::now().to_string();
 
-                println!("lastUpdatedAtUTC {}", timestamp.clone());
+                println!("token lastUpdatedAtUTC {}", timestamp.clone());
 
                 let u = doc! {
                     "$set" : {
@@ -328,7 +339,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 let timestamp = Utc::now().to_string();
 
-                println!("lastUpdatedAtUTC {}", timestamp.clone());
+                println!("pair lastUpdatedAtUTC {}", timestamp.clone());
 
                 let u = doc! {
                     "$set" : {
