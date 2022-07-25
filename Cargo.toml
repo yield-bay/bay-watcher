@@ -7,28 +7,23 @@ edition = "2021"
 
 [dependencies]
 
+chrono = "0.4"
+clap = { version = "^3.0", features = ["derive"] }
+dotenv = "0.15.0"
+env_logger = "^0.5"
 ethers = "0.13"
 ethers-providers = "0.13.0"
-# ethers = { version = "0.13", features = ["legacy"] }
 eyre = "0.6.8"
+futures = "0.3"
+gql_client = "1.0.6"
+json-decode = "0.6.0"
+log = "^0.4"
 mongodb = "2.2.0"
+prettytable-rs = "^0.7"
+rust-crypto = "0.2.36"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.81"
 tokio = { version = "1.19.2", features = ["full"] }
-dotenv = "0.15.0"
-rust-crypto = "0.2.36"
-futures = "0.3"
-cynic = { version = "0.10", features = ["surf"] }
-surf = "2.0.0"
-#gql_client = "0.2.1"
-gql_client = "1.0.6"
-anyhow = "1.0"
-graphql_client = { version = "0.11.0", features = ["reqwest-blocking"] }
-reqwest = { version = "^0.11", features = ["json"] }#, "blocking"] }
-prettytable-rs = "^0.7"
-clap = { version = "^3.0", features = ["derive"] }
-log = "^0.4"
-env_logger = "^0.5"
 
 [dev-dependencies]
 insta = "0.16"

@@ -1,289 +1,25 @@
-use dotenv::dotenv;
+use std::{collections::HashMap, str::FromStr};
+
+use chrono::prelude::Utc;
 use ethers::{
     middleware::SignerMiddleware,
-    prelude::*,
+    prelude::Address,
     providers::{Http, Provider},
     signers::LocalWallet,
-    types::Address,
+    utils::to_checksum,
 };
-use eyre::Result;
+use gql_client::Client;
 use mongodb::{
-    bson::{bson, doc},
+    bson::doc,
     options::{ClientOptions, FindOneAndUpdateOptions},
-    Client,
+    Client as MongoClient,
 };
-use serde::{Deserialize, Serialize};
 
-use reqwest::Client as ReqwestClient;
-// use ::reqwest::blocking::Client as ReqwestClient;
-// use anyhow::*;
-use clap::Parser;
-use graphql_client::{reqwest::post_graphql_blocking as post_graphql, GraphQLQuery};
-// use graphql_client::{reqwest::post_graphql_blocking as post_graphql, GraphQLQuery};
-// use log::*;
-// use prettytable::*;
-
-use core::time;
-use std::{convert::TryFrom, fmt, sync::Arc, thread};
-
-use crate::pd_ds::Variables;
-
-#[derive(GraphQLQuery)]
-#[graphql(
-    schema_path = "src/schema.graphql",
-    query_path = "src/query_1.graphql",
-    response_derives = "Debug"
-)]
-struct PDDs;
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct DBPool {
-    address: String,
-    token0address: String,
-    token1address: String,
-    token0symbol: String,
-    token1symbol: String,
-    token0name: String,
-    token1name: String,
-    token0decimals: i32,
-    token1decimals: i32,
-    chainId: i32,
-    feesAPR: f64,
-    official: bool,
-    community: bool,
-    price: f64,
-    reserveUSD: f64,
-    oneDayVolumeUSD: f64,
-    totalSupply: f64,
-    token0Logo: String,
-    token1Logo: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct DBToken {
-    name: String,
-    symbol: String,
-    address: String,
-    decimals: i32,
-    chainId: i32,
-    official: bool,
-    community: bool,
-    price: f64,
-    liquidity: f64,
-    logo: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
-enum FarmType {
-    StandardAmm,
-    StableAmm,
-    SingleStaking,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
-pub enum FarmImplementation {
-    Solidity,
-    Ink,
-    Pallet,
-}
-
-impl fmt::Display for FarmType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
-        // or, alternatively:
-        // fmt::Debug::fmt(self, f)
-    }
-}
-
-impl fmt::Display for FarmImplementation {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
-        // or, alternatively:
-        // fmt::Debug::fmt(self, f)
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Token {
-    name: String,
-    address: String,
-    symbol: String,
-    decimals: i32,
-    price: f64,
-    logo: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Asset {
-    name: String,
-    address: String,
-    tokens: Vec<Token>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
-pub enum Freq {
-    Daily,
-    Weekly,
-    Monthly,
-    Annually,
-}
-
-impl fmt::Display for Freq {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
-        // or, alternatively:
-        // fmt::Debug::fmt(self, f)
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Reward {
-    amount: f64,
-    token: Token,
-    value_usd: f64,
-    freq: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
-pub struct APR {
-    farm: f64,
-    reward: f64,
-    trading: f64,
-    base: f64,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct Farm {
-    chain: String,
-    protocol: String,
-    farm_type: String,
-    farm_implementation: String,
-    asset: Asset,
-    id: i32,
-    tvl: f64,
-    rewards: Vec<Reward>,
-    apr: APR,
-    url: String,
-}
-
-#[derive(Deserialize, Debug)]
-struct NodeList<T> {
-    data: Vec<T>,
-}
-
-#[derive(Deserialize, Debug)]
-struct SData {
-    farms: NodeList<Farm>,
-}
-
-abigen!(
-    IChefV2,
-    r#"[
-        function poolLength() external view returns (uint256)
-        function poolInfo(uint256) external view returns (address, uint256, uint256, uint256, uint16, uint256, uint256)
-        function poolTotalLp(uint256) external view returns (uint256)
-        function poolRewarders(uint256) external view returns (address [])
-        function poolRewardsPerSec(uint256) external view returns (address[], string[], uint256[], uint256[])
-    ]"#,
-);
+mod models;
+mod subgraph;
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    println!("\nStart!\n");
-    dotenv().ok();
-
-    // // Parse a connection string into an options struct.
-    // let mongo_uri = dotenv::var("DB_CONN_STRING").unwrap();
-    // println!("mongo_uri: {}", mongo_uri);
-
-    // // Parse a connection string into an options struct.
-    // let mut client_options = ClientOptions::parse(mongo_uri).await?;
-
-    // // Manually set an option.
-    // client_options.app_name = Some("My App".to_string());
-
-    // // Get a handle to the deployment.
-    // let client = Client::with_options(client_options)?;
-
-    // // Get a handle to a database.
-    // let db = client.database("myFirstDatabase");
-
-    // Get a handle to a collection in the database.
-    // let pools_collection = db.collection::<DBPool>("pools");
-    // let tokens_collection = db.collection::<DBToken>("tokens");
-
-    // let farms_collection = db.collection::<Farm>("farms");
-
-    // let pk = dotenv::var("PRIVATE_KEY").unwrap();
-    // let wallet: LocalWallet = pk.parse().expect("fail parse");
-
-    // let moonriver_url = dotenv::var("MOONRIVER_URL").unwrap();
-    // let moonbeam_url = dotenv::var("MOONBEAM_URL").unwrap();
-
-    // let moonriver_provider_service =
-    //     Provider::<Http>::try_from(moonriver_url.clone()).expect("failed");
-    // let moonriver_provider = SignerMiddleware::new(moonriver_provider_service, wallet.clone());
-
-    // let moonbeam_provider_service =
-    //     Provider::<Http>::try_from(moonbeam_url.clone()).expect("failed");
-    // let moonbeam_provider = SignerMiddleware::new(moonbeam_provider_service, wallet.clone());
-
-    // let moonriver_client = SignerMiddleware::new(moonriver_provider.clone(), wallet.clone());
-    // let moonriver_client = Arc::new(moonriver_client);
-
-    // let moonbeam_client = SignerMiddleware::new(moonbeam_provider.clone(), wallet.clone());
-    // let moonbeam_client = Arc::new(moonbeam_client);
-
-    // let solarbeam_chef_address = "0x0329867a8c457e9F75e25b0685011291CD30904F".parse::<Address>()?;
-    // let solarbeam_chef = IChefV2::new(solarbeam_chef_address, Arc::clone(&moonriver_client));
-
-    // let stella_chef_address = "0xF3a5454496E26ac57da879bf3285Fa85DEBF0388".parse::<Address>()?;
-    // let stella_chef = IChefV2::new(stella_chef_address, Arc::clone(&moonbeam_client));
-
-    // let _chains = vec![
-    //     (moonriver_url, moonriver_client),
-    //     (moonbeam_url, moonbeam_client),
-    // ];
-    // let protocols = vec![
-    //     (
-    //         stella_chef_address,
-    //         stella_chef,
-    //         "moonbeam".to_string(),
-    //         "stellaswap".to_string(),
-    //     ),
-    //     (
-    //         solarbeam_chef_address,
-    //         solarbeam_chef,
-    //         "moonriver".to_string(),
-    //         "solarbeam".to_string(),
-    //     ),
-    // ];
-    let delay = time::Duration::from_secs(120);
-    loop {
-        c().await;
-        thread::sleep(delay);
-    }
-
-    Ok(())
-}
-
-async fn c(// protocols: Vec<(
-    //     H160,
-    //     IChefV2<
-    //         SignerMiddleware<
-    //             SignerMiddleware<Provider<Http>, Wallet<SigningKey>>,
-    //             Wallet<SigningKey>,
-    //         >,
-    //     >,
-    //     String,
-    //     String,
-    // )>,
-    // pools_collection: Collection<DBPool>,
-    // tokens_collection: Collection<DBToken>,
-    // farms_collection: Collection<Farm>,
-) -> Result<()> {
-    // Result<()> {
-
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse a connection string into an options struct.
     let mongo_uri = dotenv::var("DB_CONN_STRING").unwrap();
     println!("mongo_uri: {}", mongo_uri);
@@ -292,451 +28,346 @@ async fn c(// protocols: Vec<(
     let mut client_options = ClientOptions::parse(mongo_uri).await?;
 
     // Manually set an option.
-    client_options.app_name = Some("My App".to_string());
+    client_options.app_name = Some("Bay Watcher".to_string());
 
     // Get a handle to the deployment.
-    let client = Client::with_options(client_options)?;
+    let client = MongoClient::with_options(client_options)?;
 
     // Get a handle to a database.
-    let db = client.database("myFirstDatabase");
+    let db = client.database("bayCave");
 
-    let pools_collection = db.collection::<DBPool>("pools");
-    let tokens_collection = db.collection::<DBToken>("tokens");
+    let assets_collection = db.collection::<models::Asset>("assets");
+    // let farms_collection = db.collection::<models::Farm>("farms");
 
-    let farms_collection = db.collection::<Farm>("farms");
+    let mut headers = HashMap::new();
+    headers.insert("content-type", "application/json");
 
-    let pk = dotenv::var("PRIVATE_KEY").unwrap();
-    let wallet: LocalWallet = pk.parse().expect("fail parse");
+    let solarbeam_subgraph = "https://api.thegraph.com/subgraphs/name/solar-ape/solarbeam";
+    let stellaswap_subgraph = "https://api.thegraph.com/subgraphs/name/stellaswap/stella-swap";
+    let beamswap_subgraph = "https://api.thegraph.com/subgraphs/name/beamswap/beamswap-dex";
 
-    let moonriver_url = dotenv::var("MOONRIVER_URL").unwrap();
-    let moonbeam_url = dotenv::var("MOONBEAM_URL").unwrap();
+    let _solarbeam_blocklytics_subgraph =
+        "https://api.thegraph.com/subgraphs/name/solarbeamio/blocklytics";
+    let _solarflare_blocklytics_subgraph =
+        "https://api.thegraph.com/subgraphs/name/solarbeamio/solarflare-blocklytics";
 
-    let moonriver_provider_service =
-        Provider::<Http>::try_from(moonriver_url.clone()).expect("failed");
-    let moonriver_provider = SignerMiddleware::new(moonriver_provider_service, wallet.clone());
-
-    let moonbeam_provider_service =
-        Provider::<Http>::try_from(moonbeam_url.clone()).expect("failed");
-    let moonbeam_provider = SignerMiddleware::new(moonbeam_provider_service, wallet.clone());
-
-    let moonriver_client = SignerMiddleware::new(moonriver_provider.clone(), wallet.clone());
-    let moonriver_client = Arc::new(moonriver_client);
-
-    let moonbeam_client = SignerMiddleware::new(moonbeam_provider.clone(), wallet.clone());
-    let moonbeam_client = Arc::new(moonbeam_client);
-
-    let solarbeam_chef_address = "0x0329867a8c457e9F75e25b0685011291CD30904F".parse::<Address>()?;
-    let solarbeam_chef = IChefV2::new(solarbeam_chef_address, Arc::clone(&moonriver_client));
-
-    let stella_chef_address = "0xF3a5454496E26ac57da879bf3285Fa85DEBF0388".parse::<Address>()?;
-    let stella_chef = IChefV2::new(stella_chef_address, Arc::clone(&moonbeam_client));
-
-    let beam_chef_address = "0xC6ca172FC8BDB803c5e12731109744fb0200587b".parse::<Address>()?;
-    let beam_chef = IChefV2::new(beam_chef_address, Arc::clone(&moonbeam_client));
-
-    let _chains = vec![
-        (moonriver_url, moonriver_client),
-        (moonbeam_url, moonbeam_client),
-    ];
-    let protocols = vec![
-        (
-            beam_chef_address,
-            beam_chef,
-            "moonbeam".to_string(),
-            "beamswap".to_string(),
-        ),
-        (
-            stella_chef_address,
-            stella_chef,
-            "moonbeam".to_string(),
-            "stellaswap".to_string(),
-        ),
-        (
-            solarbeam_chef_address,
-            solarbeam_chef,
-            "moonriver".to_string(),
-            "solarbeam".to_string(),
-        ),
-    ];
-
-    for p in protocols.clone() {
-        let pool_length = p.1.pool_length().call().await?;
-
-        for pid in 0..pool_length.as_u32() {
-            println!("pid {}", pid);
-            let (
-                lp_token,
-                alloc_point,
-                last_reward_timestamp,
-                acc_solar_per_share,
-                deposit_fee_bp,
-                harvest_interval,
-                total_lp,
-            ): (Address, _, _, _, _, _, _) =
-                p.1.pool_info(ethers::prelude::U256::from(pid))
-                    .call()
-                    .await?;
-            println!(
-                "{}, {}, {}, {}, {}, {}, {}",
-                lp_token,
-                alloc_point,
-                last_reward_timestamp,
-                acc_solar_per_share,
-                deposit_fee_bp,
-                harvest_interval,
-                total_lp
-            );
-
-            let rewarders =
-                p.1.pool_rewarders(ethers::prelude::U256::from(pid))
-                    .call()
-                    .await?;
-            println!("rewarders: {:?}", rewarders);
-
-            let (addresses, symbols, decimals, rewards_per_sec) =
-                p.1.pool_rewards_per_sec(ethers::prelude::U256::from(pid))
-                    .call()
-                    .await?;
-
-            println!(
-                "pool_rewards_per_sec\naddresses: {:?}, symbols: {:?}, decimals: {:?}, rewards_per_sec: {:?}",
-                addresses, symbols, decimals, rewards_per_sec
-            );
-
-            // TODO: for multi reward farms, calc sum of aprs of all the reward tokens
-            if rewards_per_sec.len() > 0 {
-                let mut total_farm_apr = 0.0;
-                let mut farm_type = FarmType::StandardAmm;
-                let farm_implementation = FarmImplementation::Solidity;
-
-                let pool_addr = ethers::utils::to_checksum(&lp_token.to_owned(), None);
-                println!("pool_addr: {:?}", pool_addr);
-                let pool_addr1 = ethers::utils::to_checksum(&lp_token.to_owned(), None);
-                println!("pool_addr1: {:?}", pool_addr1);
-
-                let ms = format!("{:?}", lp_token.to_owned());
-                println!("ms: {}", ms,);
-                let pool_filter = doc! { "address": pool_addr };
-                let pool = pools_collection.find_one(pool_filter, None).await?;
-
-                let mut pool_price: f64 = 0.0;
-                let mut pool_tvl: u128 = 0;
-                let mut asset: Asset = Asset {
-                    name: "".to_string(),
-                    address: format!("{:?}", lp_token.to_owned()),
-                    tokens: vec![],
-                };
-                let mut rewards = vec![];
-
-                if pool.is_some() {
-                    for i in 0..symbols.len() {
-                        println!("rwrd[{}]", i);
-
-                        let s = format!("{:?}", symbols[i].clone());
-                        println!("symbol: {}", s);
-
-                        let token_addr = ethers::utils::to_checksum(&addresses[i].to_owned(), None);
-                        println!("token_addr: {:?}", token_addr);
-
-                        let token_filter = doc! { "address": token_addr };
-                        let token = tokens_collection.find_one(token_filter, None).await?;
-                        if token.is_some() {
-                            let token_price = token.clone().unwrap().price;
-                            println!("token_price: {:?}", token_price);
-
-                            pool_price = pool.clone().unwrap().price;
-                            println!("pool_price: {:?}", pool_price);
-
-                            let rewards_per_day: u128 = rewards_per_sec[i].as_u128() * 60 * 60 * 24;
-                            pool_tvl = total_lp.as_u128();
-
-                            // pool.clone().unwrap().token0symbol.push_str(
-                            //     format!("-{}", pool.clone().unwrap().token1symbol.as_str()).as_str(),
-                            // );
-                            asset = Asset {
-                                name: format!(
-                                    "{}-{} LP",
-                                    pool.clone().unwrap().token0symbol.as_str(),
-                                    pool.clone().unwrap().token1symbol.as_str()
-                                ),
-                                address: format!("{:?}", lp_token.to_owned()),
-                                tokens: vec![
-                                    Token {
-                                        name: pool.clone().unwrap().token0name,
-                                        address: pool.clone().unwrap().token0address,
-                                        symbol: pool.clone().unwrap().token0symbol,
-                                        decimals: pool.clone().unwrap().token0decimals,
-                                        price: 0.0,
-                                        logo: pool.clone().unwrap().token0Logo,
-                                    },
-                                    Token {
-                                        name: pool.clone().unwrap().token1name,
-                                        address: pool.clone().unwrap().token1address,
-                                        symbol: pool.clone().unwrap().token1symbol,
-                                        decimals: pool.clone().unwrap().token1decimals,
-                                        price: 0.0,
-                                        logo: pool.clone().unwrap().token1Logo,
-                                    },
-                                ],
-                            };
-                            // rewards.push(Reward {
-                            //     amount: rewards_per_day as f64,
-                            //     token: Token {
-                            //         name: token.clone().unwrap().name,
-                            //         address: token.clone().unwrap().address,
-                            //         symbol: token.clone().unwrap().symbol,
-                            //         decimals: token.clone().unwrap().decimals,
-                            //         price: token.clone().unwrap().price,
-                            //         logo: token.clone().unwrap().logo,
-                            //     },
-                            //     value_usd: rewards_per_day as f64 * token_price,
-                            //     freq: Freq::Daily,
-                            // });
-                            let ten: i128 = 10;
-                            rewards.push(bson! ({
-                            "amount": rewards_per_day as f64 / ten.pow(decimals[i].as_u128().try_into().unwrap()) as f64,
-                            "token":  {
-                                "name": token.clone().unwrap().name,
-                                "address": token.clone().unwrap().address,
-                                "symbol": token.clone().unwrap().symbol,
-                                "decimals": token.clone().unwrap().decimals,
-                                "price": token.clone().unwrap().price,
-                                "logo": token.clone().unwrap().logo,
-                            },
-                            "value_usd": (rewards_per_day as f64 / ten.pow(decimals[i].as_u128().try_into().unwrap()) as f64) * token_price,
-                            "freq": Freq::Daily.to_string(),
-                        }));
-
-                            // poolAPR
-                            println!(
-                                "rewards/sec: {} rewards/day: {} pool_tvl: {}",
-                                rewards_per_sec[i].as_u128(),
-                                rewards_per_day,
-                                pool_tvl
-                            );
-                            let farm_apr = ((rewards_per_day as f64 * token_price)
-                                / (pool_tvl as f64 * pool_price))
-                                * 365.0
-                                * 100.0;
-                            println!("farmAPR: {}", farm_apr);
-                            total_farm_apr += farm_apr;
-
-                            // feeAPR
-                            // let trading_apr = (lastDayVolume * 0.002 * 365 * 100) / pairLiquidity;
-                            // let trading_apr = (0.002 * 365.0 * 100.0) / (pool_tvl as f64 * pool_price);
-                        }
-                    }
-
-                    // let variables = Variables {
-                    //     pa: "0xE28459075c806b1bFa72A38E669CCd6Fb4125f6a".to_string(), // format!("{:?}", lp_token.to_owned()),
-                    // };
-
-                    // // let rclient = ReqwestClient::builder()
-                    // //     .user_agent("graphql-rust/0.10.0")
-                    // //     .build()?;
-
-                    // // let response_body = post_graphql::<PDDs, _>(
-                    // //     &rclient,
-                    // //     "https://api.thegraph.com/subgraphs/name/stellaswap/stella-swap/graphql",
-                    // //     variables,
-                    // // )
-                    // // .unwrap();
-                    // println!("vars");
-                    // let request_body = PDDs::build_query(variables);
-                    // // println!("rbd {:?}", request_body);
-                    // let rclient = reqwest::Client::new();
-                    // println!("rcl");
-                    // let mut res = rclient
-                    //     .post("https://api.thegraph.com/subgraphs/name/stellaswap/stella-swap")
-                    //     .json(&request_body)
-                    //     .send()
-                    //     .await?;
-                    // println!("rres {:?}", res);
-                    // let response_body: Response<pd_ds::ResponseData> = res.json().await?;
-
-                    // // println!("{:#?}", response_body);
-                    // println!("respbody: {:#?}", response_body);
-
-                    let ff = doc! {
-                        "chain": p.2.clone(),
-                        "protocol": p.3.clone(),
-                        "id": pid as i32,
-                    };
-                    let ten: f64 = 10.0;
-                    let uu = doc! {
-                        "$set" : {
-                            "farm_type": farm_type.to_string(),
-                            "farm_implementation": farm_implementation.to_string(),
-                            "tvl": pool_tvl as f64 * pool_price / ten.powf(18.0),
-                            "asset": {
-                                "name": asset.name,
-                                "address": pool_addr1,
-                                "tokens": [
-                                    {
-                                        "name": asset.tokens[0].name.clone(),
-                                        "address": asset.tokens[0].address.clone(),
-                                        "symbol": asset.tokens[0].symbol.clone(),
-                                        "decimals": asset.tokens[0].decimals,
-                                        "price": asset.tokens[0].price,
-                                        "logo": asset.tokens[0].logo.clone(),
-                                    }, {
-                                        "name": asset.tokens[1].name.clone(),
-                                        "address": asset.tokens[1].address.clone(),
-                                        "symbol": asset.tokens[1].symbol.clone(),
-                                        "decimals": asset.tokens[1].decimals,
-                                        "price": asset.tokens[1].price,
-                                        "logo": asset.tokens[1].logo.clone(),
-                                    }
-                                ],
-                            },
-                            "apr.farm": total_farm_apr,
-                            "apr.reward": total_farm_apr,
-                            "rewards": rewards,
-                            "url": ""
-                        }
-                    };
-                    let options = FindOneAndUpdateOptions::builder()
-                        .upsert(Some(true))
-                        .build();
-                    farms_collection
-                        .find_one_and_update(
-                            ff, // doc! {"$set":{}},
-                            uu, // doc! {upsert:true},
-                            Some(options),
-                        )
-                        .await?;
-                } else {
-                    // TODO: doesn't work for stable amm pools, veSolar
-                    farm_type = FarmType::StableAmm;
-                    println!("can't find pool. farm_type: {:?}", farm_type.to_string());
+    let tokens_query = r#"
+        query {
+            tokens(orderBy: tradeVolumeUSD, orderDirection: desc, first: 1000) {
+                id
+                symbol
+                name
+                decimals
+                totalLiquidity
+                derivedETH
+                tokenDayData(first: 1, orderBy: date, orderDirection: desc) {
+                    priceUSD
                 }
-
-                // for i in 0..symbols.len() {
-                //     println!("rwrd[{}]", i);
-
-                //     let s = format!("{:?}", symbols[i].clone());
-                //     println!("symbol: {}", s);
-
-                // let token_addr = ethers::utils::to_checksum(&addresses[i].to_owned(), None);
-                // println!("token_addr: {:?}", token_addr);
-
-                // let token_filter = doc! { "address": token_addr };
-                // let token = tokens_collection.find_one(token_filter, None).await?;
-                // let token_price = token.unwrap().price;
-                // println!("token_price: {:?}", token_price);
-
-                // let pool_addr = ethers::utils::to_checksum(&lp_token.to_owned(), None);
-                // println!("pool_addr: {:?}", pool_addr);
-
-                // let ms = format!("{:?}", lp_token.to_owned());
-                // println!("ms: {}", ms,);
-                // let pool_filter = doc! { "address": pool_addr };
-                // let pool = pools_collection.find_one(pool_filter, None).await?;
-
-                // if pool.is_some() {
-                //     let pool_price = pool.unwrap().price;
-                //     println!("pool_price: {:?}", pool_price);
-
-                //     let rewards_per_day: u128 = rewards_per_sec[i].as_u128() * 60 * 60 * 24;
-                //     let pool_tvl: u128 = total_lp.as_u128();
-
-                //     // poolAPR
-                //     println!(
-                //         "rewards/sec: {} rewards/day: {} pool_tvl: {}",
-                //         rewards_per_sec[i].as_u128(),
-                //         rewards_per_day,
-                //         pool_tvl
-                //     );
-                //     let farm_apr = ((rewards_per_day as f64 * token_price)
-                //         / (pool_tvl as f64 * pool_price))
-                //         * 365.0
-                //         * 100.0;
-                //     println!("farmAPR: {}", farm_apr);
-                //     total_farm_apr += farm_apr;
-
-                //     // feeAPR
-                //     // let trading_apr = (lastDayVolume * 0.002 * 365 * 100) / pairLiquidity;
-                //     // let trading_apr = (0.002 * 365.0 * 100.0) / (pool_tvl as f64 * pool_price);
-                // } else {
-                //     // TODO: doesn't work for stable amm pools, veSolar
-                //     println!("can't find pool");
-                // }
-                // }
-                println!("total_farm_apr: {:?}", total_farm_apr);
-                // let farm = doc! {};
-                // let farm = Farm {
-                //     chain: p.2.clone(),
-                //     protocol: p.3.clone(),
-                //     farm_type,
-                //     farm_implementation: FarmImplementation::Solidity,
-                //     asset,
-                //     id: pid as i32,
-                //     tvl: pool_tvl as f64 * pool_price,
-                //     rewards,
-                //     apr: APR {
-                //         farm: total_farm_apr,
-                //         trading: 0.0,
-                //     },
-                //     url: "".to_string(),
-                // };
-                // println!("farmmmm: {:?}", farm);
-
-                // ***************
-
-                // let ff = doc! {
-                //     "chain": p.2.clone(),
-                //     "protocol": p.3.clone(),
-                //     "id": pid as i32,
-                // };
-                // let uu = doc! {
-                //     "$set" : {
-                //         "farm_type": farm_type.to_string(),
-                //         // "farm_implementation": farm_implementation.to_string(),
-                //         "tvl": pool_tvl as f64 * pool_price,
-                //         "asset": {
-                //             "name": asset.name,
-                //             "address": asset.address,
-                //             "tokens": [
-                //                 {
-                //                     "name": asset.tokens[0].name.clone(),
-                //                     "address": asset.tokens[0].address.clone(),
-                //                     "symbol": asset.tokens[0].symbol.clone(),
-                //                     "decimals": asset.tokens[0].decimals,
-                //                     "price": asset.tokens[0].price,
-                //                     "logo": asset.tokens[0].logo.clone(),
-                //                 }, {
-                //                     "name": asset.tokens[1].name.clone(),
-                //                     "address": asset.tokens[1].address.clone(),
-                //                     "symbol": asset.tokens[1].symbol.clone(),
-                //                     "decimals": asset.tokens[1].decimals,
-                //                     "price": asset.tokens[1].price,
-                //                     "logo": asset.tokens[1].logo.clone(),
-                //                 }
-                //             ],
-                //         },
-                //         "apr": {
-                //             "farm": total_farm_apr,
-                //             "trading": 0.0,
-                //         }
-                //     }
-                // };
-                // let options = FindOneAndUpdateOptions::builder()
-                //     .upsert(Some(true))
-                //     .build();
-                // farms_collection
-                //     .find_one_and_update(
-                //         ff, // doc! {"$set":{}},
-                //         uu, // doc! {upsert:true},
-                //         Some(options),
-                //     )
-                //     .await?;
+            }
+            bundles(first: 1) {
+                ethPrice
             }
         }
+    "#;
+
+    let pairs_query = r#"
+        query {
+            pairs(orderBy: reserveUSD, orderDirection: desc, first: 1000) {
+                id
+                reserveUSD
+                volumeUSD
+                untrackedVolumeUSD
+                totalSupply
+                reserve0
+                reserve1
+                token0Price
+                token1Price
+                token0 {
+                    id
+                    symbol
+                    name
+                    decimals
+                    totalLiquidity
+                    tokenDayData(first: 1, orderBy: date, orderDirection: desc) {
+                        priceUSD
+                    }
+                }
+                token1 {
+                    id
+                    symbol
+                    name
+                    decimals
+                    totalLiquidity
+                    tokenDayData(first: 1, orderBy: date, orderDirection: desc) {
+                        priceUSD
+                    }
+                }
+            }
+        }
+    "#;
+
+    let _one_day_blocks_query = r#"
+        query OneDayBlocks($start: Int!, $end: Int!) {
+            blocks(
+                first: 1
+                orderBy: timestamp
+                orderDirection: asc
+                where: { timestamp_gt: $start, timestamp_lt: $end }
+            ) {
+                id
+                number
+                timestamp
+            }
+        }
+    "#;
+
+    let _one_day_pools_query = r#"
+        query OneDayPools($blocknum: Int!) {
+            pairs(orderBy: reserveUSD, orderDirection: desc, first: 1000, block: { number: $blocknum }) {
+                id
+                reserveUSD
+                volumeUSD
+                untrackedVolumeUSD
+            }
+        }
+    "#;
+
+    let solarbeam_client = Client::new_with_headers(solarbeam_subgraph.clone(), headers.clone());
+    let stellaswap_client = Client::new_with_headers(stellaswap_subgraph.clone(), headers.clone());
+    let beamswap_client = Client::new_with_headers(beamswap_subgraph.clone(), headers.clone());
+
+    // let moonriver_blocklytics_client =
+    //     Client::new_with_headers(solarbeam_blocklytics_subgraph.clone(), headers.clone());
+    // let moonbeam_blocklytics_client =
+    //     Client::new_with_headers(solarflare_blocklytics_subgraph.clone(), headers.clone());
+
+    let protocols = vec![
+        (
+            "stellaswap",
+            "moonbeam",
+            stellaswap_client.clone(),
+            stellaswap_subgraph.clone(),
+        ),
+        (
+            "solarbeam",
+            "moonriver",
+            solarbeam_client.clone(),
+            solarbeam_subgraph.clone(),
+        ),
+        (
+            "beamswap",
+            "moonbeam",
+            beamswap_client.clone(),
+            beamswap_subgraph.clone(),
+        ),
+    ];
+
+    for p in protocols {
+        println!("subgraph data for {} on {}", p.0.clone(), p.1.clone());
+
+        let client = Client::new_with_headers(p.3.clone(), headers.clone());
+
+        let tokens_data = client
+            // p.2.clone()
+            .query_unwrap::<subgraph::TokensData>(tokens_query.clone())
+            .await;
+
+        if tokens_data.is_ok() {
+            println!("{} tokens_data {:?}", p.0.clone(), tokens_data.clone());
+            for t in tokens_data.clone().unwrap().tokens.clone() {
+                let mut price_usd: f64 = 0.0;
+                if t.token_day_data.len() >= 1 {
+                    price_usd = t.token_day_data[0].price_usd.parse().unwrap_or_default();
+                }
+                if tokens_data.clone().unwrap().bundles.clone().len() >= 1 {
+                    let derived_eth: f64 = t.derived_eth.parse().unwrap_or_default();
+                    let eth_price: f64 = tokens_data.clone().unwrap().bundles.clone()[0]
+                        .eth_price
+                        .parse()
+                        .unwrap_or_default();
+                    price_usd = derived_eth * eth_price;
+                }
+
+                let ta = Address::from_str(t.id.as_str()).unwrap();
+                let token_addr = to_checksum(&ta, None);
+
+                println!("token_addr {:?}", token_addr.clone());
+
+                let decimals: u32 = t.decimals.parse().unwrap_or_default();
+
+                let mut logo = "".to_string();
+                if p.0.clone() == "solarbeam" {
+                    logo = format!("https://raw.githubusercontent.com/solarbeamio/solarbeam-tokenlist/main/assets/moonriver/{}/logo.png", token_addr.clone());
+                } else if p.0.clone() == "stellaswap" {
+                    logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token_addr.clone());
+                } else if p.0.clone() == "beamswap" {
+                    logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token_addr.clone());
+                }
+
+                println!("logo {}", logo.clone());
+
+                let liquidity: f64 = t.total_liquidity.parse().unwrap_or_default();
+
+                let f = doc! {
+                    "address": token_addr.clone(),
+                    "chain": p.1.clone(),
+                    "protocol": p.0.clone(),
+                };
+
+                let timestamp = Utc::now().to_string();
+
+                println!("lastUpdatedAtUTC {}", timestamp.clone());
+
+                let u = doc! {
+                    "$set" : {
+                        "address": token_addr.clone(),
+                        "chain": p.1.clone(),
+                        "protocol": p.0.clone(),
+                        "name": t.name,
+                        "symbol": t.symbol,
+                        "decimals": decimals,
+                        "logos": [
+                            logo.clone(),
+                        ],
+                        "price": price_usd,
+                        "liquidity": liquidity,
+                        "totalSupply": 0.0,
+                        "isLP": false,
+                        "feesAPR": 0.0,
+                        "underlyingAssets": [],
+                        "underlyingAssetsAlloc": [],
+                        "lastUpdatedAtUTC": timestamp.clone(),
+                    }
+                };
+
+                let options = FindOneAndUpdateOptions::builder()
+                    .upsert(Some(true))
+                    .build();
+                assets_collection
+                    .find_one_and_update(f, u, Some(options))
+                    .await?;
+            }
+        } else {
+            println!(
+                "couldn't fetch tokens_data for {} {:?}",
+                p.0.clone(),
+                tokens_data.err()
+            );
+        }
+
+        let pairs_data = client
+            // p.2.clone()
+            .query_unwrap::<subgraph::PairsData>(pairs_query.clone())
+            .await;
+
+        if pairs_data.is_ok() {
+            println!("{} pairs_data {:?}", p.0.clone(), pairs_data);
+
+            for pair in pairs_data.clone().unwrap().pairs.clone() {
+                let token0price: f64 = pair.token0price.parse().unwrap_or_default();
+                let token1price: f64 = pair.token1price.parse().unwrap_or_default();
+
+                let mut token0alloc = 0.0;
+                let mut token1alloc = 0.0;
+
+                if token0price > 0.0 && token1price > 0.0 {
+                    if token0price > token1price {
+                        token0alloc = (1.0 / token0price) * 100.0;
+                        token1alloc = 100.0 - token0alloc;
+                    } else {
+                        token1alloc = (1.0 / token1price) * 100.0;
+                        token0alloc = 100.0 - token1alloc;
+                    }
+                }
+
+                let pa = Address::from_str(pair.id.as_str()).unwrap();
+                let pair_addr = to_checksum(&pa, None);
+                println!("pair_addr {:?}", pair_addr.clone());
+
+                let t0a = Address::from_str(pair.token0.id.as_str()).unwrap();
+                let token0_addr = to_checksum(&t0a, None);
+                println!("token0_addr {:?}", token0_addr.clone());
+
+                let t1a = Address::from_str(pair.token1.id.as_str()).unwrap();
+                let token1_addr = to_checksum(&t1a, None);
+                println!("token1_addr {:?}", token1_addr.clone());
+
+                let mut token0logo = "".to_string();
+                let mut token1logo = "".to_string();
+                if p.0.clone() == "solarbeam" {
+                    token0logo = format!("https://raw.githubusercontent.com/solarbeamio/solarbeam-tokenlist/main/assets/moonriver/{}/logo.png", token0_addr.clone());
+                    token1logo = format!("https://raw.githubusercontent.com/solarbeamio/solarbeam-tokenlist/main/assets/moonriver/{}/logo.png", token1_addr.clone());
+                } else if p.0.clone() == "stellaswap" {
+                    token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token0_addr.clone());
+                    token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token1_addr.clone());
+                } else if p.0.clone() == "beamswap" {
+                    token0logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token0_addr.clone());
+                    token1logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token1_addr.clone());
+                }
+
+                let token0decimals: u32 = pair.token0.decimals.parse().unwrap_or_default();
+                let token1decimals: u32 = pair.token1.decimals.parse().unwrap_or_default();
+
+                let mut decimals = token0decimals;
+                if token1decimals > token0decimals {
+                    decimals = token1decimals;
+                }
+
+                let liquidity: f64 = pair.reserve_usd.parse().unwrap_or_default();
+                let total_supply: f64 = pair.total_supply.parse().unwrap_or_default();
+
+                let price_usd: f64 = liquidity / total_supply;
+
+                println!("price_usd {}", price_usd);
+
+                let f = doc! {
+                    "address": pair_addr.clone(),
+                    "chain": p.1.clone(),
+                    "protocol": p.0.clone(),
+                };
+
+                let timestamp = Utc::now().to_string();
+
+                println!("lastUpdatedAtUTC {}", timestamp.clone());
+
+                let u = doc! {
+                    "$set" : {
+                        "address": pair_addr.clone(),
+                        "chain": p.1.clone(),
+                        "protocol": p.0.clone(),
+                        "name": format!("{}-{} LP", pair.token0.name, pair.token1.name),
+                        "symbol": format!("{}-{} LP", pair.token0.symbol, pair.token1.symbol),
+                        "decimals": decimals,
+                        "logos": [
+                            token0logo.clone(),
+                            token1logo.clone(),
+                        ],
+                        "price": price_usd,
+                        "liquidity": liquidity,
+                        "totalSupply": total_supply,
+                        "isLP": true,
+                        "feesAPR": 0.0,
+                        "underlyingAssets": [token0_addr.clone(), token1_addr.clone()],
+                        "underlyingAssetsAlloc": [token0alloc, token1alloc],
+                        "lastUpdatedAtUTC": timestamp.clone(),
+                    }
+                };
+
+                let options = FindOneAndUpdateOptions::builder()
+                    .upsert(Some(true))
+                    .build();
+                assets_collection
+                    .find_one_and_update(f, u, Some(options))
+                    .await?;
+            }
+        } else {
+            println!(
+                "couldn't fetch pairs_data for {} {:?}",
+                p.0.clone(),
+                pairs_data.err()
+            );
+        }
     }
-    Ok((
-        // protocols,
-        // pools_collection,
-        // tokens_collection,
-        // farms_collection,
-    ))
+
+    Ok(())
 }
