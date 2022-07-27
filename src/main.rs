@@ -9,7 +9,6 @@ use ethers::{
     signers::LocalWallet,
     utils::to_checksum,
 };
-use ethers_providers::Middleware;
 use gql_client::Client;
 use mongodb::{
     bson::{bson, doc},
@@ -570,7 +569,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                             rewards.push(bson!({
                                 "amount": rewards_per_day as f64 / ten.pow(stella.clone().unwrap().decimals) as f64,
                                 "asset":  stella.clone().unwrap().symbol,
-                                "value_usd": (rewards_per_day as f64 / ten.pow(stella.clone().unwrap().decimals) as f64) * reward_asset_price,
+                                "valueUSD": (rewards_per_day as f64 / ten.pow(stella.clone().unwrap().decimals) as f64) * reward_asset_price,
                                 "freq": models::Freq::Daily.to_string(),
                             }));
 
@@ -683,7 +682,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                     rewards.push(bson!({
                                         "amount": rewards_per_day as f64 / ten.pow(decimals[i].as_u128().try_into().unwrap()) as f64,
                                         "asset":  asset.clone().unwrap().symbol,
-                                        "value_usd": (rewards_per_day as f64 / ten.pow(decimals[i].as_u128().try_into().unwrap()) as f64) * reward_asset_price,
+                                        "valueUSD": (rewards_per_day as f64 / ten.pow(decimals[i].as_u128().try_into().unwrap()) as f64) * reward_asset_price,
                                         "freq": models::Freq::Daily.to_string(),
                                     }));
 
