@@ -36,6 +36,8 @@ abigen!(
     r#"[
         function poolLength() external view returns (uint256)
         function poolInfo(uint256) external view returns (address, uint256, uint256, uint256, uint16, uint256, uint256)
+        function stellaPerBlock() external view returns (uint256)
+        function totalAllocPoint() external view returns (uint256)
     ]"#,
 );
 
@@ -182,7 +184,8 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
     //     Client::new_with_headers(solarbeam_blocklytics_subgraph.clone(), headers.clone());
     // let moonbeam_blocklytics_client =
     //     Client::new_with_headers(solarflare_blocklytics_subgraph.clone(), headers.clone());
-    /*
+
+    // subgraph fetching jobs
     let protocols = vec![
         (
             "stellaswap",
@@ -411,7 +414,8 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    */
+    // smart contract fetching jobs
+
     let pk = dotenv::var("PRIVATE_KEY").unwrap();
     let wallet: LocalWallet = pk.parse().expect("fail parse");
 
@@ -444,7 +448,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
     let beam_chef_address = "0xC6ca172FC8BDB803c5e12731109744fb0200587b".parse::<Address>()?;
     let beam_chef = IChefV2::new(beam_chef_address, Arc::clone(&moonbeam_client));
 
-    let protocols = vec![
+    let _protocols = vec![
         (
             beam_chef_address,
             beam_chef,
@@ -453,14 +457,14 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
             "v2".to_string(),
             "0xC6ca172FC8BDB803c5e12731109744fb0200587b".to_string(),
         ),
-        // (
-        //     stella_chef_v1_address,
-        //     stella_chef_v1,
-        //     "moonbeam".to_string(),
-        //     "stellaswap".to_string(),
-        //     "v1".to_string(),
-        //     "0xEDFB330F5FA216C9D2039B99C8cE9dA85Ea91c1E".to_string(),
-        // ),
+        (
+            stella_chef_v1_address,
+            stella_chef_v1,
+            "moonbeam".to_string(),
+            "stellaswap".to_string(),
+            "v1".to_string(),
+            "0xEDFB330F5FA216C9D2039B99C8cE9dA85Ea91c1E".to_string(),
+        ),
         (
             stella_chef_v2_address,
             stella_chef_v2,
@@ -479,11 +483,9 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
         ),
     ];
 
-    moonbeam_provider.get_block(69);
-    moonbeam_client.watch_blocks();
-
-    for p in protocols.clone() {
-        let pool_length = p.1.pool_length().call().await?;
+    for p in _protocols.clone() {
+        let pool_length: U256 = p.1.pool_length().call().await?;
+        println!("pool_length {}", pool_length.as_u32());
 
         for pid in 0..pool_length.as_u32() {
             println!(
@@ -496,7 +498,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                 lp_token,
                 alloc_point,
                 last_reward_timestamp,
-                acc_solar_per_share,
+                acc_native_reward_per_share,
                 deposit_fee_bp,
                 harvest_interval,
                 total_lp,
@@ -509,7 +511,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                 lp_token,
                 alloc_point,
                 last_reward_timestamp,
-                acc_solar_per_share,
+                acc_native_reward_per_share,
                 deposit_fee_bp,
                 harvest_interval,
                 total_lp
@@ -517,9 +519,106 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
 
             let ap = alloc_point.as_u32();
 
-            if alloc_point.as_u64() > 0 {
-                if p.3.clone() == "v1".to_string() {
+            let farm_type = models::FarmType::StandardAmm;
+            let farm_implementation = models::FarmImplementation::Solidity;
+
+            if ap > 0 {
+                if p.4.clone() == "v1".to_string() {
                     // chef v1
+                    let asset_addr = ethers::utils::to_checksum(&lp_token.to_owned(), None);
+                    println!("asset_addr: {:?}", asset_addr.clone());
+
+                    let stella_chef_v1_address =
+                        "0xEDFB330F5FA216C9D2039B99C8cE9dA85Ea91c1E".parse::<Address>()?;
+                    let stella_chef_v1 = IStellaDistributorV1::new(
+                        stella_chef_v1_address,
+                        Arc::clone(&moonbeam_client),
+                    );
+
+                    let asset_filter = doc! { "address": asset_addr.clone() };
+                    let asset = assets_collection.find_one(asset_filter, None).await?;
+
+                    let mut asset_price: f64 = 0.0;
+                    let mut asset_tvl: u128 = 0;
+
+                    let mut rewards = vec![];
+
+                    if asset.is_some() {
+                        println!("asset: {:?}", asset.clone().unwrap().symbol);
+                        let spb: U256 = stella_chef_v1.stella_per_block().call().await?;
+                        let tap: U256 = stella_chef_v1.total_alloc_point().call().await?;
+
+                        let average_block_time = 12.4;
+                        let stella_filter =
+                            doc! {"address":"0x0E358838ce72d5e61E0018a2ffaC4bEC5F4c88d2"};
+                        let stella = assets_collection.find_one(stella_filter, None).await?;
+
+                        if stella.is_some() {
+                            let reward_asset_price = stella.clone().unwrap().price;
+                            println!("reward_asset_price: {:?}", reward_asset_price);
+
+                            asset_price = asset.clone().unwrap().price;
+                            println!("asset_price: {:?}", asset_price);
+
+                            let rewards_per_sec: f64 = (spb.as_u128() as f64
+                                * (ap as f64 / tap.as_u128() as f64))
+                                / average_block_time;
+                            let rewards_per_day: f64 = rewards_per_sec * 60.0 * 60.0 * 24.0;
+                            asset_tvl = total_lp.as_u128();
+
+                            let ten: i128 = 10;
+                            rewards.push(bson!({
+                                "amount": rewards_per_day as f64 / ten.pow(stella.clone().unwrap().decimals) as f64,
+                                "asset":  stella.clone().unwrap().symbol,
+                                "value_usd": (rewards_per_day as f64 / ten.pow(stella.clone().unwrap().decimals) as f64) * reward_asset_price,
+                                "freq": models::Freq::Daily.to_string(),
+                            }));
+
+                            // reward_apr/farm_apr/pool_apr
+                            println!(
+                                "rewards/sec: {} rewards/day: {} asset_tvl: {}",
+                                rewards_per_sec, rewards_per_day, asset_tvl
+                            );
+                            let reward_apr = ((rewards_per_day as f64 * reward_asset_price)
+                                / (asset_tvl as f64 * asset_price))
+                                * 365.0
+                                * 100.0;
+                            println!("reward_apr: {}", reward_apr);
+
+                            let ff = doc! {
+                                "id": pid as i32,
+                                "chef": p.5.clone(),
+                                "chain": p.2.clone(),
+                                "protocol": p.3.clone(),
+                            };
+                            let ten: f64 = 10.0;
+                            let fu = doc! {
+                                "$set" : {
+                                    "id": pid,
+                                    "chef": p.5.clone(),
+                                    "chain": p.2.clone(),
+                                    "protocol": p.3.clone(),
+                                    "farmType": farm_type.to_string(),
+                                    "farmImpl": farm_implementation.to_string(),
+                                    "asset": {
+                                        "symbol": asset.clone().unwrap().symbol,
+                                        "address": asset_addr.clone(),
+                                        // "underlying_assets": farm_assets,
+                                    },
+                                    "tvl": asset_tvl as f64 * asset_price / ten.powf(18.0),
+                                    "apr.reward": reward_apr,
+                                    "rewards": rewards,
+                                    "allocPoint": ap
+                                }
+                            };
+                            let options = FindOneAndUpdateOptions::builder()
+                                .upsert(Some(true))
+                                .build();
+                            farms_collection
+                                .find_one_and_update(ff, fu, Some(options))
+                                .await?;
+                        }
+                    }
                 } else {
                     let rewarders =
                         p.1.pool_rewarders(ethers::prelude::U256::from(pid))
@@ -539,23 +638,15 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
 
                     if rewards_per_sec.len() > 0 {
                         let mut total_reward_apr = 0.0;
-                        let mut farm_type = models::FarmType::StandardAmm;
-                        let farm_implementation = models::FarmImplementation::Solidity;
 
                         let asset_addr = ethers::utils::to_checksum(&lp_token.to_owned(), None);
                         println!("asset_addr: {:?}", asset_addr.clone());
 
-                        let ms = format!("{:?}", lp_token.to_owned());
-                        println!("ms: {}", ms,);
                         let asset_filter = doc! { "address": asset_addr.clone() };
                         let asset = assets_collection.find_one(asset_filter, None).await?;
 
                         let mut asset_price: f64 = 0.0;
                         let mut asset_tvl: u128 = 0;
-                        // let mut asset: models::Asset = models::Asset {
-                        //     name: "".to_string(),
-                        //     address: format!("{:?}", lp_token.to_owned()),
-                        // };
 
                         let mut rewards = vec![];
 
