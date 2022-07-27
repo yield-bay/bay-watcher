@@ -164,6 +164,7 @@ struct Farm {
     rewards: Vec<Reward>,
     apr: APR,
     url: String,
+    ap: u64,
 }
 
 #[derive(Deserialize, Debug)]
@@ -551,7 +552,8 @@ async fn c(// protocols: Vec<(
                             "apr.farm": total_farm_apr,
                             "apr.reward": total_farm_apr,
                             "rewards": rewards,
-                            "url": ""
+                            "url": "",
+                            "ap": alloc_point.as_u64()
                         }
                     };
                     let options = FindOneAndUpdateOptions::builder()
