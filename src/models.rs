@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use std::fmt;
+
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Asset {
@@ -30,11 +32,27 @@ pub struct Farm {
     pub chef: String,
     pub chain: String,
     pub protocol: String,
-    pub asset: String,
+    pub farm_type: String,
+    pub farm_impl: String,
+    pub asset: FarmAsset,
+    pub tvl: f64,
     pub apr: APR,
-    pub farm_type: FarmType,
-    pub farm_impl: FarmImplementation,
     pub rewards: Vec<Reward>,
+    pub alloc_point: u32,
+}
+
+// #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+// #[serde(rename_all = "camelCase")]
+// pub struct UnderlyingAsset {
+//     pub symbol: String,
+// }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FarmAsset {
+    pub symbol: String,
+    pub address: String,
+    // pub underlying_assets: Vec<FarmAsset>,
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -51,7 +69,7 @@ pub struct Reward {
     pub asset: String,
     #[serde(rename = "valueUSD")]
     pub value_usd: f64,
-    pub freq: Freq,
+    pub freq: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -77,4 +95,22 @@ pub enum Freq {
     Weekly,
     Monthly,
     Annually,
+}
+
+impl fmt::Display for FarmType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl fmt::Display for FarmImplementation {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl fmt::Display for Freq {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
