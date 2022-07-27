@@ -372,7 +372,7 @@ async fn c(// protocols: Vec<(
                 deposit_fee_bp,
                 harvest_interval,
                 total_lp,
-            ): (Address, _, _, _, _, _, _) =
+            ): (Address, U256, _, _, _, _, _) =
                 p.1.pool_info(ethers::prelude::U256::from(pid))
                     .call()
                     .await?;
@@ -386,6 +386,7 @@ async fn c(// protocols: Vec<(
                 harvest_interval,
                 total_lp
             );
+            if alloc_point.as_u64() > 0 {
 
             let rewarders =
                 p.1.pool_rewarders(ethers::prelude::U256::from(pid))
@@ -479,19 +480,7 @@ async fn c(// protocols: Vec<(
                                     },
                                 ],
                             };
-                            // rewards.push(Reward {
-                            //     amount: rewards_per_day as f64,
-                            //     token: Token {
-                            //         name: token.clone().unwrap().name,
-                            //         address: token.clone().unwrap().address,
-                            //         symbol: token.clone().unwrap().symbol,
-                            //         decimals: token.clone().unwrap().decimals,
-                            //         price: token.clone().unwrap().price,
-                            //         logo: token.clone().unwrap().logo,
-                            //     },
-                            //     value_usd: rewards_per_day as f64 * token_price,
-                            //     freq: Freq::Daily,
-                            // });
+
                             let ten: i128 = 10;
                             rewards.push(bson! ({
                             "amount": rewards_per_day as f64 / ten.pow(decimals[i].as_u128().try_into().unwrap()) as f64,
@@ -526,36 +515,6 @@ async fn c(// protocols: Vec<(
                             // let trading_apr = (0.002 * 365.0 * 100.0) / (pool_tvl as f64 * pool_price);
                         }
                     }
-
-                    // let variables = Variables {
-                    //     pa: "0xE28459075c806b1bFa72A38E669CCd6Fb4125f6a".to_string(), // format!("{:?}", lp_token.to_owned()),
-                    // };
-
-                    // // let rclient = ReqwestClient::builder()
-                    // //     .user_agent("graphql-rust/0.10.0")
-                    // //     .build()?;
-
-                    // // let response_body = post_graphql::<PDDs, _>(
-                    // //     &rclient,
-                    // //     "https://api.thegraph.com/subgraphs/name/stellaswap/stella-swap/graphql",
-                    // //     variables,
-                    // // )
-                    // // .unwrap();
-                    // println!("vars");
-                    // let request_body = PDDs::build_query(variables);
-                    // // println!("rbd {:?}", request_body);
-                    // let rclient = reqwest::Client::new();
-                    // println!("rcl");
-                    // let mut res = rclient
-                    //     .post("https://api.thegraph.com/subgraphs/name/stellaswap/stella-swap")
-                    //     .json(&request_body)
-                    //     .send()
-                    //     .await?;
-                    // println!("rres {:?}", res);
-                    // let response_body: Response<pd_ds::ResponseData> = res.json().await?;
-
-                    // // println!("{:#?}", response_body);
-                    // println!("respbody: {:#?}", response_body);
 
                     let ff = doc! {
                         "chain": p.2.clone(),
@@ -611,125 +570,8 @@ async fn c(// protocols: Vec<(
                     println!("can't find pool. farm_type: {:?}", farm_type.to_string());
                 }
 
-                // for i in 0..symbols.len() {
-                //     println!("rwrd[{}]", i);
-
-                //     let s = format!("{:?}", symbols[i].clone());
-                //     println!("symbol: {}", s);
-
-                // let token_addr = ethers::utils::to_checksum(&addresses[i].to_owned(), None);
-                // println!("token_addr: {:?}", token_addr);
-
-                // let token_filter = doc! { "address": token_addr };
-                // let token = tokens_collection.find_one(token_filter, None).await?;
-                // let token_price = token.unwrap().price;
-                // println!("token_price: {:?}", token_price);
-
-                // let pool_addr = ethers::utils::to_checksum(&lp_token.to_owned(), None);
-                // println!("pool_addr: {:?}", pool_addr);
-
-                // let ms = format!("{:?}", lp_token.to_owned());
-                // println!("ms: {}", ms,);
-                // let pool_filter = doc! { "address": pool_addr };
-                // let pool = pools_collection.find_one(pool_filter, None).await?;
-
-                // if pool.is_some() {
-                //     let pool_price = pool.unwrap().price;
-                //     println!("pool_price: {:?}", pool_price);
-
-                //     let rewards_per_day: u128 = rewards_per_sec[i].as_u128() * 60 * 60 * 24;
-                //     let pool_tvl: u128 = total_lp.as_u128();
-
-                //     // poolAPR
-                //     println!(
-                //         "rewards/sec: {} rewards/day: {} pool_tvl: {}",
-                //         rewards_per_sec[i].as_u128(),
-                //         rewards_per_day,
-                //         pool_tvl
-                //     );
-                //     let farm_apr = ((rewards_per_day as f64 * token_price)
-                //         / (pool_tvl as f64 * pool_price))
-                //         * 365.0
-                //         * 100.0;
-                //     println!("farmAPR: {}", farm_apr);
-                //     total_farm_apr += farm_apr;
-
-                //     // feeAPR
-                //     // let trading_apr = (lastDayVolume * 0.002 * 365 * 100) / pairLiquidity;
-                //     // let trading_apr = (0.002 * 365.0 * 100.0) / (pool_tvl as f64 * pool_price);
-                // } else {
-                //     // TODO: doesn't work for stable amm pools, veSolar
-                //     println!("can't find pool");
-                // }
-                // }
                 println!("total_farm_apr: {:?}", total_farm_apr);
-                // let farm = doc! {};
-                // let farm = Farm {
-                //     chain: p.2.clone(),
-                //     protocol: p.3.clone(),
-                //     farm_type,
-                //     farm_implementation: FarmImplementation::Solidity,
-                //     asset,
-                //     id: pid as i32,
-                //     tvl: pool_tvl as f64 * pool_price,
-                //     rewards,
-                //     apr: APR {
-                //         farm: total_farm_apr,
-                //         trading: 0.0,
-                //     },
-                //     url: "".to_string(),
-                // };
-                // println!("farmmmm: {:?}", farm);
-
-                // ***************
-
-                // let ff = doc! {
-                //     "chain": p.2.clone(),
-                //     "protocol": p.3.clone(),
-                //     "id": pid as i32,
-                // };
-                // let uu = doc! {
-                //     "$set" : {
-                //         "farm_type": farm_type.to_string(),
-                //         // "farm_implementation": farm_implementation.to_string(),
-                //         "tvl": pool_tvl as f64 * pool_price,
-                //         "asset": {
-                //             "name": asset.name,
-                //             "address": asset.address,
-                //             "tokens": [
-                //                 {
-                //                     "name": asset.tokens[0].name.clone(),
-                //                     "address": asset.tokens[0].address.clone(),
-                //                     "symbol": asset.tokens[0].symbol.clone(),
-                //                     "decimals": asset.tokens[0].decimals,
-                //                     "price": asset.tokens[0].price,
-                //                     "logo": asset.tokens[0].logo.clone(),
-                //                 }, {
-                //                     "name": asset.tokens[1].name.clone(),
-                //                     "address": asset.tokens[1].address.clone(),
-                //                     "symbol": asset.tokens[1].symbol.clone(),
-                //                     "decimals": asset.tokens[1].decimals,
-                //                     "price": asset.tokens[1].price,
-                //                     "logo": asset.tokens[1].logo.clone(),
-                //                 }
-                //             ],
-                //         },
-                //         "apr": {
-                //             "farm": total_farm_apr,
-                //             "trading": 0.0,
-                //         }
-                //     }
-                // };
-                // let options = FindOneAndUpdateOptions::builder()
-                //     .upsert(Some(true))
-                //     .build();
-                // farms_collection
-                //     .find_one_and_update(
-                //         ff, // doc! {"$set":{}},
-                //         uu, // doc! {upsert:true},
-                //         Some(options),
-                //     )
-                //     .await?;
+            }
             }
         }
     }
