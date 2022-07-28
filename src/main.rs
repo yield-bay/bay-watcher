@@ -15,6 +15,7 @@ use mongodb::{
     options::{ClientOptions, FindOneAndUpdateOptions},
     Client as MongoClient,
 };
+use serde::Serialize;
 
 mod models;
 mod subgraph;
@@ -86,91 +87,113 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
     let stellaswap_subgraph = "https://api.thegraph.com/subgraphs/name/stellaswap/stella-swap";
     let beamswap_subgraph = "https://api.thegraph.com/subgraphs/name/beamswap/beamswap-dex";
 
-    let _solarbeam_blocklytics_subgraph =
+    let solarbeam_blocklytics_subgraph =
         "https://api.thegraph.com/subgraphs/name/solarbeamio/blocklytics";
-    let _solarflare_blocklytics_subgraph =
+    let solarflare_blocklytics_subgraph =
         "https://api.thegraph.com/subgraphs/name/solarbeamio/solarflare-blocklytics";
 
     let tokens_query = r#"
-         query {
-             tokens(orderBy: tradeVolumeUSD, orderDirection: desc, first: 1000) {
-                 id
-                 symbol
-                 name
-                 decimals
-                 totalLiquidity
-                 derivedETH
-                 tokenDayData(first: 1, orderBy: date, orderDirection: desc) {
-                     priceUSD
-                 }
-             }
-             bundles(first: 1) {
-                 ethPrice
-             }
-         }
-     "#;
+        query {
+            tokens(orderBy: tradeVolumeUSD, orderDirection: desc, first: 1000) {
+                id
+                symbol
+                name
+                decimals
+                totalLiquidity
+                derivedETH
+                tokenDayData(first: 1, orderBy: date, orderDirection: desc) {
+                    priceUSD
+                }
+            }
+            bundles(first: 1) {
+                ethPrice
+            }
+        }
+    "#;
 
     let pairs_query = r#"
-         query {
-             pairs(orderBy: reserveUSD, orderDirection: desc, first: 1000) {
-                 id
-                 reserveUSD
-                 volumeUSD
-                 untrackedVolumeUSD
-                 totalSupply
-                 reserve0
-                 reserve1
-                 token0Price
-                 token1Price
-                 token0 {
-                     id
-                     symbol
-                     name
-                     decimals
-                     totalLiquidity
-                     tokenDayData(first: 1, orderBy: date, orderDirection: desc) {
-                         priceUSD
-                     }
-                 }
-                 token1 {
-                     id
-                     symbol
-                     name
-                     decimals
-                     totalLiquidity
-                     tokenDayData(first: 1, orderBy: date, orderDirection: desc) {
-                         priceUSD
-                     }
-                 }
-             }
-         }
-     "#;
+        query {
+            pairs(orderBy: reserveUSD, orderDirection: desc, first: 1000) {
+                id
+                reserveUSD
+                volumeUSD
+                untrackedVolumeUSD
+                totalSupply
+                reserve0
+                reserve1
+                token0Price
+                token1Price
+                token0 {
+                    id
+                    symbol
+                    name
+                    decimals
+                    totalLiquidity
+                    tokenDayData(first: 1, orderBy: date, orderDirection: desc) {
+                        priceUSD
+                    }
+                }
+                token1 {
+                    id
+                    symbol
+                    name
+                    decimals
+                    totalLiquidity
+                    tokenDayData(first: 1, orderBy: date, orderDirection: desc) {
+                        priceUSD
+                    }
+                }
+            }
+        }
+    "#;
 
-    let _one_day_blocks_query = r#"
-         query OneDayBlocks($start: Int!, $end: Int!) {
-             blocks(
-                 first: 1
-                 orderBy: timestamp
-                 orderDirection: asc
-                 where: { timestamp_gt: $start, timestamp_lt: $end }
-             ) {
-                 id
-                 number
-                 timestamp
-             }
-         }
-     "#;
+    let one_day_blocks_query = r#"
+        query OneDayBlocks($start: Int!, $end: Int!) {
+            blocks(
+                first: 1
+                orderBy: timestamp
+                orderDirection: asc
+                where: { timestamp_gt: $start, timestamp_lt: $end }
+            ) {
+                id
+                number
+                timestamp
+            }
+        }
+    "#;
 
-    let _one_day_pools_query = r#"
-         query OneDayPools($blocknum: Int!) {
-             pairs(orderBy: reserveUSD, orderDirection: desc, first: 1000, block: { number: $blocknum }) {
-                 id
-                 reserveUSD
-                 volumeUSD
-                 untrackedVolumeUSD
-             }
-         }
-     "#;
+    let one_day_pools_query = r#"
+        query OneDayPools($blocknum: Int!) {
+            pairs(orderBy: reserveUSD, orderDirection: desc, first: 1000, block: { number: $blocknum }) {
+                id
+                reserveUSD
+                volumeUSD
+                untrackedVolumeUSD
+            }
+        }
+    "#;
+
+    let pair_day_datas_query = r#"
+        query PairDayDatas($addr: String) {
+            pairDayDatas(
+                orderDirection: desc
+                orderBy: date
+                first: 7
+                where: {pairAddress: $addr}
+            ) {
+                date
+                dailyVolumeUSD
+                pairAddress
+                id
+                token0 {
+                    symbol
+                }
+                token1 {
+                    symbol
+                }
+            }
+        }
+    "#;
 
     let solarbeam_subgraph_client =
         Client::new_with_headers(solarbeam_subgraph.clone(), headers.clone());
@@ -179,10 +202,10 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
     let beamswap_subgraph_client =
         Client::new_with_headers(beamswap_subgraph.clone(), headers.clone());
 
-    // let moonriver_blocklytics_client =
-    //     Client::new_with_headers(solarbeam_blocklytics_subgraph.clone(), headers.clone());
-    // let moonbeam_blocklytics_client =
-    //     Client::new_with_headers(solarflare_blocklytics_subgraph.clone(), headers.clone());
+    let _moonriver_blocklytics_client =
+        Client::new_with_headers(solarbeam_blocklytics_subgraph.clone(), headers.clone());
+    let _moonbeam_blocklytics_client =
+        Client::new_with_headers(solarflare_blocklytics_subgraph.clone(), headers.clone());
 
     // subgraph fetching jobs
     let protocols = vec![
@@ -299,6 +322,53 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
             );
         }
 
+        let mut one_day_volume_usd: HashMap<String, f64> = HashMap::new();
+
+        if p.1.clone() == "moonbeam" {
+            let block_number = get_one_day_block(
+                solarflare_blocklytics_subgraph.to_string(),
+                one_day_blocks_query.to_string(),
+            )
+            .await;
+            if block_number != 0 {
+                let pairs = get_one_day_pools(
+                    p.3.clone().to_string(),
+                    one_day_pools_query.to_string(),
+                    block_number,
+                )
+                .await;
+                for pair in pairs {
+                    let pair_id = Address::from_str(pair.id.as_str()).unwrap();
+                    let pair_addr = to_checksum(&pair_id, None);
+                    one_day_volume_usd.insert(
+                        pair_addr,
+                        pair.untracked_volume_usd.parse().unwrap_or_default(),
+                    );
+                }
+            }
+        } else if p.1.clone() == "moonriver" {
+            let block_number = get_one_day_block(
+                solarbeam_blocklytics_subgraph.to_string(),
+                one_day_blocks_query.to_string(),
+            )
+            .await;
+            if block_number != 0 {
+                let pairs = get_one_day_pools(
+                    p.3.clone().to_string(),
+                    one_day_pools_query.to_string(),
+                    block_number,
+                )
+                .await;
+                for pair in pairs {
+                    let pair_id = Address::from_str(pair.id.as_str()).unwrap();
+                    let pair_addr = to_checksum(&pair_id, None);
+                    one_day_volume_usd.insert(
+                        pair_addr,
+                        pair.untracked_volume_usd.parse().unwrap_or_default(),
+                    );
+                }
+            }
+        }
         let pairs_data = client
             // p.2.clone()
             .query_unwrap::<subgraph::PairsData>(pairs_query.clone())
@@ -364,6 +434,12 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
 
                 println!("price_usd {}", price_usd);
 
+                let mut fees_apr = 0.0;
+                let odv = one_day_volume_usd.get(&pair_addr.clone());
+                if odv.is_some() {
+                    fees_apr = odv.unwrap() * 0.0025 * 365.0 * 100.0 / liquidity;
+                }
+
                 let f = doc! {
                     "address": pair_addr.clone(),
                     "chain": p.1.clone(),
@@ -390,7 +466,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                         "liquidity": liquidity,
                         "totalSupply": total_supply,
                         "isLP": true,
-                        "feesAPR": 0.0,
+                        "feesAPR": fees_apr,
                         "underlyingAssets": [token0_addr.clone(), token1_addr.clone()],
                         "underlyingAssetsAlloc": [token0alloc, token1alloc],
                         "lastUpdatedAtUTC": timestamp.clone(),
@@ -455,6 +531,8 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
             "beamswap".to_string(),
             "v2".to_string(),
             "0xC6ca172FC8BDB803c5e12731109744fb0200587b".to_string(),
+            beamswap_subgraph_client.clone(),
+            beamswap_subgraph.clone(),
         ),
         (
             stella_chef_v1_address,
@@ -463,6 +541,8 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
             "stellaswap".to_string(),
             "v1".to_string(),
             "0xEDFB330F5FA216C9D2039B99C8cE9dA85Ea91c1E".to_string(),
+            stellaswap_subgraph_client.clone(),
+            stellaswap_subgraph.clone(),
         ),
         (
             stella_chef_v2_address,
@@ -471,6 +551,8 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
             "stellaswap".to_string(),
             "v2".to_string(),
             "0xF3a5454496E26ac57da879bf3285Fa85DEBF0388".to_string(),
+            stellaswap_subgraph_client.clone(),
+            stellaswap_subgraph.clone(),
         ),
         (
             solarbeam_chef_address,
@@ -479,6 +561,8 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
             "solarbeam".to_string(),
             "v2".to_string(),
             "0x0329867a8c457e9F75e25b0685011291CD30904F".to_string(),
+            solarbeam_subgraph_client.clone(),
+            solarbeam_subgraph.clone(),
         ),
     ];
 
@@ -584,6 +668,34 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                 * 100.0;
                             println!("reward_apr: {}", reward_apr);
 
+                            // base_apr/trading_apr
+                            let mut base_apr = 0.0;
+                            #[derive(Serialize)]
+                            pub struct Vars {
+                                addr: String,
+                            }
+                            let vars = Vars {
+                                addr: asset.clone().unwrap().address,
+                            };
+                            let pair_day_datas =
+                                p.6.query_with_vars_unwrap::<subgraph::PairDayDatas, Vars>(
+                                    &pair_day_datas_query.clone(),
+                                    vars,
+                                )
+                                .await;
+                            if pair_day_datas.is_ok() {
+                                let mut daily_volume_lw: f64 = 0.0;
+                                for pdd in pair_day_datas.unwrap().pair_day_datas {
+                                    let dv: f64 = pdd.daily_volume_usd.parse().unwrap_or_default();
+                                    daily_volume_lw += dv;
+                                }
+                                daily_volume_lw /= 7.0;
+
+                                base_apr = daily_volume_lw * 0.002 * 365.0 * 100.0
+                                    / (asset.clone().unwrap().total_supply
+                                        * asset.clone().unwrap().price);
+                            }
+
                             let ff = doc! {
                                 "id": pid as i32,
                                 "chef": p.5.clone(),
@@ -606,6 +718,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                     },
                                     "tvl": asset_tvl as f64 * asset_price / ten.powf(18.0),
                                     "apr.reward": reward_apr,
+                                    "apr.base": base_apr,
                                     "rewards": rewards,
                                     "allocPoint": ap
                                 }
@@ -703,6 +816,34 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                 }
                             }
 
+                            // base_apr/trading_apr
+                            let mut base_apr = 0.0;
+                            #[derive(Serialize)]
+                            pub struct Vars {
+                                addr: String,
+                            }
+                            let vars = Vars {
+                                addr: asset.clone().unwrap().address,
+                            };
+                            let pair_day_datas =
+                                p.6.query_with_vars_unwrap::<subgraph::PairDayDatas, Vars>(
+                                    &pair_day_datas_query.clone(),
+                                    vars,
+                                )
+                                .await;
+                            if pair_day_datas.is_ok() {
+                                let mut daily_volume_lw: f64 = 0.0;
+                                for pdd in pair_day_datas.unwrap().pair_day_datas {
+                                    let dv: f64 = pdd.daily_volume_usd.parse().unwrap_or_default();
+                                    daily_volume_lw += dv;
+                                }
+                                daily_volume_lw /= 7.0;
+
+                                base_apr = daily_volume_lw * 0.002 * 365.0 * 100.0
+                                    / (asset.clone().unwrap().total_supply
+                                        * asset.clone().unwrap().price);
+                            }
+
                             // let mut farm_assets = vec![];
                             // for ua in asset.clone().unwrap().underlying_assets {
                             //     let underlying_asset_filter = doc! { "address": ua.clone() };
@@ -740,6 +881,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                     },
                                     "tvl": asset_tvl as f64 * asset_price / ten.powf(18.0),
                                     "apr.reward": total_reward_apr,
+                                    "apr.base": base_apr,
                                     "rewards": rewards,
                                     "allocPoint": ap
                                 }
@@ -762,4 +904,59 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
+}
+
+async fn get_one_day_block(subgraph_url: String, query_str: String) -> u64 {
+    let date = Utc::now().timestamp() - 86400;
+    let start = date / 1000;
+    let end = date / 1000 + 600;
+
+    let subgraph_client = Client::new(subgraph_url.clone());
+    #[derive(Serialize)]
+    pub struct Vars {
+        start: i64,
+        end: i64,
+    }
+    let vars = Vars {
+        start: start,
+        end: end,
+    };
+    let blocks_data = subgraph_client
+        .query_with_vars_unwrap::<subgraph::BlocksData, Vars>(&query_str, vars)
+        .await;
+
+    if blocks_data.is_ok() {
+        if blocks_data.clone().unwrap().blocks.len() > 0 {
+            let block_number = blocks_data.clone().unwrap().blocks[0]
+                .number
+                .parse()
+                .unwrap();
+            return block_number;
+        }
+    }
+
+    0
+}
+
+async fn get_one_day_pools(
+    subgraph_url: String,
+    query_str: String,
+    block_number: u64,
+) -> Vec<subgraph::Pair> {
+    let subgraph_client = Client::new(subgraph_url.clone());
+    #[derive(Serialize)]
+    pub struct Vars {
+        number: u64,
+    }
+    let vars = Vars {
+        number: block_number,
+    };
+    let pairs_data = subgraph_client
+        .query_with_vars_unwrap::<subgraph::PairsData, Vars>(&query_str, vars)
+        .await;
+
+    if pairs_data.is_ok() {
+        return pairs_data.clone().unwrap().pairs;
+    }
+    return vec![];
 }

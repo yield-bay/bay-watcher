@@ -2,6 +2,36 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct PairDayDatas {
+    pub pair_day_datas: Vec<PairDayData>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PairDayData {
+    pub date: i64,
+    #[serde(rename = "dailyVolumeUSD")]
+    pub daily_volume_usd: String,
+    pub pair_address: String,
+    pub id: String,
+    pub token0: Token0,
+    pub token1: Token1,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Token0 {
+    pub symbol: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Token1 {
+    pub symbol: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BlocksData {
     pub blocks: Vec<Block>,
 }
