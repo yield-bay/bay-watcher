@@ -39,6 +39,8 @@ pub struct Farm {
     pub apr: APR,
     pub rewards: Vec<Reward>,
     pub alloc_point: u32,
+    #[serde(rename = "lastUpdatedAtUTC")]
+    pub last_updated_at_utc:String,
 }
 
 // #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

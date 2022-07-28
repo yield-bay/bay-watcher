@@ -696,6 +696,10 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                         * asset.clone().unwrap().price);
                             }
 
+                            let timestamp = Utc::now().to_string();
+
+                            println!("chef v1 farm lastUpdatedAtUTC {}", timestamp.clone());
+
                             let ff = doc! {
                                 "id": pid as i32,
                                 "chef": p.5.clone(),
@@ -720,7 +724,8 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                     "apr.reward": reward_apr,
                                     "apr.base": base_apr,
                                     "rewards": rewards,
-                                    "allocPoint": ap
+                                    "allocPoint": ap,
+                                    "lastUpdatedAtUTC": timestamp.clone(),
                                 }
                             };
                             let options = FindOneAndUpdateOptions::builder()
@@ -859,6 +864,10 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                             //     }
                             // }
 
+                            let timestamp = Utc::now().to_string();
+
+                            println!("chef v2 farm lastUpdatedAtUTC {}", timestamp.clone());
+
                             let ff = doc! {
                                 "id": pid as i32,
                                 "chef": p.5.clone(),
@@ -883,7 +892,8 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                     "apr.reward": total_reward_apr,
                                     "apr.base": base_apr,
                                     "rewards": rewards,
-                                    "allocPoint": ap
+                                    "allocPoint": ap,
+                                    "lastUpdatedAtUTC": timestamp.clone(),
                                 }
                             };
                             let options = FindOneAndUpdateOptions::builder()
