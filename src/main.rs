@@ -692,8 +692,8 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                 daily_volume_lw /= 7.0;
 
                                 base_apr = daily_volume_lw * 0.002 * 365.0 * 100.0
-                                    / (asset.clone().unwrap().total_supply
-                                        * asset.clone().unwrap().price);
+                                    / (asset.clone().unwrap_or_default().total_supply
+                                        * asset.clone().unwrap_or_default().price);
                             }
 
                             let timestamp = Utc::now().to_string();
@@ -845,8 +845,8 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                 daily_volume_lw /= 7.0;
 
                                 base_apr = daily_volume_lw * 0.002 * 365.0 * 100.0
-                                    / (asset.clone().unwrap().total_supply
-                                        * asset.clone().unwrap().price);
+                                    / (asset.clone().unwrap_or_default().total_supply
+                                        * asset.clone().unwrap_or_default().price);
                             }
 
                             // let mut farm_assets = vec![];
