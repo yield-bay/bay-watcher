@@ -1104,6 +1104,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                 )
                                 .await;
                             if pair_day_datas.is_ok() {
+                                // TODO: check if formula for sushi base apr is correct
                                 println!("ukk {:?}", pair_day_datas.clone().unwrap());
                                 let mut daily_volume_lw: f64 = 0.0;
                                 for pdd in pair_day_datas.unwrap().pair_day_datas {
@@ -1113,9 +1114,15 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                 }
                                 // daily_volume_lw /= 7.0;
 
-                                base_apr = daily_volume_lw * 0.002 * 365.0 * 100.0
-                                    / (asset.clone().unwrap_or_default().total_supply
-                                        * asset.clone().unwrap_or_default().price);
+                                if asset.clone().unwrap_or_default().total_supply == 0.0
+                                    || asset.clone().unwrap_or_default().price == 0.0
+                                {
+                                    base_apr = 0.0;
+                                } else {
+                                    base_apr = daily_volume_lw * 0.002 * 365.0 * 100.0
+                                        / (asset.clone().unwrap_or_default().total_supply
+                                            * asset.clone().unwrap_or_default().price);
+                                }
                             }
 
                             let timestamp = Utc::now().to_string();
@@ -1278,9 +1285,15 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                     }
                                     daily_volume_lw /= 7.0;
 
-                                    base_apr = daily_volume_lw * 0.002 * 365.0 * 100.0
-                                        / (asset.clone().unwrap_or_default().total_supply
-                                            * asset.clone().unwrap_or_default().price);
+                                    if asset.clone().unwrap_or_default().total_supply == 0.0
+                                        || asset.clone().unwrap_or_default().price == 0.0
+                                    {
+                                        base_apr = 0.0;
+                                    } else {
+                                        base_apr = daily_volume_lw * 0.002 * 365.0 * 100.0
+                                            / (asset.clone().unwrap_or_default().total_supply
+                                                * asset.clone().unwrap_or_default().price);
+                                    }
                                 }
 
                                 let timestamp = Utc::now().to_string();
@@ -1433,9 +1446,15 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                     }
                                     daily_volume_lw /= 7.0;
 
-                                    base_apr = daily_volume_lw * 0.002 * 365.0 * 100.0
-                                        / (asset.clone().unwrap_or_default().total_supply
-                                            * asset.clone().unwrap_or_default().price);
+                                    if asset.clone().unwrap_or_default().total_supply == 0.0
+                                        || asset.clone().unwrap_or_default().price == 0.0
+                                    {
+                                        base_apr = 0.0;
+                                    } else {
+                                        base_apr = daily_volume_lw * 0.002 * 365.0 * 100.0
+                                            / (asset.clone().unwrap_or_default().total_supply
+                                                * asset.clone().unwrap_or_default().price);
+                                    }
                                 }
 
                                 // let mut farm_assets = vec![];
