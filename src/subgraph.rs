@@ -114,3 +114,67 @@ pub struct TokenDayData {
 pub struct Bundle {
     pub eth_price: String,
 }
+
+// ////////
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SushiTokensData {
+    pub tokens: Vec<SushiToken>,
+    pub bundles: Vec<Bundle>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SushiToken {
+    pub id: String,
+    pub symbol: String,
+    pub name: String,
+    pub decimals: String,
+    #[serde(rename = "liquidity")]
+    pub liquidity: String,
+    // pub total_liquidity: String,
+    #[serde(rename = "derivedETH")]
+    pub derived_eth: String,
+    #[serde(rename = "dayData")]
+    pub day_data: Vec<TokenDayData>,
+    // pub token_day_data: Vec<TokenDayData>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SushiPairsData {
+    pub pairs: Vec<SushiPair>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SushiPair {
+    pub id: String,
+    #[serde(rename = "reserveUSD")]
+    pub reserve_usd: String,
+    #[serde(rename = "volumeUSD")]
+    pub volume_usd: String,
+    #[serde(rename = "untrackedVolumeUSD")]
+    pub untracked_volume_usd: String,
+    pub total_supply: String,
+    pub reserve0: String,
+    pub reserve1: String,
+    #[serde(rename = "token0Price")]
+    pub token0price: String,
+    #[serde(rename = "token1Price")]
+    pub token1price: String,
+    pub token0: SushiPToken,
+    pub token1: SushiPToken,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SushiPToken {
+    pub id: String,
+    pub symbol: String,
+    pub name: String,
+    pub decimals: String,
+    pub liquidity: String,
+    pub day_data: Vec<TokenDayData>,
+}
