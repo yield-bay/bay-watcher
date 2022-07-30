@@ -271,6 +271,30 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
         }
     "#;
 
+    let sushi_pair_day_datas_query = r#"
+        query PairDayDatas($addr: String) {
+            pairDayDatas(
+                orderDirection: desc
+                orderBy: date
+                first: 1
+                where: {pair: $addr}
+            ) {
+                date
+                volumeUSD
+                id
+                pair {
+                    id
+                }
+                token0 {
+                    symbol
+                }
+                token1 {
+                    symbol
+                }
+            }
+        }
+    "#;
+
     let solarbeam_subgraph_client =
         Client::new_with_headers(solarbeam_subgraph.clone(), headers.clone());
     let stellaswap_subgraph_client =
@@ -630,7 +654,11 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                     let liquidity: f64 = pair.reserve_usd.parse().unwrap_or_default();
                     let total_supply: f64 = pair.total_supply.parse().unwrap_or_default();
 
-                    let price_usd: f64 = liquidity / total_supply;
+                    let mut price_usd: f64 = 0.0;
+
+                    if total_supply != 0.0 {
+                        price_usd = liquidity / total_supply;
+                    }
 
                     println!("price_usd {}", price_usd);
 
@@ -752,7 +780,11 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                     let liquidity: f64 = pair.reserve_usd.parse().unwrap_or_default();
                     let total_supply: f64 = pair.total_supply.parse().unwrap_or_default();
 
-                    let price_usd: f64 = liquidity / total_supply;
+                    let mut price_usd: f64 = 0.0;
+
+                    if total_supply != 0.0 {
+                        price_usd = liquidity / total_supply;
+                    }
 
                     println!("price_usd {}", price_usd);
 
@@ -968,12 +1000,10 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                         let tap: U256 = sushi_mini_chef.total_alloc_point().call().await?;
                         let rps: U256 = sushi_complex_rewarder.reward_per_second().call().await?;
 
-                        let sushi_filter =
-                            doc! {"address":"0xf390830DF829cf22c53c8840554B98eafC5dCBc2"};
+                        let sushi_filter = doc! {"address":"0xf390830DF829cf22c53c8840554B98eafC5dCBc2","protocol":"sushi","chain":"moonriver"};
                         let sushi = assets_collection.find_one(sushi_filter, None).await?;
 
-                        let movr_filter =
-                            doc! {"address":"0xf50225a84382c74CbdeA10b0c176f71fc3DE0C4d"};
+                        let movr_filter = doc! {"address":"0xf50225a84382c74CbdeA10b0c176f71fc3DE0C4d","protocol":"sushi","chain":"moonriver"};
                         let movr = assets_collection.find_one(movr_filter, None).await?;
 
                         if sushi.is_some() || movr.is_some() {
@@ -1004,7 +1034,8 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                     rewards_per_sec, rewards_per_day, asset_tvl
                                 );
                                 let reward_apr = ((rewards_per_day as f64 * reward_asset_price)
-                                    / (asset_tvl as f64))
+                                    / (asset_tvl as f64
+                                        * ten.pow(sushi.clone().unwrap().decimals) as f64))
                                     * 365.0
                                     * 100.0;
                                 println!("reward_apr: {}", reward_apr);
@@ -1049,7 +1080,8 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                     rewards_per_sec, rewards_per_day, asset_tvl
                                 );
                                 let reward_apr = ((rewards_per_day as f64 * reward_asset_price)
-                                    / (asset_tvl as f64))
+                                    / (asset_tvl as f64
+                                        * ten.pow(movr.clone().unwrap().decimals) as f64))
                                     * 365.0
                                     * 100.0;
                                 println!("reward_apr: {}", reward_apr);
@@ -1063,21 +1095,23 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                 addr: String,
                             }
                             let vars = Vars {
-                                addr: asset.clone().unwrap().address,
+                                addr: asset.clone().unwrap().address.to_lowercase(),
                             };
                             let pair_day_datas =
-                                p.6.query_with_vars_unwrap::<subgraph::PairDayDatas, Vars>(
-                                    &pair_day_datas_query.clone(),
+                                p.6.query_with_vars_unwrap::<subgraph::SushiPairDayDatas, Vars>(
+                                    &sushi_pair_day_datas_query.clone(),
                                     vars,
                                 )
                                 .await;
                             if pair_day_datas.is_ok() {
+                                println!("ukk {:?}", pair_day_datas.clone().unwrap());
                                 let mut daily_volume_lw: f64 = 0.0;
                                 for pdd in pair_day_datas.unwrap().pair_day_datas {
-                                    let dv: f64 = pdd.daily_volume_usd.parse().unwrap_or_default();
+                                    let dv: f64 = pdd.volume_usd.parse().unwrap_or_default();
                                     daily_volume_lw += dv;
+                                    println!("ukkdv {:?}", dv);
                                 }
-                                daily_volume_lw /= 7.0;
+                                // daily_volume_lw /= 7.0;
 
                                 base_apr = daily_volume_lw * 0.002 * 365.0 * 100.0
                                     / (asset.clone().unwrap_or_default().total_supply
@@ -1109,7 +1143,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                         // "underlying_assets": farm_assets,
                                     },
                                     // "tvl": asset_tvl as f64 * asset_price / ten.powf(18.0),
-                                    "tvl": asset_tvl as f64 / ten.powf(18.0),
+                                    "tvl": asset_tvl as f64,
                                     "apr.reward": total_reward_apr,
                                     "apr.base": base_apr,
                                     "rewards": rewards,

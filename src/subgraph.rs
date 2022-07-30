@@ -178,3 +178,27 @@ pub struct SushiPToken {
     pub liquidity: String,
     pub day_data: Vec<TokenDayData>,
 }
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SushiPairDayDatas {
+    pub pair_day_datas: Vec<SushiPairDayData>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SushiPairDayData {
+    pub date: i64,
+    #[serde(rename = "volumeUSD")]
+    pub volume_usd: String,
+    pub id: String,
+    pub pair: SushiPDDPair,
+    pub token0: Token0,
+    pub token1: Token1,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SushiPDDPair {
+    pub id: String,
+}
