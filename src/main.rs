@@ -1147,6 +1147,8 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                     "asset": {
                                         "symbol": asset.clone().unwrap().symbol,
                                         "address": asset_addr.clone(),
+                                        "price": asset.clone().unwrap().price,
+                                        "logos": asset.clone().unwrap().logos,
                                         // "underlying_assets": farm_assets,
                                     },
                                     // "tvl": asset_tvl as f64 * asset_price / ten.powf(18.0),
@@ -1318,6 +1320,8 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                         "asset": {
                                             "symbol": asset.clone().unwrap().symbol,
                                             "address": asset_addr.clone(),
+                                            "price": asset.clone().unwrap().price,
+                                            "logos": asset.clone().unwrap().logos,
                                             // "underlying_assets": farm_assets,
                                         },
                                         "tvl": asset_tvl as f64 * asset_price / ten.powf(18.0),
@@ -1494,6 +1498,8 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                         "asset": {
                                             "symbol": asset.clone().unwrap().symbol,
                                             "address": asset_addr.clone(),
+                                            "price": asset.clone().unwrap().price,
+                                            "logos": asset.clone().unwrap().logos,
                                             // "underlying_assets": farm_assets,
                                         },
                                         "tvl": asset_tvl as f64 * asset_price / ten.powf(18.0),

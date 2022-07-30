@@ -40,7 +40,7 @@ pub struct Farm {
     pub rewards: Vec<Reward>,
     pub alloc_point: u32,
     #[serde(rename = "lastUpdatedAtUTC")]
-    pub last_updated_at_utc:String,
+    pub last_updated_at_utc: String,
 }
 
 // #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -54,6 +54,8 @@ pub struct Farm {
 pub struct FarmAsset {
     pub symbol: String,
     pub address: String,
+    pub price: f64,
+    pub logos: Vec<String>,
     // pub underlying_assets: Vec<FarmAsset>,
 }
 
