@@ -311,7 +311,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
     // subgraph fetching jobs
     let protocols = vec![
         (
-            "sushi",
+            "sushiswap",
             "moonriver",
             sushi_subgraph_client.clone(),
             sushi_subgraph.clone(),
@@ -341,7 +341,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
 
         let client = Client::new_with_headers(p.3.clone(), headers.clone());
 
-        if p.0.clone() == "sushi" {
+        if p.0.clone() == "sushiswap" {
             let tokens_data = client
                 .query_unwrap::<subgraph::SushiTokensData>(sushi_tokens_query.clone())
                 .await;
@@ -376,7 +376,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                         logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token_addr.clone());
                     } else if p.0.clone() == "beamswap" {
                         logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token_addr.clone());
-                    } else if p.0.clone() == "sushi" {
+                    } else if p.0.clone() == "sushiswap" {
                         logo = format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token_addr.clone());
                     }
 
@@ -466,7 +466,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                         logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token_addr.clone());
                     } else if p.0.clone() == "beamswap" {
                         logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token_addr.clone());
-                    } else if p.0.clone() == "sushi" {
+                    } else if p.0.clone() == "sushiswap" {
                         logo = format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token_addr.clone());
                     }
 
@@ -552,7 +552,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                 one_day_blocks_query.to_string(),
             )
             .await;
-            // if p.0.clone() == "sushi" {
+            // if p.0.clone() == "sushiswap" {
             //     if block_number != 0 {
             //         let pairs = get_one_day_pools(
             //             p.3.clone().to_string(),
@@ -589,7 +589,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
             // }
         }
 
-        if p.0.clone() == "sushi" {
+        if p.0.clone() == "sushiswap" {
             let pairs_data = client
                 // p.2.clone()
                 .query_unwrap::<subgraph::SushiPairsData>(sushi_pairs_query.clone())
@@ -638,7 +638,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                     } else if p.0.clone() == "beamswap" {
                         token0logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token0_addr.clone());
                         token1logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token1_addr.clone());
-                    } else if p.0.clone() == "sushi" {
+                    } else if p.0.clone() == "sushiswap" {
                         token0logo=format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token0_addr.clone());
                         token1logo=format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token1_addr.clone());
                     }
@@ -764,7 +764,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                     } else if p.0.clone() == "beamswap" {
                         token0logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token0_addr.clone());
                         token1logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token1_addr.clone());
-                    } else if p.0.clone() == "sushi" {
+                    } else if p.0.clone() == "sushiswap" {
                         token0logo=format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token0_addr.clone());
                         token1logo=format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token1_addr.clone());
                     }
@@ -887,7 +887,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
             sushi_mini_chef_address,
             sushi_mini_chef,
             "moonriver".to_string(),
-            "sushi".to_string(),
+            "sushiswap".to_string(),
             "v0".to_string(),
             "0x3dB01570D97631f69bbb0ba39796865456Cf89A5".to_string(),
             sushi_subgraph_client.clone(),
@@ -1000,10 +1000,10 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                         let tap: U256 = sushi_mini_chef.total_alloc_point().call().await?;
                         let rps: U256 = sushi_complex_rewarder.reward_per_second().call().await?;
 
-                        let sushi_filter = doc! {"address":"0xf390830DF829cf22c53c8840554B98eafC5dCBc2","protocol":"sushi","chain":"moonriver"};
+                        let sushi_filter = doc! {"address":"0xf390830DF829cf22c53c8840554B98eafC5dCBc2","protocol":"sushiswap","chain":"moonriver"};
                         let sushi = assets_collection.find_one(sushi_filter, None).await?;
 
-                        let movr_filter = doc! {"address":"0xf50225a84382c74CbdeA10b0c176f71fc3DE0C4d","protocol":"sushi","chain":"moonriver"};
+                        let movr_filter = doc! {"address":"0xf50225a84382c74CbdeA10b0c176f71fc3DE0C4d","protocol":"sushiswap","chain":"moonriver"};
                         let movr = assets_collection.find_one(movr_filter, None).await?;
 
                         if sushi.is_some() || movr.is_some() {
