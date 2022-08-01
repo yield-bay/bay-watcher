@@ -378,6 +378,12 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                         logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token_addr.clone());
                     } else if p.0.clone() == "sushiswap" {
                         logo = format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token_addr.clone());
+                        // WBTC.eth
+                        if token_addr.clone()
+                            == "0xE6a991Ffa8CfE62B0bf6BF72959A3d4f11B2E0f5".to_string()
+                        {
+                            logo = format!("https://raw.githubusercontent.com/sushiswap/icons/master/token/btc.jpg");
+                        }
                     }
 
                     println!("logo {}", logo.clone());
@@ -468,6 +474,12 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                         logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token_addr.clone());
                     } else if p.0.clone() == "sushiswap" {
                         logo = format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token_addr.clone());
+                        // WBTC.eth
+                        if token_addr.clone()
+                            == "0xE6a991Ffa8CfE62B0bf6BF72959A3d4f11B2E0f5".to_string()
+                        {
+                            logo = format!("https://raw.githubusercontent.com/sushiswap/icons/master/token/btc.jpg");
+                        }
                     }
 
                     println!("logo {}", logo.clone());
@@ -641,6 +653,18 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                     } else if p.0.clone() == "sushiswap" {
                         token0logo=format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token0_addr.clone());
                         token1logo=format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token1_addr.clone());
+
+                        // WBTC.eth
+                        if token0_addr.clone()
+                            == "0xE6a991Ffa8CfE62B0bf6BF72959A3d4f11B2E0f5".to_string()
+                        {
+                            token0logo = format!("https://raw.githubusercontent.com/sushiswap/icons/master/token/btc.jpg");
+                        }
+                        if token1_addr.clone()
+                            == "0xE6a991Ffa8CfE62B0bf6BF72959A3d4f11B2E0f5".to_string()
+                        {
+                            token1logo = format!("https://raw.githubusercontent.com/sushiswap/icons/master/token/btc.jpg");
+                        }
                     }
 
                     let token0decimals: u32 = pair.token0.decimals.parse().unwrap_or_default();
@@ -767,6 +791,18 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                     } else if p.0.clone() == "sushiswap" {
                         token0logo=format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token0_addr.clone());
                         token1logo=format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token1_addr.clone());
+
+                        // WBTC.eth
+                        if token0_addr.clone()
+                            == "0xE6a991Ffa8CfE62B0bf6BF72959A3d4f11B2E0f5".to_string()
+                        {
+                            token0logo = format!("https://raw.githubusercontent.com/sushiswap/icons/master/token/btc.jpg");
+                        }
+                        if token1_addr.clone()
+                            == "0xE6a991Ffa8CfE62B0bf6BF72959A3d4f11B2E0f5".to_string()
+                        {
+                            token1logo = format!("https://raw.githubusercontent.com/sushiswap/icons/master/token/btc.jpg");
+                        }
                     }
 
                     let token0decimals: u32 = pair.token0.decimals.parse().unwrap_or_default();
