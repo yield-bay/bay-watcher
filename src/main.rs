@@ -1440,7 +1440,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                         let ten: i128 = 10;
                                         rewards.push(bson!({
                                         "amount": rewards_per_day as f64 / ten.pow(decimals[i].as_u128().try_into().unwrap()) as f64,
-                                        "asset":  asset.clone().unwrap().symbol,
+                                        "asset":  reward_asset.clone().unwrap().symbol,
                                         "valueUSD": (rewards_per_day as f64 / ten.pow(decimals[i].as_u128().try_into().unwrap()) as f64) * reward_asset_price,
                                         "freq": models::Freq::Daily.to_string(),
                                     }));
