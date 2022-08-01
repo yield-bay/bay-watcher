@@ -374,6 +374,12 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                         logo = format!("https://raw.githubusercontent.com/solarbeamio/solarbeam-tokenlist/main/assets/moonriver/{}/logo.png", token_addr.clone());
                     } else if p.0.clone() == "stellaswap" {
                         logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token_addr.clone());
+                        // xStella
+                        if token_addr.clone()
+                            == "0x06A3b410b681c82417A906993aCeFb91bAB6A080".to_string()
+                        {
+                            logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xStella.png");
+                        }
                     } else if p.0.clone() == "beamswap" {
                         logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token_addr.clone());
                     } else if p.0.clone() == "sushiswap" {
@@ -470,6 +476,12 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                         logo = format!("https://raw.githubusercontent.com/solarbeamio/solarbeam-tokenlist/main/assets/moonriver/{}/logo.png", token_addr.clone());
                     } else if p.0.clone() == "stellaswap" {
                         logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token_addr.clone());
+                        // xStella
+                        if token_addr.clone()
+                            == "0x06A3b410b681c82417A906993aCeFb91bAB6A080".to_string()
+                        {
+                            logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xStella.png");
+                        }
                     } else if p.0.clone() == "beamswap" {
                         logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token_addr.clone());
                     } else if p.0.clone() == "sushiswap" {
@@ -647,6 +659,18 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                     } else if p.0.clone() == "stellaswap" {
                         token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token0_addr.clone());
                         token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token1_addr.clone());
+
+                        // xStella
+                        if token0_addr.clone()
+                            == "0x06A3b410b681c82417A906993aCeFb91bAB6A080".to_string()
+                        {
+                            token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xStella.png");
+                        }
+                        if token1_addr.clone()
+                            == "0x06A3b410b681c82417A906993aCeFb91bAB6A080".to_string()
+                        {
+                            token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xStella.png");
+                        }
                     } else if p.0.clone() == "beamswap" {
                         token0logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token0_addr.clone());
                         token1logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token1_addr.clone());
@@ -785,6 +809,18 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                     } else if p.0.clone() == "stellaswap" {
                         token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token0_addr.clone());
                         token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token1_addr.clone());
+
+                        // xStella
+                        if token0_addr.clone()
+                            == "0x06A3b410b681c82417A906993aCeFb91bAB6A080".to_string()
+                        {
+                            token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xStella.png");
+                        }
+                        if token1_addr.clone()
+                            == "0x06A3b410b681c82417A906993aCeFb91bAB6A080".to_string()
+                        {
+                            token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xStella.png");
+                        }
                     } else if p.0.clone() == "beamswap" {
                         token0logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token0_addr.clone());
                         token1logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token1_addr.clone());
