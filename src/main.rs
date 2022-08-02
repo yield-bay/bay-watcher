@@ -514,12 +514,15 @@ async fn c(// protocols: Vec<(
                                 rewards_per_day,
                                 pool_tvl
                             );
-                            let farm_apr = ((rewards_per_day as f64 * token_price)
-                                / (pool_tvl as f64 * pool_price))
-                                * 365.0
-                                * 100.0;
-                            println!("farmAPR: {}", farm_apr);
-                            total_farm_apr += farm_apr;
+                            let mut farm_apr = 0.0;
+                            if pool_tvl != 0 && pool_price != 0.0 {
+                                farm_apr = ((rewards_per_day as f64 * token_price)
+                                    / (pool_tvl as f64 * pool_price))
+                                    * 365.0
+                                    * 100.0;
+                                println!("farmAPR: {}", farm_apr);
+                                total_farm_apr += farm_apr;
+                            }
 
                             // feeAPR
                             // let trading_apr = (lastDayVolume * 0.002 * 365 * 100) / pairLiquidity;
