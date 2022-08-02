@@ -1105,13 +1105,16 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                     "rewards/sec: {} rewards/day: {} asset_tvl: {}",
                                     rewards_per_sec, rewards_per_day, asset_tvl
                                 );
+
                                 let reward_apr = ((rewards_per_day as f64 * reward_asset_price)
                                     / (asset_tvl as f64
                                         * ten.pow(sushi.clone().unwrap().decimals) as f64))
                                     * 365.0
                                     * 100.0;
                                 println!("reward_apr: {}", reward_apr);
-                                total_reward_apr += reward_apr;
+                                if asset_tvl != 0.0 && asset_price != 0.0 {
+                                    total_reward_apr += reward_apr;
+                                }
                             }
 
                             if movr.is_some() {
@@ -1151,13 +1154,16 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                     "rewards/sec: {} rewards/day: {} asset_tvl: {}",
                                     rewards_per_sec, rewards_per_day, asset_tvl
                                 );
+
                                 let reward_apr = ((rewards_per_day as f64 * reward_asset_price)
                                     / (asset_tvl as f64
                                         * ten.pow(movr.clone().unwrap().decimals) as f64))
                                     * 365.0
                                     * 100.0;
                                 println!("reward_apr: {}", reward_apr);
-                                total_reward_apr += reward_apr;
+                                if asset_tvl != 0.0 && asset_price != 0.0 {
+                                    total_reward_apr += reward_apr;
+                                }
                             }
 
                             // base_apr/trading_apr
@@ -1329,10 +1335,14 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                     "rewards/sec: {} rewards/day: {} asset_tvl: {}",
                                     rewards_per_sec, rewards_per_day, asset_tvl
                                 );
-                                let reward_apr = ((rewards_per_day as f64 * reward_asset_price)
-                                    / (asset_tvl as f64 * asset_price))
-                                    * 365.0
-                                    * 100.0;
+                                let mut reward_apr = 0.0;
+
+                                if asset_tvl != 0 && asset_price != 0.0 {
+                                    reward_apr = ((rewards_per_day as f64 * reward_asset_price)
+                                        / (asset_tvl as f64 * asset_price))
+                                        * 365.0
+                                        * 100.0;
+                                }
                                 println!("reward_apr: {}", reward_apr);
 
                                 // base_apr/trading_apr
@@ -1488,13 +1498,16 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                             rewards_per_day,
                                             asset_tvl
                                         );
+
                                         let reward_apr = ((rewards_per_day as f64
                                             * reward_asset_price)
                                             / (asset_tvl as f64 * asset_price))
                                             * 365.0
                                             * 100.0;
                                         println!("reward_apr: {}", reward_apr);
-                                        total_reward_apr += reward_apr;
+                                        if asset_tvl != 0 && asset_price != 0.0 {
+                                            total_reward_apr += reward_apr;
+                                        }
                                     }
                                 }
 
