@@ -1971,6 +1971,142 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                             //     .collect();
                         }
 
+                        // 4pool
+                        if p.3.clone() == "beamswap".to_string() && (pid == 16) {
+                            farm_type = models::FarmType::StableAmm;
+
+                            let stable_asset =
+                                IStableLpToken::new(lp_token, Arc::clone(&p.8.clone()));
+                            let name: String = stable_asset.name().call().await?;
+                            let symbol: String = stable_asset.symbol().call().await?;
+                            println!("name: {:?}", name);
+                            // let split_name = name.split(" ");
+                            // let split_name_vec: Vec<&str> = split_name.collect();
+                            // if split_name_vec.len() > 1 && (split_name_vec[1] == "Stable") {
+                            let owner_addr: Address = stable_asset.owner().call().await?;
+                            let owner =
+                                IStableLpTokenOwner::new(owner_addr, Arc::clone(&p.8.clone()));
+                            let stable_lp_underlying_tokens = owner.get_tokens().call().await?;
+                            let stable_lp_underlying_balances =
+                                owner.get_token_balances().call().await?;
+                            println!(
+                                "stable_lp_underlying_tokens: {:#?}",
+                                stable_lp_underlying_tokens
+                            );
+                            println!(
+                                "stable_lp_underlying_balances: {:#?}",
+                                stable_lp_underlying_balances
+                            );
+
+                            // busd: "0xA649325Aa7C5093d12D6F98EB4378deAe68CE23F"
+                            // usdc: "0x818ec0A7Fe18Ff94269904fCED6AE3DaE6d6dC0b"
+                            // usdt: "0xeFAeeE334F0Fd1712f9a8cc375f427D9Cdd40d73"
+                            // dai: "0x765277EebeCA2e31912C9946eAe1021199B39C61"
+
+                            let busd = IAnyswapV5ERC20::new(
+                                "0xA649325Aa7C5093d12D6F98EB4378deAe68CE23F".parse::<Address>()?,
+                                p.8.clone(),
+                            );
+                            let usdc = IAnyswapV5ERC20::new(
+                                "0x818ec0A7Fe18Ff94269904fCED6AE3DaE6d6dC0b".parse::<Address>()?,
+                                p.8.clone(),
+                            );
+                            let usdt = IAnyswapV5ERC20::new(
+                                "0xeFAeeE334F0Fd1712f9a8cc375f427D9Cdd40d73".parse::<Address>()?,
+                                p.8.clone(),
+                            );
+                            let dai = IAnyswapV5ERC20::new(
+                                "0x765277EebeCA2e31912C9946eAe1021199B39C61".parse::<Address>()?,
+                                p.8.clone(),
+                            );
+
+                            let busd_filter = doc! {"chain":"moonbeam", "protocol":"beamswap", "address":"0xA649325Aa7C5093d12D6F98EB4378deAe68CE23F"};
+                            let busd_asset = assets_collection.find_one(busd_filter, None).await?;
+                            let usdc_filter = doc! {"chain":"moonbeam", "protocol":"beamswap", "address":"0x818ec0A7Fe18Ff94269904fCED6AE3DaE6d6dC0b"};
+                            let usdc_asset = assets_collection.find_one(usdc_filter, None).await?;
+                            let usdt_filter = doc! {"chain":"moonbeam", "protocol":"beamswap", "address":"0xeFAeeE334F0Fd1712f9a8cc375f427D9Cdd40d73"};
+                            let usdt_asset = assets_collection.find_one(usdt_filter, None).await?;
+                            let dai_filter = doc! {"chain":"moonbeam", "protocol":"beamswap", "address":"0x765277EebeCA2e31912C9946eAe1021199B39C61"};
+                            let dai_asset = assets_collection.find_one(dai_filter, None).await?;
+
+                            let ten: f64 = 10.0;
+                            let busd_bal: U256 = busd.balance_of(owner_addr).call().await?;
+                            let usdc_bal: U256 = usdc.balance_of(owner_addr).call().await?;
+                            let usdt_bal: U256 = usdt.balance_of(owner_addr).call().await?;
+                            let dai_bal: U256 = dai.balance_of(owner_addr).call().await?;
+
+                            let _4pool = IStableLpToken::new(
+                                "0x9BF6910790D70E9b5B07Cb28271C42531B929b4c".parse::<Address>()?,
+                                Arc::clone(&p.8.clone()),
+                            );
+                            // let _4pool_bal: U256 = _4pool.balance_of(owner_addr).call().await?;
+
+                            if symbol == "4pool".to_string() {
+                                let usd_pool_liq = busd_bal.as_u128() as f64
+                                    * busd_asset.clone().unwrap().price
+                                    / ten.powf(18.0)
+                                    + usdc_bal.as_u128() as f64 * usdc_asset.clone().unwrap().price
+                                        / ten.powf(6.0)
+                                    + usdt_bal.as_u128() as f64 * usdt_asset.clone().unwrap().price
+                                        / ten.powf(6.0)
+                                    + dai_bal.as_u128() as f64 * dai_asset.clone().unwrap().price
+                                        / ten.powf(18.0);
+                                println!("4pool usd_pool_liq {}", usd_pool_liq);
+                                let total_supply: U256 = stable_asset.total_supply().call().await?;
+                                let ts = total_supply.as_u128() as f64 / ten.powf(18.0);
+
+                                let usd_pool_price = usd_pool_liq / ts;
+                                println!("usd_pool_price {}", usd_pool_price);
+
+                                let f = doc! {
+                                    "address": "0x9BF6910790D70E9b5B07Cb28271C42531B929b4c".clone(),
+                                    "chain": p.5.clone(),
+                                    "protocol": p.3.clone(),
+                                };
+
+                                let timestamp = Utc::now().to_string();
+
+                                println!("token lastUpdatedAtUTC {}", timestamp.clone());
+
+                                let u = doc! {
+                                    "$set" : {
+                                        "address": "0x9BF6910790D70E9b5B07Cb28271C42531B929b4c".to_string(),
+                                        "chain": p.5.clone(),
+                                        "protocol": p.3.clone(),
+                                        "name": "Beamswap Stable DEX - Stable Multichain".to_string(),
+                                        "symbol": "4pool".to_string(),
+                                        "decimals": 18,
+                                        "logos": [
+                                            busd_asset.clone().unwrap().logos.get(0),
+                                            usdc_asset.clone().unwrap().logos.get(0),
+                                            usdt_asset.clone().unwrap().logos.get(0),
+                                            dai_asset.clone().unwrap().logos.get(0),
+                                        ],
+                                        "price": usd_pool_price,
+                                        "liquidity": usd_pool_liq,
+                                        "totalSupply": ts,
+                                        "isLP": true,
+                                        "feesAPR": 0.0,
+                                        "underlyingAssets": [
+                                            busd_asset.clone().unwrap().address,
+                                            usdc_asset.clone().unwrap().address,
+                                            usdt_asset.clone().unwrap().address,
+                                            dai_asset.clone().unwrap().address,
+                                        ],
+                                        "underlyingAssetsAlloc": [0.25, 0.25, 0.25, 0.25],
+                                        "lastUpdatedAtUTC": timestamp.clone(),
+                                    }
+                                };
+
+                                let options = FindOneAndUpdateOptions::builder()
+                                    .upsert(Some(true))
+                                    .build();
+                                assets_collection
+                                    .find_one_and_update(f, u, Some(options))
+                                    .await?;
+                            }
+                        }
+
                         if rewards_per_sec.len() > 0 {
                             let mut total_reward_apr = 0.0;
 
