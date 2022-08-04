@@ -76,6 +76,7 @@ abigen!(
         function symbol() external view returns (string)
         function owner() external view returns (address)
         function totalSupply() external view returns (uint256)
+        function balanceOf(address) external view returns (uint256)
     ]"#,
 );
 
@@ -1331,7 +1332,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
 
                 let ap = alloc_point.as_u32();
 
-                let farm_type = models::FarmType::StandardAmm;
+                let mut farm_type = models::FarmType::StandardAmm;
                 let farm_implementation = models::FarmImplementation::Solidity;
 
                 if ap > 0 {
@@ -1504,7 +1505,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                 || pid == 17
                                 || pid == 25)
                         {
-                            let farm_type = models::FarmType::StableAmm;
+                            farm_type = models::FarmType::StableAmm;
 
                             let stable_asset =
                                 IStableLpToken::new(lp_token, Arc::clone(&p.8.clone()));
@@ -1616,6 +1617,14 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                             let xcksm_bal: U256 = xcksm.balance_of(owner_addr).call().await?;
                             let stksm_bal: U256 = stksm.balance_of(owner_addr).call().await?;
 
+                            let _3pool = IStableLpToken::new(
+                                "0xfb29918d393AaAa7dD118B51A8b7fCf862F5f336".parse::<Address>()?,
+                                Arc::clone(&p.8.clone()),
+                            );
+                            let _3pool_bal: U256 = _3pool.balance_of(lp_token).call().await?;
+
+                            // TODO: calculate underlyingAssetsAlloc
+
                             if symbol == "3pool".to_string() {
                                 let usd_pool_liq = busd_bal.as_u128() as f64
                                     * busd_asset.clone().unwrap().price
@@ -1676,13 +1685,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                     .find_one_and_update(f, u, Some(options))
                                     .await?;
                             } else if symbol == "FRAX-3pool".to_string() {
-                                let usd_pool_liq = busd_bal.as_u128() as f64
-                                    * busd_asset.clone().unwrap().price
-                                    / ten.powf(18.0)
-                                    + usdc_bal.as_u128() as f64 * usdc_asset.clone().unwrap().price
-                                        / ten.powf(6.0)
-                                    + usdt_bal.as_u128() as f64 * usdt_asset.clone().unwrap().price
-                                        / ten.powf(6.0)
+                                let usd_pool_liq = _3pool_bal.as_u128() as f64 / ten.powf(18.0)
                                     + frax_bal.as_u128() as f64 * frax_asset.clone().unwrap().price
                                         / ten.powf(18.0);
                                 let total_supply: U256 = stable_asset.total_supply().call().await?;
@@ -1738,13 +1741,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                     .find_one_and_update(f, u, Some(options))
                                     .await?;
                             } else if symbol == "MAI-3pool".to_string() {
-                                let usd_pool_liq = busd_bal.as_u128() as f64
-                                    * busd_asset.clone().unwrap().price
-                                    / ten.powf(18.0)
-                                    + usdc_bal.as_u128() as f64 * usdc_asset.clone().unwrap().price
-                                        / ten.powf(6.0)
-                                    + usdt_bal.as_u128() as f64 * usdt_asset.clone().unwrap().price
-                                        / ten.powf(6.0)
+                                let usd_pool_liq = _3pool_bal.as_u128() as f64 / ten.powf(18.0)
                                     + mai_bal.as_u128() as f64 * mai_asset.clone().unwrap().price
                                         / ten.powf(18.0);
                                 let total_supply: U256 = stable_asset.total_supply().call().await?;
@@ -1800,13 +1797,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                     .find_one_and_update(f, u, Some(options))
                                     .await?;
                             } else if symbol == "MIM-3pool".to_string() {
-                                let usd_pool_liq = busd_bal.as_u128() as f64
-                                    * busd_asset.clone().unwrap().price
-                                    / ten.powf(18.0)
-                                    + usdc_bal.as_u128() as f64 * usdc_asset.clone().unwrap().price
-                                        / ten.powf(6.0)
-                                    + usdt_bal.as_u128() as f64 * usdt_asset.clone().unwrap().price
-                                        / ten.powf(6.0)
+                                let usd_pool_liq = _3pool_bal.as_u128() as f64 / ten.powf(18.0)
                                     + mim_bal.as_u128() as f64 * mim_asset.clone().unwrap().price
                                         / ten.powf(18.0);
                                 let total_supply: U256 = stable_asset.total_supply().call().await?;
@@ -1978,86 +1969,6 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                             //     .into_iter()
                             //     .zip(stable_lp_underlying_balances.clone().into_iter())
                             //     .collect();
-
-                            // let mut comb_na = true;
-                            // println!("comb0: {:?}, comb: {:?}", comb[0], comb);
-                            // // let mut underlying_tokens = vec![];
-                            // for c in comb.clone() {
-                            //     println!("c0: {:?}, c1: {:?}", c.0.to_owned(), c.1.to_owned());
-                            //     let ut_addr = ethers::utils::to_checksum(&c.0.to_owned(), None);
-                            //     println!("ut_addr: {:?}", ut_addr);
-                            //     let token_filter = doc! { "address": ut_addr, "protocol": p.3.clone(), "chef": p.5.clone() };
-                            //     let token = assets_collection.find_one(token_filter, None).await?;
-
-                            //     // if 3pool
-                            //     if token.clone().unwrap().address
-                            //         == "0xfb29918d393AaAa7dD118B51A8b7fCf862F5f336".to_string()
-                            //     {
-                            //         let f = doc! {
-                            //             "address": "0xfb29918d393AaAa7dD118B51A8b7fCf862F5f336".clone(),
-                            //             "chain": p.5.clone(),
-                            //             "protocol": p.3.clone(),
-                            //         };
-
-                            //         let timestamp = Utc::now().to_string();
-
-                            //         println!("token lastUpdatedAtUTC {}", timestamp.clone());
-
-                            //         // let u = doc! {
-                            //         //     "$set" : {
-                            //         //         "address": "0xfb29918d393AaAa7dD118B51A8b7fCf862F5f336".to_string(),
-                            //         //         "chain": p.5.clone(),
-                            //         //         "protocol": p.3.clone(),
-                            //         //         "name": "Solarbeam Stable AMM - USD Pool".to_string(),
-                            //         //         "symbol": "3pool".to_string(),
-                            //         //         "decimals": decimals,
-                            //         //         "logos": [
-                            //         //             token0logo.clone(),
-                            //         //             token1logo.clone(),
-                            //         //         ],
-                            //         //         "price": price_usd,
-                            //         //         "liquidity": liquidity,
-                            //         //         "totalSupply": total_supply,
-                            //         //         "isLP": true,
-                            //         //         "feesAPR": fees_apr,
-                            //         //         "underlyingAssets": [token0_addr.clone(), token1_addr.clone()],
-                            //         //         "underlyingAssetsAlloc": [token0alloc, token1alloc],
-                            //         //         "lastUpdatedAtUTC": timestamp.clone(),
-                            //         //     }
-                            //         // };
-
-                            //         // let options = FindOneAndUpdateOptions::builder()
-                            //         //     .upsert(Some(true))
-                            //         //     .build();
-                            //         // assets_collection
-                            //         //     .find_one_and_update(f, u, Some(options))
-                            //         //     .await?;
-                            //     }
-                            //     // if token.is_some() {
-                            //     //     println!("uttoken {:#?}", token.clone().unwrap());
-                            //     //     println!(
-                            //     //         "utprice {:?}, utbal {:?}",
-                            //     //         token.clone().unwrap().price,
-                            //     //         c.1.to_owned()
-                            //     //     );
-                            //     // } else {
-                            //     //     // underlying token is 3pool
-                            //     //     println!("uttoken.na");
-                            //     //     comb_na = false;
-
-                            //     //     let f = doc! {
-                            //     //         "address": "token_addr".clone(),
-                            //     //         "chain": p.5.clone(),
-                            //     //         "protocol": p.3.clone(),
-                            //     //     };
-
-                            //     //     let timestamp = Utc::now().to_string();
-
-                            //     //     println!("token lastUpdatedAtUTC {}", timestamp.clone());
-                            //     // }
-                            // }
-                            // if comb_na == true {}
-                            // // }
                         }
 
                         if rewards_per_sec.len() > 0 {
