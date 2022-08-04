@@ -4,7 +4,7 @@ use chrono::prelude::Utc;
 use dotenv::dotenv;
 use ethers::{
     middleware::SignerMiddleware,
-    prelude::{abigen, Address, U256},
+    prelude::{abigen, Address, H160, U256},
     providers::{Http, Provider},
     signers::LocalWallet,
     utils::to_checksum,
@@ -69,11 +69,54 @@ abigen!(
     ]"#,
 );
 
+abigen!(
+    IStableLpToken,
+    r#"[
+        function name() external view returns (string)
+        function symbol() external view returns (string)
+        function owner() external view returns (address)
+        function totalSupply() external view returns (uint256)
+    ]"#,
+);
+
+abigen!(
+    IVestedToken,
+    r#"[
+        function name() external view returns (string)
+        function symbol() external view returns (string)
+        function owner() external view returns (address)
+    ]"#,
+);
+
+abigen!(
+    IStableLpTokenOwner,
+    r#"[
+        function getNumberOfTokens() external view returns (uint256)
+        function getToken(uint8) external view returns (address)
+        function getTokenBalance(uint8) external view returns (uint256)
+        function getTokenBalances() external view returns (uint256[])
+        function getTokenIndex(address) external view returns (uint256)
+        function getTokenPrecisionMultipliers() external view returns (uint256[])
+        function getTokens() external view returns (address[])
+        function getVirtualPrice() external view returns (uint256)
+    ]"#,
+);
+
+abigen!(
+    IAnyswapV5ERC20,
+    r#"[
+        function name() external view returns (string)
+        function symbol() external view returns (string)
+        function decimals() external view returns (uint8)
+        function balanceOf(address) external view returns (uint256)
+    ]"#,
+);
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let delay = time::Duration::from_secs(60 * 2);
     loop {
-        run_jobs().await;
+        run_jobs().await.unwrap();
         thread::sleep(delay);
     }
 }
@@ -497,6 +540,14 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                     println!("logo {}", logo.clone());
 
                     let liquidity: f64 = t.total_liquidity.parse().unwrap_or_default();
+
+                    // stKSM
+                    if p.0.clone() == "solarbeam"
+                        && token_addr.clone() == "0xFfc7780C34B450d917d557E728f033033CB4fA8C"
+                    {
+                        let xcksm = assets_collection.find_one(doc! {"chain":"moonriver", "protocol":"solarbeam", "address":"0xFfFFfFff1FcaCBd218EDc0EbA20Fc2308C778080"}, None).await?;
+                        price_usd = xcksm.clone().unwrap().price;
+                    }
 
                     let f = doc! {
                         "address": token_addr.clone(),
@@ -964,6 +1015,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
             "0x3dB01570D97631f69bbb0ba39796865456Cf89A5".to_string(),
             sushi_subgraph_client.clone(),
             sushi_subgraph.clone(),
+            moonriver_client.clone(),
         ),
         (
             beam_chef_address,
@@ -974,6 +1026,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
             "0xC6ca172FC8BDB803c5e12731109744fb0200587b".to_string(),
             beamswap_subgraph_client.clone(),
             beamswap_subgraph.clone(),
+            moonbeam_client.clone(),
         ),
         (
             stella_chef_v1_address,
@@ -984,6 +1037,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
             "0xEDFB330F5FA216C9D2039B99C8cE9dA85Ea91c1E".to_string(),
             stellaswap_subgraph_client.clone(),
             stellaswap_subgraph.clone(),
+            moonbeam_client.clone(),
         ),
         (
             stella_chef_v2_address,
@@ -994,6 +1048,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
             "0xF3a5454496E26ac57da879bf3285Fa85DEBF0388".to_string(),
             stellaswap_subgraph_client.clone(),
             stellaswap_subgraph.clone(),
+            moonbeam_client.clone(),
         ),
         (
             solarbeam_chef_address,
@@ -1004,6 +1059,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
             "0x0329867a8c457e9F75e25b0685011291CD30904F".to_string(),
             solarbeam_subgraph_client.clone(),
             solarbeam_subgraph.clone(),
+            moonriver_client.clone(),
         ),
     ];
 
@@ -1438,6 +1494,571 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                             "pool_rewards_per_sec\naddresses: {:?}, symbols: {:?}, decimals: {:?}, rewards_per_sec: {:?}",
                             addresses, symbols, decimals, rewards_per_sec
                         );
+
+                        // stable amm asset
+                        if p.3.clone() == "solarbeam".to_string()
+                            && (pid == 8
+                                || pid == 9
+                                || pid == 13
+                                || pid == 16
+                                || pid == 17
+                                || pid == 25)
+                        {
+                            let farm_type = models::FarmType::StableAmm;
+
+                            let stable_asset =
+                                IStableLpToken::new(lp_token, Arc::clone(&p.8.clone()));
+                            let name: String = stable_asset.name().call().await?;
+                            let symbol: String = stable_asset.symbol().call().await?;
+                            println!("name: {:?}", name);
+                            // let split_name = name.split(" ");
+                            // let split_name_vec: Vec<&str> = split_name.collect();
+                            // if split_name_vec.len() > 1 && (split_name_vec[1] == "Stable") {
+                            let owner_addr: Address = stable_asset.owner().call().await?;
+                            let owner =
+                                IStableLpTokenOwner::new(owner_addr, Arc::clone(&p.8.clone()));
+                            let stable_lp_underlying_tokens = owner.get_tokens().call().await?;
+                            let stable_lp_underlying_balances =
+                                owner.get_token_balances().call().await?;
+                            println!(
+                                "stable_lp_underlying_tokens: {:#?}",
+                                stable_lp_underlying_tokens
+                            );
+                            println!(
+                                "stable_lp_underlying_balances: {:#?}",
+                                stable_lp_underlying_balances
+                            );
+
+                            // busd: "0x5D9ab5522c64E1F6ef5e3627ECCc093f56167818"
+                            // usdc: "0xE3F5a90F9cb311505cd691a46596599aA1A0AD7D"
+                            // usdt: "0xB44a9B6905aF7c801311e8F4E76932ee959c663C"
+
+                            let busd = IAnyswapV5ERC20::new(
+                                "0x5D9ab5522c64E1F6ef5e3627ECCc093f56167818".parse::<Address>()?,
+                                p.8.clone(),
+                            );
+                            let usdc = IAnyswapV5ERC20::new(
+                                "0xE3F5a90F9cb311505cd691a46596599aA1A0AD7D".parse::<Address>()?,
+                                p.8.clone(),
+                            );
+                            let usdt = IAnyswapV5ERC20::new(
+                                "0xB44a9B6905aF7c801311e8F4E76932ee959c663C".parse::<Address>()?,
+                                p.8.clone(),
+                            );
+                            let frax = IAnyswapV5ERC20::new(
+                                "0x1A93B23281CC1CDE4C4741353F3064709A16197d".parse::<Address>()?,
+                                p.8.clone(),
+                            );
+                            let mai = IAnyswapV5ERC20::new(
+                                "0xFb2019DfD635a03cfFF624D210AEe6AF2B00fC2C".parse::<Address>()?,
+                                p.8.clone(),
+                            );
+                            let mim = IAnyswapV5ERC20::new(
+                                "0x0caE51e1032e8461f4806e26332c030E34De3aDb".parse::<Address>()?,
+                                p.8.clone(),
+                            );
+                            let wbtc = IAnyswapV5ERC20::new(
+                                "0x6aB6d61428fde76768D7b45D8BFeec19c6eF91A8".parse::<Address>()?,
+                                p.8.clone(),
+                            );
+                            let xckbtc = IAnyswapV5ERC20::new(
+                                "0xFFFfFfFfF6E528AD57184579beeE00c5d5e646F0".parse::<Address>()?,
+                                p.8.clone(),
+                            );
+                            let xcksm = IAnyswapV5ERC20::new(
+                                "0xFfFFfFff1FcaCBd218EDc0EbA20Fc2308C778080".parse::<Address>()?,
+                                p.8.clone(),
+                            );
+                            let stksm = IAnyswapV5ERC20::new(
+                                "0xFfc7780C34B450d917d557E728f033033CB4fA8C".parse::<Address>()?,
+                                p.8.clone(),
+                            );
+
+                            let busd_filter = doc! {"chain":"moonriver", "protocol":"solarbeam", "address":"0x5D9ab5522c64E1F6ef5e3627ECCc093f56167818"};
+                            let busd_asset = assets_collection.find_one(busd_filter, None).await?;
+                            let usdc_filter = doc! {"chain":"moonriver", "protocol":"solarbeam", "address":"0xE3F5a90F9cb311505cd691a46596599aA1A0AD7D"};
+                            let usdc_asset = assets_collection.find_one(usdc_filter, None).await?;
+                            let usdt_filter = doc! {"chain":"moonriver", "protocol":"solarbeam", "address":"0xB44a9B6905aF7c801311e8F4E76932ee959c663C"};
+                            let usdt_asset = assets_collection.find_one(usdt_filter, None).await?;
+
+                            let frax_filter = doc! {"chain":"moonriver", "protocol":"solarbeam", "address":"0x1A93B23281CC1CDE4C4741353F3064709A16197d"};
+                            let frax_asset = assets_collection.find_one(frax_filter, None).await?;
+                            let mai_filter = doc! {"chain":"moonriver", "protocol":"solarbeam", "address":"0xFb2019DfD635a03cfFF624D210AEe6AF2B00fC2C"};
+                            let mai_asset = assets_collection.find_one(mai_filter, None).await?;
+                            let mim_filter = doc! {"chain":"moonriver", "protocol":"solarbeam", "address":"0x0caE51e1032e8461f4806e26332c030E34De3aDb"};
+                            let mim_asset = assets_collection.find_one(mim_filter, None).await?;
+
+                            let wbtc_filter = doc! {"chain":"moonriver", "protocol":"solarbeam", "address":"0x6aB6d61428fde76768D7b45D8BFeec19c6eF91A8"};
+                            let wbtc_asset = assets_collection.find_one(wbtc_filter, None).await?;
+                            let xckbtc_filter = doc! {"chain":"moonriver", "protocol":"solarbeam", "address":"0xFFFfFfFfF6E528AD57184579beeE00c5d5e646F0"};
+                            let xckbtc_asset =
+                                assets_collection.find_one(xckbtc_filter, None).await?;
+
+                            let xcksm_filter = doc! {"chain":"moonriver", "protocol":"solarbeam", "address":"0xFfFFfFff1FcaCBd218EDc0EbA20Fc2308C778080"};
+                            let xcksm_asset =
+                                assets_collection.find_one(xcksm_filter, None).await?;
+                            let stksm_filter = doc! {"chain":"moonriver", "protocol":"solarbeam", "address":"0xFfc7780C34B450d917d557E728f033033CB4fA8C"};
+                            let stksm_asset =
+                                assets_collection.find_one(stksm_filter, None).await?;
+
+                            let ten: f64 = 10.0;
+                            let busd_bal: U256 = busd.balance_of(owner_addr).call().await?;
+                            let usdc_bal: U256 = usdc.balance_of(owner_addr).call().await?;
+                            let usdt_bal: U256 = usdt.balance_of(owner_addr).call().await?;
+
+                            let frax_bal: U256 = frax.balance_of(owner_addr).call().await?;
+                            let mai_bal: U256 = mai.balance_of(owner_addr).call().await?;
+                            let mim_bal: U256 = mim.balance_of(owner_addr).call().await?;
+
+                            let wbtc_bal: U256 = wbtc.balance_of(owner_addr).call().await?;
+                            let xckbtc_bal: U256 = xckbtc.balance_of(owner_addr).call().await?;
+
+                            let xcksm_bal: U256 = xcksm.balance_of(owner_addr).call().await?;
+                            let stksm_bal: U256 = stksm.balance_of(owner_addr).call().await?;
+
+                            if symbol == "3pool".to_string() {
+                                let usd_pool_liq = busd_bal.as_u128() as f64
+                                    * busd_asset.clone().unwrap().price
+                                    / ten.powf(18.0)
+                                    + usdc_bal.as_u128() as f64 * usdc_asset.clone().unwrap().price
+                                        / ten.powf(6.0)
+                                    + usdt_bal.as_u128() as f64 * usdt_asset.clone().unwrap().price
+                                        / ten.powf(6.0);
+                                println!("3pool usd_pool_liq {}", usd_pool_liq);
+                                let total_supply: U256 = stable_asset.total_supply().call().await?;
+                                let ts = total_supply.as_u128() as f64 / ten.powf(18.0);
+
+                                let usd_pool_price = usd_pool_liq / ts;
+                                println!("usd_pool_price {}", usd_pool_price);
+
+                                let f = doc! {
+                                    "address": "0xfb29918d393AaAa7dD118B51A8b7fCf862F5f336".clone(),
+                                    "chain": p.5.clone(),
+                                    "protocol": p.3.clone(),
+                                };
+
+                                let timestamp = Utc::now().to_string();
+
+                                println!("token lastUpdatedAtUTC {}", timestamp.clone());
+
+                                let u = doc! {
+                                    "$set" : {
+                                        "address": "0xfb29918d393AaAa7dD118B51A8b7fCf862F5f336".to_string(),
+                                        "chain": p.5.clone(),
+                                        "protocol": p.3.clone(),
+                                        "name": "Solarbeam Stable AMM - USD Pool".to_string(),
+                                        "symbol": "3pool".to_string(),
+                                        "decimals": 18,
+                                        "logos": [
+                                            busd_asset.clone().unwrap().logos.get(0),
+                                            usdc_asset.clone().unwrap().logos.get(0),
+                                            usdt_asset.clone().unwrap().logos.get(0),
+                                        ],
+                                        "price": usd_pool_price,
+                                        "liquidity": usd_pool_liq,
+                                        "totalSupply": ts,
+                                        "isLP": true,
+                                        "feesAPR": 0.0,
+                                        "underlyingAssets": [
+                                            busd_asset.clone().unwrap().address,
+                                            usdc_asset.clone().unwrap().address,
+                                            usdt_asset.clone().unwrap().address,
+                                        ],
+                                        "underlyingAssetsAlloc": [0.33, 0.33, 0.33],
+                                        "lastUpdatedAtUTC": timestamp.clone(),
+                                    }
+                                };
+
+                                let options = FindOneAndUpdateOptions::builder()
+                                    .upsert(Some(true))
+                                    .build();
+                                assets_collection
+                                    .find_one_and_update(f, u, Some(options))
+                                    .await?;
+                            } else if symbol == "FRAX-3pool".to_string() {
+                                let usd_pool_liq = busd_bal.as_u128() as f64
+                                    * busd_asset.clone().unwrap().price
+                                    / ten.powf(18.0)
+                                    + usdc_bal.as_u128() as f64 * usdc_asset.clone().unwrap().price
+                                        / ten.powf(6.0)
+                                    + usdt_bal.as_u128() as f64 * usdt_asset.clone().unwrap().price
+                                        / ten.powf(6.0)
+                                    + frax_bal.as_u128() as f64 * frax_asset.clone().unwrap().price
+                                        / ten.powf(18.0);
+                                let total_supply: U256 = stable_asset.total_supply().call().await?;
+                                let ts = total_supply.as_u128() as f64 / ten.powf(18.0);
+
+                                let usd_pool_price = usd_pool_liq / ts;
+                                println!("usd_pool_price {}", usd_pool_price);
+
+                                let f = doc! {
+                                    "address": "0x884609A4D86BBA8477112E36e27f7A4ACecB3575".clone(),
+                                    "chain": p.5.clone(),
+                                    "protocol": p.3.clone(),
+                                };
+
+                                let timestamp = Utc::now().to_string();
+
+                                println!("token lastUpdatedAtUTC {}", timestamp.clone());
+
+                                let u = doc! {
+                                    "$set" : {
+                                        "address": "0x884609A4D86BBA8477112E36e27f7A4ACecB3575".to_string(),
+                                        "chain": p.5.clone(),
+                                        "protocol": p.3.clone(),
+                                        "name": "Solarbeam Stable AMM - FRAX Pool".to_string(),
+                                        "symbol": "FRAX-3pool".to_string(),
+                                        "decimals": 18,
+                                        "logos": [
+                                            frax_asset.clone().unwrap().logos.get(0),
+                                            busd_asset.clone().unwrap().logos.get(0),
+                                            usdc_asset.clone().unwrap().logos.get(0),
+                                            usdt_asset.clone().unwrap().logos.get(0),
+                                        ],
+                                        "price": usd_pool_price,
+                                        "liquidity": usd_pool_liq,
+                                        "totalSupply": ts,
+                                        "isLP": true,
+                                        "feesAPR": 0.0,
+                                        "underlyingAssets": [
+                                            frax_asset.clone().unwrap().address,
+                                            busd_asset.clone().unwrap().address,
+                                            usdc_asset.clone().unwrap().address,
+                                            usdt_asset.clone().unwrap().address,
+                                        ],
+                                        "underlyingAssetsAlloc": [0.25, 0.25, 0.25, 0.25],
+                                        "lastUpdatedAtUTC": timestamp.clone(),
+                                    }
+                                };
+
+                                let options = FindOneAndUpdateOptions::builder()
+                                    .upsert(Some(true))
+                                    .build();
+                                assets_collection
+                                    .find_one_and_update(f, u, Some(options))
+                                    .await?;
+                            } else if symbol == "MAI-3pool".to_string() {
+                                let usd_pool_liq = busd_bal.as_u128() as f64
+                                    * busd_asset.clone().unwrap().price
+                                    / ten.powf(18.0)
+                                    + usdc_bal.as_u128() as f64 * usdc_asset.clone().unwrap().price
+                                        / ten.powf(6.0)
+                                    + usdt_bal.as_u128() as f64 * usdt_asset.clone().unwrap().price
+                                        / ten.powf(6.0)
+                                    + mai_bal.as_u128() as f64 * mai_asset.clone().unwrap().price
+                                        / ten.powf(18.0);
+                                let total_supply: U256 = stable_asset.total_supply().call().await?;
+                                let ts = total_supply.as_u128() as f64 / ten.powf(18.0);
+
+                                let usd_pool_price = usd_pool_liq / ts;
+                                println!("usd_pool_price {}", usd_pool_price);
+
+                                let f = doc! {
+                                    "address": "0x8CDB472731B4f815d67e76885a22269ad7f0e398".clone(),
+                                    "chain": p.5.clone(),
+                                    "protocol": p.3.clone(),
+                                };
+
+                                let timestamp = Utc::now().to_string();
+
+                                println!("token lastUpdatedAtUTC {}", timestamp.clone());
+
+                                let u = doc! {
+                                    "$set" : {
+                                        "address": "0x8CDB472731B4f815d67e76885a22269ad7f0e398".to_string(),
+                                        "chain": p.5.clone(),
+                                        "protocol": p.3.clone(),
+                                        "name": "Solarbeam Stable AMM - MAI Pool".to_string(),
+                                        "symbol": "MAI-3pool".to_string(),
+                                        "decimals": 18,
+                                        "logos": [
+                                            mai_asset.clone().unwrap().logos.get(0),
+                                            busd_asset.clone().unwrap().logos.get(0),
+                                            usdc_asset.clone().unwrap().logos.get(0),
+                                            usdt_asset.clone().unwrap().logos.get(0),
+                                        ],
+                                        "price": usd_pool_price,
+                                        "liquidity": usd_pool_liq,
+                                        "totalSupply": ts,
+                                        "isLP": true,
+                                        "feesAPR": 0.0,
+                                        "underlyingAssets": [
+                                            mai_asset.clone().unwrap().address,
+                                            busd_asset.clone().unwrap().address,
+                                            usdc_asset.clone().unwrap().address,
+                                            usdt_asset.clone().unwrap().address,
+                                        ],
+                                        "underlyingAssetsAlloc": [0.25, 0.25, 0.25, 0.25],
+                                        "lastUpdatedAtUTC": timestamp.clone(),
+                                    }
+                                };
+
+                                let options = FindOneAndUpdateOptions::builder()
+                                    .upsert(Some(true))
+                                    .build();
+                                assets_collection
+                                    .find_one_and_update(f, u, Some(options))
+                                    .await?;
+                            } else if symbol == "MIM-3pool".to_string() {
+                                let usd_pool_liq = busd_bal.as_u128() as f64
+                                    * busd_asset.clone().unwrap().price
+                                    / ten.powf(18.0)
+                                    + usdc_bal.as_u128() as f64 * usdc_asset.clone().unwrap().price
+                                        / ten.powf(6.0)
+                                    + usdt_bal.as_u128() as f64 * usdt_asset.clone().unwrap().price
+                                        / ten.powf(6.0)
+                                    + mim_bal.as_u128() as f64 * mim_asset.clone().unwrap().price
+                                        / ten.powf(18.0);
+                                let total_supply: U256 = stable_asset.total_supply().call().await?;
+                                let ts = total_supply.as_u128() as f64 / ten.powf(18.0);
+
+                                let usd_pool_price = usd_pool_liq / ts;
+                                println!("usd_pool_price {}", usd_pool_price);
+
+                                let f = doc! {
+                                    "address": "0x4BaB767c98186bA28eA66f2a69cd0DA351D60b36".clone(),
+                                    "chain": p.5.clone(),
+                                    "protocol": p.3.clone(),
+                                };
+
+                                let timestamp = Utc::now().to_string();
+
+                                println!("token lastUpdatedAtUTC {}", timestamp.clone());
+
+                                let u = doc! {
+                                    "$set" : {
+                                        "address": "0x4BaB767c98186bA28eA66f2a69cd0DA351D60b36".to_string(),
+                                        "chain": p.5.clone(),
+                                        "protocol": p.3.clone(),
+                                        "name": "Solarbeam Stable AMM - MIM Pool".to_string(),
+                                        "symbol": "MIM-3pool".to_string(),
+                                        "decimals": 18,
+                                        "logos": [
+                                            mim_asset.clone().unwrap().logos.get(0),
+                                            busd_asset.clone().unwrap().logos.get(0),
+                                            usdc_asset.clone().unwrap().logos.get(0),
+                                            usdt_asset.clone().unwrap().logos.get(0),
+                                        ],
+                                        "price": usd_pool_price,
+                                        "liquidity": usd_pool_liq,
+                                        "totalSupply": ts,
+                                        "isLP": true,
+                                        "feesAPR": 0.0,
+                                        "underlyingAssets": [
+                                            mim_asset.clone().unwrap().address,
+                                            busd_asset.clone().unwrap().address,
+                                            usdc_asset.clone().unwrap().address,
+                                            usdt_asset.clone().unwrap().address,
+                                        ],
+                                        "underlyingAssetsAlloc": [0.25, 0.25, 0.25, 0.25],
+                                        "lastUpdatedAtUTC": timestamp.clone(),
+                                    }
+                                };
+
+                                let options = FindOneAndUpdateOptions::builder()
+                                    .upsert(Some(true))
+                                    .build();
+                                assets_collection
+                                    .find_one_and_update(f, u, Some(options))
+                                    .await?;
+                            } else if symbol == "kBTC-BTC".to_string() {
+                                let wbtc_price = wbtc_asset.clone().unwrap().price;
+                                let xckbtc_price = xckbtc_asset.clone().unwrap().price;
+                                let pool_liq = wbtc_bal.as_u128() as f64 * wbtc_price
+                                    / ten.powf(8.0)
+                                    + xckbtc_bal.as_u128() as f64 * xckbtc_price / ten.powf(8.0);
+                                let total_supply: U256 = stable_asset.total_supply().call().await?;
+                                let ts = total_supply.as_u128() as f64 / ten.powf(18.0);
+
+                                let pool_price = pool_liq / ts;
+                                println!("pool_price {}", pool_price);
+
+                                let f = doc! {
+                                    "address": "0x4F707d051b4b49B63e72Cc671e78E152ec66f2fA".clone(),
+                                    "chain": p.5.clone(),
+                                    "protocol": p.3.clone(),
+                                };
+
+                                let timestamp = Utc::now().to_string();
+
+                                println!("token lastUpdatedAtUTC {}", timestamp.clone());
+
+                                let u = doc! {
+                                    "$set" : {
+                                        "address": "0x4F707d051b4b49B63e72Cc671e78E152ec66f2fA".to_string(),
+                                        "chain": p.5.clone(),
+                                        "protocol": p.3.clone(),
+                                        "name": "Solarbeam Stable AMM - kBTC Pool".to_string(),
+                                        "symbol": "kBTC-BTC".to_string(),
+                                        "decimals": 18,
+                                        "logos": [
+                                            wbtc_asset.clone().unwrap().logos.get(0),
+                                            xckbtc_asset.clone().unwrap().logos.get(0),
+                                        ],
+                                        "price": pool_price,
+                                        "liquidity": pool_liq,
+                                        "totalSupply": ts,
+                                        "isLP": true,
+                                        "feesAPR": 0.0,
+                                        "underlyingAssets": [
+                                            wbtc_asset.clone().unwrap().address,
+                                            xckbtc_asset.clone().unwrap().address,
+                                        ],
+                                        "underlyingAssetsAlloc": [0.25, 0.25, 0.25, 0.25],
+                                        "lastUpdatedAtUTC": timestamp.clone(),
+                                    }
+                                };
+
+                                let options = FindOneAndUpdateOptions::builder()
+                                    .upsert(Some(true))
+                                    .build();
+                                assets_collection
+                                    .find_one_and_update(f, u, Some(options))
+                                    .await?;
+                            } else if symbol == "stKSM".to_string() {
+                                let pool_liq = xcksm_bal.as_u128() as f64
+                                    * xcksm_asset.clone().unwrap().price
+                                    / ten.powf(12.0)
+                                    + stksm_bal.as_u128() as f64
+                                        * stksm_asset.clone().unwrap().price
+                                        / ten.powf(12.0);
+                                let total_supply: U256 = stable_asset.total_supply().call().await?;
+                                let ts = total_supply.as_u128() as f64 / ten.powf(18.0);
+
+                                let pool_price = pool_liq / ts;
+                                println!("pool_price {}", pool_price);
+
+                                let f = doc! {
+                                    "address": "0x493147C85Fe43F7B056087a6023dF32980Bcb2D1".clone(),
+                                    "chain": p.5.clone(),
+                                    "protocol": p.3.clone(),
+                                };
+
+                                let timestamp = Utc::now().to_string();
+
+                                println!("token lastUpdatedAtUTC {}", timestamp.clone());
+
+                                let u = doc! {
+                                    "$set" : {
+                                        "address": "0x493147C85Fe43F7B056087a6023dF32980Bcb2D1".to_string(),
+                                        "chain": p.5.clone(),
+                                        "protocol": p.3.clone(),
+                                        "name": "Solarbeam Stable AMM - stKSM Pool".to_string(),
+                                        "symbol": "stKSM".to_string(),
+                                        "decimals": 18,
+                                        "logos": [
+                                            xcksm_asset.clone().unwrap().logos.get(0),
+                                            stksm_asset.clone().unwrap().logos.get(0),
+                                        ],
+                                        "price": pool_price,
+                                        "liquidity": pool_liq,
+                                        "totalSupply": ts,
+                                        "isLP": true,
+                                        "feesAPR": 0.0,
+                                        "underlyingAssets": [
+                                            xcksm_asset.clone().unwrap().address,
+                                            stksm_asset.clone().unwrap().address,
+                                        ],
+                                        "underlyingAssetsAlloc": [0.5, 0.5],
+                                        "lastUpdatedAtUTC": timestamp.clone(),
+                                    }
+                                };
+
+                                let options = FindOneAndUpdateOptions::builder()
+                                    .upsert(Some(true))
+                                    .build();
+                                assets_collection
+                                    .find_one_and_update(f, u, Some(options))
+                                    .await?;
+                            }
+
+                            // let mut comb: Vec<(H160, U256)> = vec![];
+                            // comb = stable_lp_underlying_tokens
+                            //     .clone()
+                            //     .into_iter()
+                            //     .zip(stable_lp_underlying_balances.clone().into_iter())
+                            //     .collect();
+
+                            // let mut comb_na = true;
+                            // println!("comb0: {:?}, comb: {:?}", comb[0], comb);
+                            // // let mut underlying_tokens = vec![];
+                            // for c in comb.clone() {
+                            //     println!("c0: {:?}, c1: {:?}", c.0.to_owned(), c.1.to_owned());
+                            //     let ut_addr = ethers::utils::to_checksum(&c.0.to_owned(), None);
+                            //     println!("ut_addr: {:?}", ut_addr);
+                            //     let token_filter = doc! { "address": ut_addr, "protocol": p.3.clone(), "chef": p.5.clone() };
+                            //     let token = assets_collection.find_one(token_filter, None).await?;
+
+                            //     // if 3pool
+                            //     if token.clone().unwrap().address
+                            //         == "0xfb29918d393AaAa7dD118B51A8b7fCf862F5f336".to_string()
+                            //     {
+                            //         let f = doc! {
+                            //             "address": "0xfb29918d393AaAa7dD118B51A8b7fCf862F5f336".clone(),
+                            //             "chain": p.5.clone(),
+                            //             "protocol": p.3.clone(),
+                            //         };
+
+                            //         let timestamp = Utc::now().to_string();
+
+                            //         println!("token lastUpdatedAtUTC {}", timestamp.clone());
+
+                            //         // let u = doc! {
+                            //         //     "$set" : {
+                            //         //         "address": "0xfb29918d393AaAa7dD118B51A8b7fCf862F5f336".to_string(),
+                            //         //         "chain": p.5.clone(),
+                            //         //         "protocol": p.3.clone(),
+                            //         //         "name": "Solarbeam Stable AMM - USD Pool".to_string(),
+                            //         //         "symbol": "3pool".to_string(),
+                            //         //         "decimals": decimals,
+                            //         //         "logos": [
+                            //         //             token0logo.clone(),
+                            //         //             token1logo.clone(),
+                            //         //         ],
+                            //         //         "price": price_usd,
+                            //         //         "liquidity": liquidity,
+                            //         //         "totalSupply": total_supply,
+                            //         //         "isLP": true,
+                            //         //         "feesAPR": fees_apr,
+                            //         //         "underlyingAssets": [token0_addr.clone(), token1_addr.clone()],
+                            //         //         "underlyingAssetsAlloc": [token0alloc, token1alloc],
+                            //         //         "lastUpdatedAtUTC": timestamp.clone(),
+                            //         //     }
+                            //         // };
+
+                            //         // let options = FindOneAndUpdateOptions::builder()
+                            //         //     .upsert(Some(true))
+                            //         //     .build();
+                            //         // assets_collection
+                            //         //     .find_one_and_update(f, u, Some(options))
+                            //         //     .await?;
+                            //     }
+                            //     // if token.is_some() {
+                            //     //     println!("uttoken {:#?}", token.clone().unwrap());
+                            //     //     println!(
+                            //     //         "utprice {:?}, utbal {:?}",
+                            //     //         token.clone().unwrap().price,
+                            //     //         c.1.to_owned()
+                            //     //     );
+                            //     // } else {
+                            //     //     // underlying token is 3pool
+                            //     //     println!("uttoken.na");
+                            //     //     comb_na = false;
+
+                            //     //     let f = doc! {
+                            //     //         "address": "token_addr".clone(),
+                            //     //         "chain": p.5.clone(),
+                            //     //         "protocol": p.3.clone(),
+                            //     //     };
+
+                            //     //     let timestamp = Utc::now().to_string();
+
+                            //     //     println!("token lastUpdatedAtUTC {}", timestamp.clone());
+                            //     // }
+                            // }
+                            // if comb_na == true {}
+                            // // }
+                        }
 
                         if rewards_per_sec.len() > 0 {
                             let mut total_reward_apr = 0.0;
