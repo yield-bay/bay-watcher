@@ -1621,7 +1621,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                 "0xfb29918d393AaAa7dD118B51A8b7fCf862F5f336".parse::<Address>()?,
                                 Arc::clone(&p.8.clone()),
                             );
-                            let _3pool_bal: U256 = _3pool.balance_of(lp_token).call().await?;
+                            let _3pool_bal: U256 = _3pool.balance_of(owner_addr).call().await?;
 
                             // TODO: calculate underlyingAssetsAlloc
 
