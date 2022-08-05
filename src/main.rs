@@ -1415,11 +1415,11 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
 
                                 let ten: i128 = 10;
                                 rewards.push(bson!({
-                                "amount": rewards_per_day as f64 / ten.pow(stella.clone().unwrap().decimals) as f64,
-                                "asset":  stella.clone().unwrap().symbol,
-                                "valueUSD": (rewards_per_day as f64 / ten.pow(stella.clone().unwrap().decimals) as f64) * reward_asset_price,
-                                "freq": models::Freq::Daily.to_string(),
-                            }));
+                                    "amount": rewards_per_day as f64 / ten.pow(stella.clone().unwrap().decimals) as f64,
+                                    "asset":  stella.clone().unwrap().symbol,
+                                    "valueUSD": (rewards_per_day as f64 / ten.pow(stella.clone().unwrap().decimals) as f64) * reward_asset_price,
+                                    "freq": models::Freq::Daily.to_string(),
+                                }));
 
                                 // reward_apr/farm_apr/pool_apr
                                 println!(
@@ -2187,12 +2187,13 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
 
                                         let ten: i128 = 10;
                                         rewards.push(bson!({
-                                        "amount": rewards_per_day as f64 / ten.pow(decimals[i].as_u128().try_into().unwrap()) as f64,
-                                        "asset":  reward_asset.clone().unwrap().symbol,
-                                        "valueUSD": (rewards_per_day as f64 / ten.pow(decimals[i].as_u128().try_into().unwrap()) as f64) * reward_asset_price,
-                                        "freq": models::Freq::Daily.to_string(),
-                                    }));
+                                            "amount": rewards_per_day as f64 / ten.pow(decimals[i].as_u128().try_into().unwrap()) as f64,
+                                            "asset":  reward_asset.clone().unwrap().symbol,
+                                            "valueUSD": (rewards_per_day as f64 / ten.pow(decimals[i].as_u128().try_into().unwrap()) as f64) * reward_asset_price,
+                                            "freq": models::Freq::Daily.to_string(),
+                                        }));
 
+                                        println!("slaayyyyyyyy asset_price {}", asset_price);
                                         // reward_apr/farm_apr/pool_apr
                                         println!(
                                             "rewards/sec: {} rewards/day: {} asset_tvl: {}",
@@ -2202,8 +2203,11 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                         );
 
                                         let reward_apr = ((rewards_per_day as f64
+                                            / ten.pow(decimals[i].as_u128().try_into().unwrap())
+                                                as f64
                                             * reward_asset_price)
-                                            / (asset_tvl as f64 * asset_price))
+                                            / (asset_tvl as f64 * asset_price
+                                                / ten.pow(18) as f64))
                                             * 365.0
                                             * 100.0;
                                         println!("reward_apr: {}", reward_apr);
