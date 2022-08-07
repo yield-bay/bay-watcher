@@ -147,6 +147,46 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
     let mut headers = HashMap::new();
     headers.insert("content-type", "application/json");
 
+    let daily_data_tai_ksm_query = r#"
+        query {
+            dailyData(first:30, orderBy: TIMESTAMP_DESC, filter: {poolId: {equalTo: 0}}) {
+                nodes {
+                    yieldVolume
+                    feeVolume
+                    totalSupply
+                }
+            }
+        }
+    "#;
+
+    let daily_data_3_usd_query = r#"
+        query DD3USD($days: Int) {
+            dailyData(first: $days, orderBy: TIMESTAMP_DESC, filter: {poolId: {equalTo: 1}}) {
+                nodes {
+                    yieldVolume
+                    feeVolume
+                    totalSupply
+                }
+            }
+        }
+    "#;
+
+    let token_price_history_query = r#"
+        query TPHQ($asset: String, $days: Int) {
+            token(id: $asset) {
+                dailyData(first: $days, orderBy: TIMESTAMP_DESC) {
+                    nodes {
+                        price
+                        timestamp
+                    }
+                }
+            }
+        }
+    "#;
+
+    let delay = time::Duration::from_secs(60 * 2);
+    thread::sleep(delay);
+
     let solarbeam_subgraph = "https://api.thegraph.com/subgraphs/name/solar-ape/solarbeam";
     let stellaswap_subgraph = "https://api.thegraph.com/subgraphs/name/stellaswap/stella-swap";
     let beamswap_subgraph = "https://api.thegraph.com/subgraphs/name/beamswap/beamswap-dex";
