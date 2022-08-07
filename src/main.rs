@@ -936,7 +936,11 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                         decimals = token1decimals;
                     }
 
-                    let liquidity: f64 = pair.reserve_usd.parse().unwrap_or_default();
+                    let mut liquidity: f64 = pair.reserve_usd.parse().unwrap_or_default();
+                    // wstKSM-xcKSM LP
+                    if pair_addr.clone() == "0x5568872bc43Bae3757F697c0e1b241b62Eddcc17" {
+                        liquidity *= 2.0;
+                    }
                     let total_supply: f64 = pair.total_supply.parse().unwrap_or_default();
 
                     let mut price_usd: f64 = 0.0;
