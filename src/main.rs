@@ -554,9 +554,10 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
 
                     let liquidity: f64 = t.total_liquidity.parse().unwrap_or_default();
 
-                    // stKSM
+                    // stKSM or wstKSM
                     if p.0.clone() == "solarbeam"
-                        && token_addr.clone() == "0xFfc7780C34B450d917d557E728f033033CB4fA8C"
+                        && (token_addr.clone() == "0xFfc7780C34B450d917d557E728f033033CB4fA8C"
+                            || token_addr.clone() == "0x3bfd113ad0329a7994a681236323fb16E16790e3")
                     {
                         let xcksm = assets_collection.find_one(doc! {"chain":"moonriver", "protocol":"solarbeam", "address":"0xFfFFfFff1FcaCBd218EDc0EbA20Fc2308C778080"}, None).await?;
                         price_usd = xcksm.clone().unwrap().price;
