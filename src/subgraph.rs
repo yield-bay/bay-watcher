@@ -202,3 +202,50 @@ pub struct SushiPairDayData {
 pub struct SushiPDDPair {
     pub id: String,
 }
+
+// Tapio/Taiga
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KaruraTokenPriceHistoryData {
+    pub token: KaruraDexToken,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KaruraDexToken {
+    pub daily_data: KaruraDailyData,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KaruraDailyData {
+    pub nodes: Vec<KaruraDailyDataNode>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KaruraDailyDataNode {
+    pub price: String,
+    pub timestamp: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TapioDD {
+    pub daily_data: TapioDailyData,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TapioDailyData {
+    pub nodes: Vec<TapioDailyDataNode>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TapioDailyDataNode {
+    pub yield_volume: f64,
+    pub fee_volume: f64,
+    pub total_supply: f64,
+}

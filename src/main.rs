@@ -147,6 +147,157 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
     let mut headers = HashMap::new();
     headers.insert("content-type", "application/json");
 
+    let daily_data_tai_ksm_query = r#"
+        query {
+            dailyData(first:30, orderBy: TIMESTAMP_DESC, filter: {poolId: {equalTo: 0}}) {
+                nodes {
+                    yieldVolume
+                    feeVolume
+                    totalSupply
+                }
+            }
+        }
+    "#;
+
+    let daily_data_3_usd_query = r#"
+        query DD3USD($days: Int) {
+            dailyData(first: $days, orderBy: TIMESTAMP_DESC, filter: {poolId: {equalTo: 1}}) {
+                nodes {
+                    yieldVolume
+                    feeVolume
+                    totalSupply
+                }
+            }
+        }
+    "#;
+
+    let token_price_history_query = r#"
+        query TPHQ($asset: String!, $days: Int!) {
+            token(id: $asset) {
+                dailyData(first: $days, orderBy: TIMESTAMP_DESC) {
+                    nodes {
+                        price
+                        timestamp
+                    }
+                }
+            }
+        }
+    "#;
+
+    let _tai_ksm = fetch_tai_ksm(
+        daily_data_tai_ksm_query.to_owned(),
+        token_price_history_query.to_owned(),
+    )
+    .await;
+    let _3usd = fetch_3usd(
+        daily_data_3_usd_query.to_owned(),
+        token_price_history_query.to_owned(),
+    )
+    .await;
+
+    println!("_tai_ksm:\n{:?}\n_3usd:\n{:?}", _tai_ksm, _3usd);
+
+    let mut tai_ksm_rewards = vec![];
+    for r in _tai_ksm.1.clone() {
+        tai_ksm_rewards.push(bson!({
+            "amount": r.0 as f64,
+            "asset":  r.1.clone(),
+            "valueUSD": r.2 as f64,
+            "freq": r.3.clone(),
+        }));
+    }
+
+    let timestamp = Utc::now().to_string();
+
+    println!("taiKSM farm lastUpdatedAtUTC {}", timestamp.clone());
+
+    let tai_ksm_ff = doc! {
+        "id": 0,
+        "chef": "taiKSM".to_string(),
+        "chain": "karura".to_string(),
+        "protocol": "taiga".to_string(),
+    };
+    let tai_ksm_fu = doc! {
+        "$set" : {
+            "id": 0,
+            "chef": "taiKSM".to_string(),
+            "chain": "karura".to_string(),
+            "protocol": "taiga".to_string(),
+            "farmType": models::FarmType::SingleStaking.to_string(),
+            "farmImpl": models::FarmImplementation::Pallet.to_string(),
+            "asset": {
+                "symbol": "taiKSM".to_string(),
+                "address": "taiKSM".to_string(),
+                "price": 0 as f64,
+                "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/karura/taiga/taiKSM.png".to_string()],
+            },
+            "tvl": _tai_ksm.0 as f64,
+            "apr.reward": _tai_ksm.2.1 as f64 * 100.0,
+            "apr.base": _tai_ksm.2.0 as f64 * 100.0,
+            "rewards": tai_ksm_rewards,
+            "allocPoint": 1,
+            "lastUpdatedAtUTC": timestamp.clone(),
+        }
+    };
+    let options = FindOneAndUpdateOptions::builder()
+        .upsert(Some(true))
+        .build();
+    farms_collection
+        .find_one_and_update(tai_ksm_ff, tai_ksm_fu, Some(options))
+        .await?;
+
+    let mut _3usd_rewards = vec![];
+    for r in _3usd.1.clone() {
+        _3usd_rewards.push(bson!({
+            "amount": r.0 as f64,
+            "asset":  r.1.clone(),
+            "valueUSD": r.2 as f64,
+            "freq": r.3.clone(),
+        }));
+    }
+
+    let timestamp = Utc::now().to_string();
+
+    println!("3USD farm lastUpdatedAtUTC {}", timestamp.clone());
+
+    let _3usd_ff = doc! {
+        "id": 1,
+        "chef": "3USD".to_string(),
+        "chain": "karura".to_string(),
+        "protocol": "taiga".to_string(),
+    };
+    let _3usd_fu = doc! {
+        "$set" : {
+            "id": 1,
+            "chef": "3USD".to_string(),
+            "chain": "karura".to_string(),
+            "protocol": "taiga".to_string(),
+            "farmType": models::FarmType::SingleStaking.to_string(),
+            "farmImpl": models::FarmImplementation::Pallet.to_string(),
+            "asset": {
+                "symbol": "3USD".to_string(),
+                "address": "3USD".to_string(),
+                "price": 0 as f64,
+                "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/karura/taiga/3USD.png".to_string()],
+            },
+            "tvl": _3usd.0 as f64,
+            "apr.reward": _3usd.2.1 as f64 * 100.0,
+            "apr.base": _3usd.2.0 as f64 * 100.0,
+            "rewards": _3usd_rewards,
+            "allocPoint": 1,
+            "lastUpdatedAtUTC": timestamp.clone(),
+        }
+    };
+    let options = FindOneAndUpdateOptions::builder()
+        .upsert(Some(true))
+        .build();
+    farms_collection
+        .find_one_and_update(_3usd_ff, _3usd_fu, Some(options))
+        .await?;
+
+    // let delay = time::Duration::from_secs(60 * 10);
+    // thread::sleep(delay);
+
     let solarbeam_subgraph = "https://api.thegraph.com/subgraphs/name/solar-ape/solarbeam";
     let stellaswap_subgraph = "https://api.thegraph.com/subgraphs/name/stellaswap/stella-swap";
     let beamswap_subgraph = "https://api.thegraph.com/subgraphs/name/beamswap/beamswap-dex";
@@ -2380,4 +2531,256 @@ async fn get_one_day_pools(
         return pairs_data.clone().unwrap().pairs;
     }
     return vec![];
+}
+
+async fn fetch_3usd(
+    taiga_query_str: String,
+    karura_dex_query_str: String,
+) -> (f64, Vec<(i32, String, f64, String)>, (f64, f64)) {
+    let subql_client =
+        Client::new("https://api.subquery.network/sq/nutsfinance/taiga-protocol".to_string());
+    #[derive(Serialize)]
+    pub struct Vars {
+        days: i64,
+    }
+    let vars = Vars { days: 14 };
+    let pool_data = subql_client
+        .query_with_vars_unwrap::<subgraph::TapioDD, Vars>(&taiga_query_str, vars)
+        .await;
+
+    let mut tvl = 0.0;
+    let mut apr = (0.0, 0.0);
+    if pool_data.is_ok() {
+        tvl = pool_data
+            .clone()
+            .unwrap()
+            .daily_data
+            .nodes
+            .get(0)
+            .unwrap()
+            .total_supply;
+
+        apr = fetch_3usd_apr(pool_data.clone().unwrap(), karura_dex_query_str.clone()).await;
+    }
+
+    let tai_price_history =
+        get_token_price_history(karura_dex_query_str.clone(), "TAI".to_string(), 1).await;
+    let tai_ksm_price_history =
+        get_token_price_history(karura_dex_query_str.clone(), "sa://0".to_string(), 1).await;
+    let lksm_price_history =
+        get_token_price_history(karura_dex_query_str.clone(), "LKSM".to_string(), 1).await;
+    let kar_price_history =
+        get_token_price_history(karura_dex_query_str.clone(), "KAR".to_string(), 1).await;
+
+    let rewards = vec![
+        // (amount, asset, value_usd, freq)
+        (
+            8000,
+            "TAI".to_string(),
+            tai_price_history[0].0 * 8000.0,
+            "Weekly".to_string(),
+        ),
+        (
+            30,
+            "taiKSM".to_string(),
+            tai_ksm_price_history[0].0 * 30.0,
+            "Weekly".to_string(),
+        ),
+        (
+            250,
+            "LKSM".to_string(),
+            lksm_price_history[0].0 * 250.0,
+            "Weekly".to_string(),
+        ),
+        (
+            2000,
+            "KAR".to_string(),
+            kar_price_history[0].0 * 2000.0,
+            "Weekly".to_string(),
+        ),
+    ];
+
+    (tvl, rewards, apr)
+}
+
+async fn fetch_tai_ksm(
+    taiga_query_str: String,
+    karura_dex_query_str: String,
+) -> (f64, Vec<(i32, String, f64, String)>, (f64, f64)) {
+    let subql_client =
+        Client::new("https://api.subquery.network/sq/nutsfinance/taiga-protocol".to_string());
+    #[derive(Serialize)]
+    pub struct Vars {
+        days: i64,
+    }
+    let vars = Vars { days: 30 };
+    let pool_data = subql_client
+        .query_with_vars_unwrap::<subgraph::TapioDD, Vars>(&taiga_query_str, vars)
+        .await;
+
+    let mut current_supply = 0.0;
+    let mut tvl = 0.0;
+    let mut apr = (0.0, 0.0);
+    let mut rewards = vec![];
+
+    if pool_data.is_ok() {
+        println!("pool_datau {:?}", pool_data.clone().unwrap());
+
+        let tai_price_history =
+            get_token_price_history(karura_dex_query_str.clone(), "TAI".to_string(), 1).await;
+        let tai_ksm_price_history =
+            get_token_price_history(karura_dex_query_str.clone(), "sa://0".to_string(), 1).await;
+
+        let tai_price = tai_price_history[0].0;
+        let tai_ksm_price = tai_ksm_price_history[0].0;
+
+        current_supply = pool_data
+            .clone()
+            .unwrap()
+            .daily_data
+            .nodes
+            .get(0)
+            .unwrap()
+            .total_supply;
+
+        tvl = current_supply * tai_ksm_price;
+
+        apr = fetch_tai_ksm_apr(pool_data.clone().unwrap(), karura_dex_query_str.clone()).await;
+
+        rewards = vec![
+            // (amount, asset, value_usd, freq)
+            (
+                4000,
+                "TAI".to_string(),
+                tai_price * 4000.0,
+                "Daily".to_string(),
+            ),
+        ];
+    }
+
+    (tvl, rewards, apr)
+}
+
+async fn fetch_3usd_apr(pool_data: subgraph::TapioDD, karura_dex_query_str: String) -> (f64, f64) {
+    let days = 14;
+
+    let daily_data = pool_data.clone().daily_data.nodes;
+
+    let tai_price_history =
+        get_token_price_history(karura_dex_query_str.clone(), "TAI".to_string(), days).await;
+    let tai_ksm_price_history =
+        get_token_price_history(karura_dex_query_str.clone(), "sa://0".to_string(), days).await;
+    let lksm_price_history =
+        get_token_price_history(karura_dex_query_str.clone(), "LKSM".to_string(), days).await;
+    let kar_price_history =
+        get_token_price_history(karura_dex_query_str.clone(), "KAR".to_string(), days).await;
+
+    let mut total = 0.0;
+    let daily_total_supply = daily_data.clone().into_iter().map(|node| node.total_supply);
+    let dts: Vec<f64> = daily_total_supply.clone().collect();
+
+    for i in 0..daily_total_supply.len() {
+        // 8000 TAI per week
+        total += (8000.0 * tai_price_history.get(i).unwrap().0 * (365.0 / 7.0)) / dts[i];
+
+        // 30 taiKSM per week
+        total += (30.0 * tai_ksm_price_history.get(i).unwrap().0 * (365.0 / 7.0)) / dts[i];
+
+        // 250 LKSM per week
+        total += (250.0 * lksm_price_history.get(i).unwrap().0 * (365.0 / 7.0)) / dts[i];
+
+        // 2000 KAR per week
+        total += (2000.0 * kar_price_history.get(i).unwrap().0 * (365.0 / 7.0)) / dts[i];
+    }
+
+    let reward_apr = total / daily_total_supply.len() as f64;
+    let base_apr = calculate_base_apr(daily_data.clone());
+
+    (base_apr, reward_apr)
+}
+
+async fn fetch_tai_ksm_apr(
+    pool_data: subgraph::TapioDD,
+    karura_dex_query_str: String,
+) -> (f64, f64) {
+    let days = 30;
+
+    let daily_data = pool_data.clone().daily_data.nodes;
+
+    let tai_price_history =
+        get_token_price_history(karura_dex_query_str.clone(), "TAI".to_string(), days).await;
+    let tai_ksm_price_history =
+        get_token_price_history(karura_dex_query_str.clone(), "sa://0".to_string(), days).await;
+
+    let mut total = 0.0;
+    let daily_total_supply = daily_data.clone().into_iter().map(|node| node.total_supply);
+    let dts: Vec<f64> = daily_total_supply.clone().collect();
+
+    for i in 0..daily_total_supply.len() {
+        // 4000 TAI each day
+        total += (4000.0 * tai_price_history.get(i).unwrap().0 * (365.0))
+            / (dts[i] * tai_ksm_price_history.get(i).unwrap().0);
+    }
+
+    let reward_apr = total / daily_total_supply.len() as f64;
+    let base_apr = calculate_base_apr(daily_data.clone());
+
+    (base_apr, reward_apr)
+}
+
+fn calculate_base_apr(daily_data: Vec<subgraph::TapioDailyDataNode>) -> f64 {
+    let daily_fee_apr = daily_data
+        .clone()
+        .into_iter()
+        .map(|d| d.fee_volume * 365.0 / d.total_supply);
+    let daily_yield_apr = daily_data
+        .clone()
+        .into_iter()
+        .map(|d| d.yield_volume * 365.0 / d.total_supply);
+
+    // daily_fee_apr.filter(|apr| apr.to_owned() < 0.5).sum();
+    let dfaprf = daily_fee_apr.filter(|apr| apr.to_owned() < 0.5);
+    let fee_apr = dfaprf.clone().sum::<f64>() / dfaprf.clone().count() as f64;
+    let yield_apr =
+        daily_yield_apr.clone().sum::<f64>() as f64 / daily_yield_apr.clone().count() as f64;
+
+    fee_apr + yield_apr
+}
+
+async fn get_token_price_history(
+    query_str: String,
+    asset: String,
+    days: i64,
+) -> Vec<(f64, String)> {
+    let subql_client =
+        Client::new("https://api.subquery.network/sq/AcalaNetwork/karura-dex".to_string());
+    #[derive(Serialize)]
+    pub struct Vars {
+        days: i64,
+        asset: String,
+    }
+    let vars = Vars {
+        days: days,
+        asset: asset,
+    };
+    let price_history_data = subql_client
+        .query_with_vars_unwrap::<subgraph::KaruraTokenPriceHistoryData, Vars>(&query_str, vars)
+        .await;
+
+    println!("price_history_data {:?}", price_history_data);
+
+    let ph = price_history_data
+        .unwrap_or_default()
+        .token
+        .daily_data
+        .nodes
+        .into_iter()
+        .map(|x| {
+            let ten: f64 = 10.0;
+            let p: f64 = x.price.parse().unwrap_or_default();
+            return (p / ten.powf(18.0), x.timestamp);
+        });
+    let ph_vec: Vec<(f64, String)> = ph.collect();
+
+    ph_vec
 }
