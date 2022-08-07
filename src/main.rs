@@ -223,7 +223,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
             "chef": "taiKSM".to_string(),
             "chain": "karura".to_string(),
             "protocol": "taiga".to_string(),
-            "farmType": models::FarmType::SingleStaking.to_string(),
+            "farmType": models::FarmType::StableAmm.to_string(),
             "farmImpl": models::FarmImplementation::Pallet.to_string(),
             "asset": {
                 "symbol": "taiKSM".to_string(),
@@ -272,7 +272,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
             "chef": "3USD".to_string(),
             "chain": "karura".to_string(),
             "protocol": "taiga".to_string(),
-            "farmType": models::FarmType::SingleStaking.to_string(),
+            "farmType": models::FarmType::StableAmm.to_string(),
             "farmImpl": models::FarmImplementation::Pallet.to_string(),
             "asset": {
                 "symbol": "3USD".to_string(),
