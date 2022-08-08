@@ -2680,17 +2680,22 @@ async fn fetch_3usd_apr(pool_data: subgraph::TapioDD, karura_dex_query_str: Stri
     let dts: Vec<f64> = daily_total_supply.clone().collect();
 
     for i in 0..daily_total_supply.len() {
-        // 8000 TAI per week
-        total += (8000.0 * tai_price_history.get(i).unwrap().0 * (365.0 / 7.0)) / dts[i];
-
-        // 30 taiKSM per week
-        total += (30.0 * tai_ksm_price_history.get(i).unwrap().0 * (365.0 / 7.0)) / dts[i];
-
-        // 250 LKSM per week
-        total += (250.0 * lksm_price_history.get(i).unwrap().0 * (365.0 / 7.0)) / dts[i];
-
-        // 2000 KAR per week
-        total += (2000.0 * kar_price_history.get(i).unwrap().0 * (365.0 / 7.0)) / dts[i];
+        if tai_price_history.get(i).is_some() {
+            // 8000 TAI per week
+            total += (8000.0 * tai_price_history.get(i).unwrap().0 * (365.0 / 7.0)) / dts[i];
+        }
+        if tai_ksm_price_history.get(i).is_some() {
+            // 30 taiKSM per week
+            total += (30.0 * tai_ksm_price_history.get(i).unwrap().0 * (365.0 / 7.0)) / dts[i];
+        }
+        if lksm_price_history.get(i).is_some() {
+            // 250 LKSM per week
+            total += (250.0 * lksm_price_history.get(i).unwrap().0 * (365.0 / 7.0)) / dts[i];
+        }
+        if kar_price_history.get(i).is_some() {
+            // 2000 KAR per week
+            total += (2000.0 * kar_price_history.get(i).unwrap().0 * (365.0 / 7.0)) / dts[i];
+        }
     }
 
     let reward_apr = total / daily_total_supply.len() as f64;
@@ -2717,9 +2722,11 @@ async fn fetch_tai_ksm_apr(
     let dts: Vec<f64> = daily_total_supply.clone().collect();
 
     for i in 0..daily_total_supply.len() {
-        // 4000 TAI each day
-        total += (4000.0 * tai_price_history.get(i).unwrap().0 * (365.0))
-            / (dts[i] * tai_ksm_price_history.get(i).unwrap().0);
+        if tai_price_history.get(i).is_some() && tai_ksm_price_history.get(i).is_some() {
+            // 4000 TAI each day
+            total += (4000.0 * tai_price_history.get(i).unwrap().0 * (365.0))
+                / (dts[i] * tai_ksm_price_history.get(i).unwrap().0);
+        }
     }
 
     let reward_apr = total / daily_total_supply.len() as f64;
