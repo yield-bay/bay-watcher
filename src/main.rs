@@ -197,103 +197,107 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("_tai_ksm:\n{:?}\n_3usd:\n{:?}", _tai_ksm, _3usd);
 
-    let mut tai_ksm_rewards = vec![];
-    for r in _tai_ksm.1.clone() {
-        tai_ksm_rewards.push(bson!({
-            "amount": r.0 as f64,
-            "asset":  r.1.clone(),
-            "valueUSD": r.2 as f64,
-            "freq": r.3.clone(),
-        }));
-    }
+    if _tai_ksm.0 != 0.0 && _tai_ksm.1.len() > 0 {
+        let mut tai_ksm_rewards = vec![];
+        for r in _tai_ksm.1.clone() {
+            tai_ksm_rewards.push(bson!({
+                "amount": r.0 as f64,
+                "asset":  r.1.clone(),
+                "valueUSD": r.2 as f64,
+                "freq": r.3.clone(),
+            }));
+        }
 
-    let timestamp = Utc::now().to_string();
+        let timestamp = Utc::now().to_string();
 
-    println!("taiKSM farm lastUpdatedAtUTC {}", timestamp.clone());
+        println!("taiKSM farm lastUpdatedAtUTC {}", timestamp.clone());
 
-    let tai_ksm_ff = doc! {
-        "id": 0,
-        "chef": "taiKSM".to_string(),
-        "chain": "karura".to_string(),
-        "protocol": "taiga".to_string(),
-    };
-    let tai_ksm_fu = doc! {
-        "$set" : {
+        let tai_ksm_ff = doc! {
             "id": 0,
             "chef": "taiKSM".to_string(),
             "chain": "karura".to_string(),
             "protocol": "taiga".to_string(),
-            "farmType": models::FarmType::StableAmm.to_string(),
-            "farmImpl": models::FarmImplementation::Pallet.to_string(),
-            "asset": {
-                "symbol": "taiKSM".to_string(),
-                "address": "taiKSM".to_string(),
-                "price": 0 as f64,
-                "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/karura/taiga/taiKSM.png".to_string()],
-            },
-            "tvl": _tai_ksm.0 as f64,
-            "apr.reward": _tai_ksm.2.1 as f64 * 100.0,
-            "apr.base": _tai_ksm.2.0 as f64 * 100.0,
-            "rewards": tai_ksm_rewards,
-            "allocPoint": 1,
-            "lastUpdatedAtUTC": timestamp.clone(),
-        }
-    };
-    let options = FindOneAndUpdateOptions::builder()
-        .upsert(Some(true))
-        .build();
-    farms_collection
-        .find_one_and_update(tai_ksm_ff, tai_ksm_fu, Some(options))
-        .await?;
-
-    let mut _3usd_rewards = vec![];
-    for r in _3usd.1.clone() {
-        _3usd_rewards.push(bson!({
-            "amount": r.0 as f64,
-            "asset":  r.1.clone(),
-            "valueUSD": r.2 as f64,
-            "freq": r.3.clone(),
-        }));
+        };
+        let tai_ksm_fu = doc! {
+            "$set" : {
+                "id": 0,
+                "chef": "taiKSM".to_string(),
+                "chain": "karura".to_string(),
+                "protocol": "taiga".to_string(),
+                "farmType": models::FarmType::StableAmm.to_string(),
+                "farmImpl": models::FarmImplementation::Pallet.to_string(),
+                "asset": {
+                    "symbol": "taiKSM".to_string(),
+                    "address": "taiKSM".to_string(),
+                    "price": 0 as f64,
+                    "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/karura/taiga/taiKSM.png".to_string()],
+                },
+                "tvl": _tai_ksm.0 as f64,
+                "apr.reward": _tai_ksm.2.1 as f64 * 100.0,
+                "apr.base": _tai_ksm.2.0 as f64 * 100.0,
+                "rewards": tai_ksm_rewards,
+                "allocPoint": 1,
+                "lastUpdatedAtUTC": timestamp.clone(),
+            }
+        };
+        let options = FindOneAndUpdateOptions::builder()
+            .upsert(Some(true))
+            .build();
+        farms_collection
+            .find_one_and_update(tai_ksm_ff, tai_ksm_fu, Some(options))
+            .await?;
     }
 
-    let timestamp = Utc::now().to_string();
+    if _3usd.0 != 0.0 && _3usd.1.len() > 0 {
+        let mut _3usd_rewards = vec![];
+        for r in _3usd.1.clone() {
+            _3usd_rewards.push(bson!({
+                "amount": r.0 as f64,
+                "asset":  r.1.clone(),
+                "valueUSD": r.2 as f64,
+                "freq": r.3.clone(),
+            }));
+        }
 
-    println!("3USD farm lastUpdatedAtUTC {}", timestamp.clone());
+        let timestamp = Utc::now().to_string();
 
-    let _3usd_ff = doc! {
-        "id": 1,
-        "chef": "3USD".to_string(),
-        "chain": "karura".to_string(),
-        "protocol": "taiga".to_string(),
-    };
-    let _3usd_fu = doc! {
-        "$set" : {
+        println!("3USD farm lastUpdatedAtUTC {}", timestamp.clone());
+
+        let _3usd_ff = doc! {
             "id": 1,
             "chef": "3USD".to_string(),
             "chain": "karura".to_string(),
             "protocol": "taiga".to_string(),
-            "farmType": models::FarmType::StableAmm.to_string(),
-            "farmImpl": models::FarmImplementation::Pallet.to_string(),
-            "asset": {
-                "symbol": "3USD".to_string(),
-                "address": "3USD".to_string(),
-                "price": 0 as f64,
-                "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/karura/taiga/3USD.png".to_string()],
-            },
-            "tvl": _3usd.0 as f64,
-            "apr.reward": _3usd.2.1 as f64 * 100.0,
-            "apr.base": _3usd.2.0 as f64 * 100.0,
-            "rewards": _3usd_rewards,
-            "allocPoint": 1,
-            "lastUpdatedAtUTC": timestamp.clone(),
-        }
-    };
-    let options = FindOneAndUpdateOptions::builder()
-        .upsert(Some(true))
-        .build();
-    farms_collection
-        .find_one_and_update(_3usd_ff, _3usd_fu, Some(options))
-        .await?;
+        };
+        let _3usd_fu = doc! {
+            "$set" : {
+                "id": 1,
+                "chef": "3USD".to_string(),
+                "chain": "karura".to_string(),
+                "protocol": "taiga".to_string(),
+                "farmType": models::FarmType::StableAmm.to_string(),
+                "farmImpl": models::FarmImplementation::Pallet.to_string(),
+                "asset": {
+                    "symbol": "3USD".to_string(),
+                    "address": "3USD".to_string(),
+                    "price": 0 as f64,
+                    "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/karura/taiga/3USD.png".to_string()],
+                },
+                "tvl": _3usd.0 as f64,
+                "apr.reward": _3usd.2.1 as f64 * 100.0,
+                "apr.base": _3usd.2.0 as f64 * 100.0,
+                "rewards": _3usd_rewards,
+                "allocPoint": 1,
+                "lastUpdatedAtUTC": timestamp.clone(),
+            }
+        };
+        let options = FindOneAndUpdateOptions::builder()
+            .upsert(Some(true))
+            .build();
+        farms_collection
+            .find_one_and_update(_3usd_ff, _3usd_fu, Some(options))
+            .await?;
+    }
 
     // let delay = time::Duration::from_secs(60 * 10);
     // thread::sleep(delay);
@@ -2551,14 +2555,16 @@ async fn fetch_3usd(
     let mut tvl = 0.0;
     let mut apr = (0.0, 0.0);
     if pool_data.is_ok() {
-        tvl = pool_data
-            .clone()
-            .unwrap()
-            .daily_data
-            .nodes
-            .get(0)
-            .unwrap()
-            .total_supply;
+        if pool_data.clone().unwrap().daily_data.nodes.len() > 0 {
+            tvl = pool_data
+                .clone()
+                .unwrap()
+                .daily_data
+                .nodes
+                .get(0)
+                .unwrap()
+                .total_supply;
+        }
 
         apr = fetch_3usd_apr(pool_data.clone().unwrap(), karura_dex_query_str.clone()).await;
     }
@@ -2571,6 +2577,14 @@ async fn fetch_3usd(
         get_token_price_history(karura_dex_query_str.clone(), "LKSM".to_string(), 1).await;
     let kar_price_history =
         get_token_price_history(karura_dex_query_str.clone(), "KAR".to_string(), 1).await;
+
+    if tai_price_history.len() < 1
+        || tai_ksm_price_history.len() < 1
+        || lksm_price_history.len() < 1
+        || kar_price_history.len() < 1
+    {
+        return (tvl, vec![], apr);
+    }
 
     let rewards = vec![
         // (amount, asset, value_usd, freq)
@@ -2631,31 +2645,41 @@ async fn fetch_tai_ksm(
         let tai_ksm_price_history =
             get_token_price_history(karura_dex_query_str.clone(), "sa://0".to_string(), 1).await;
 
-        let tai_price = tai_price_history[0].0;
-        let tai_ksm_price = tai_ksm_price_history[0].0;
+        let mut tai_price = 0.0;
+        if tai_price_history.len() > 0 && tai_ksm_price_history.len() > 0 {
+            tai_price = tai_price_history[0].0;
+        }
+        let mut tai_ksm_price = 0.0;
+        if tai_ksm_price_history.len() > 0 {
+            tai_ksm_price = tai_ksm_price_history[0].0;
+        }
 
-        current_supply = pool_data
-            .clone()
-            .unwrap()
-            .daily_data
-            .nodes
-            .get(0)
-            .unwrap()
-            .total_supply;
+        if pool_data.clone().unwrap().daily_data.nodes.len() > 0 {
+            current_supply = pool_data
+                .clone()
+                .unwrap()
+                .daily_data
+                .nodes
+                .get(0)
+                .unwrap()
+                .total_supply;
+        }
 
         tvl = current_supply * tai_ksm_price;
 
         apr = fetch_tai_ksm_apr(pool_data.clone().unwrap(), karura_dex_query_str.clone()).await;
 
-        rewards = vec![
-            // (amount, asset, value_usd, freq)
-            (
-                4000,
-                "TAI".to_string(),
-                tai_price * 4000.0,
-                "Daily".to_string(),
-            ),
-        ];
+        if tai_price != 0.0 {
+            rewards = vec![
+                // (amount, asset, value_usd, freq)
+                (
+                    4000,
+                    "TAI".to_string(),
+                    tai_price * 4000.0,
+                    "Daily".to_string(),
+                ),
+            ];
+        }
     }
 
     (tvl, rewards, apr)
