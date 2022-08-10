@@ -1470,12 +1470,12 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                 // TODO: check if formula for sushi base apr is correct
                                 println!("ukk {:?}", pair_day_datas.clone().unwrap());
                                 let mut daily_volume_lw: f64 = 0.0;
-                                for pdd in pair_day_datas.unwrap().pair_day_datas {
+                                for pdd in pair_day_datas.clone().unwrap().pair_day_datas {
                                     let dv: f64 = pdd.volume_usd.parse().unwrap_or_default();
                                     daily_volume_lw += dv;
                                     println!("ukkdv {:?}", dv);
                                 }
-                                // daily_volume_lw /= 7.0;
+                                // daily_volume_lw /= pair_day_datas.unwrap().pair_day_datas.len() as f64;
 
                                 if asset.clone().unwrap_or_default().total_supply == 0.0
                                     || asset.clone().unwrap_or_default().price == 0.0
@@ -1647,12 +1647,13 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                     .await;
                                 if pair_day_datas.is_ok() {
                                     let mut daily_volume_lw: f64 = 0.0;
-                                    for pdd in pair_day_datas.unwrap().pair_day_datas {
+                                    for pdd in pair_day_datas.clone().unwrap().pair_day_datas {
                                         let dv: f64 =
                                             pdd.daily_volume_usd.parse().unwrap_or_default();
                                         daily_volume_lw += dv;
                                     }
-                                    daily_volume_lw /= 7.0;
+                                    daily_volume_lw /=
+                                        pair_day_datas.unwrap().pair_day_datas.len() as f64;
 
                                     if asset.clone().unwrap_or_default().total_supply == 0.0
                                         || asset.clone().unwrap_or_default().price == 0.0
@@ -2428,12 +2429,13 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                     .await;
                                 if pair_day_datas.is_ok() {
                                     let mut daily_volume_lw: f64 = 0.0;
-                                    for pdd in pair_day_datas.unwrap().pair_day_datas {
+                                    for pdd in pair_day_datas.clone().unwrap().pair_day_datas {
                                         let dv: f64 =
                                             pdd.daily_volume_usd.parse().unwrap_or_default();
                                         daily_volume_lw += dv;
                                     }
-                                    daily_volume_lw /= 7.0;
+                                    daily_volume_lw /=
+                                        pair_day_datas.unwrap().pair_day_datas.len() as f64;
 
                                     if asset.clone().unwrap_or_default().total_supply == 0.0
                                         || asset.clone().unwrap_or_default().price == 0.0
