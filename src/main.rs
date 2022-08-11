@@ -1488,6 +1488,10 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                 }
                             }
 
+                            if base_apr.is_nan() {
+                                base_apr = 0.0;
+                            }
+
                             let timestamp = Utc::now().to_string();
 
                             println!("chef v0 farm lastUpdatedAtUTC {}", timestamp.clone());
@@ -1664,6 +1668,10 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                             / (asset.clone().unwrap_or_default().total_supply
                                                 * asset.clone().unwrap_or_default().price);
                                     }
+                                }
+
+                                if base_apr.is_nan() {
+                                    base_apr = 0.0;
                                 }
 
                                 let timestamp = Utc::now().to_string();
@@ -2446,6 +2454,10 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                             / (asset.clone().unwrap_or_default().total_supply
                                                 * asset.clone().unwrap_or_default().price);
                                     }
+                                }
+
+                                if base_apr.is_nan() {
+                                    base_apr = 0.0;
                                 }
 
                                 // let mut farm_assets = vec![];
