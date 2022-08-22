@@ -17,6 +17,7 @@ use mongodb::{
 };
 use serde::Serialize;
 
+mod apis;
 mod models;
 mod subgraph;
 
@@ -146,6 +147,146 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut headers = HashMap::new();
     headers.insert("content-type", "application/json");
+
+    // curve api
+
+    // 0xc6e37086D09ec2048F151D11CdB9F9BbbdB7d685
+
+    let moonbeam_curve_st_dot = "0xc6e37086D09ec2048F151D11CdB9F9BbbdB7d685".to_string();
+
+    let get_factory_apys_resp = reqwest::get("https://api.curve.fi/api/getFactoryAPYs-moonbeam")
+        .await?
+        .json::<apis::curve::GetFactoryAPYsRoot>()
+        .await?;
+    println!("get_factory_apys_resp:\n{:#?}", get_factory_apys_resp);
+
+    for pd in get_factory_apys_resp.clone().data.pool_details {
+        if pd.pool_address == moonbeam_curve_st_dot.clone() {
+            // pd.apy
+            // pd.index
+
+            let get_factory_v2_pools_resp =
+                reqwest::get("https://api.curve.fi/api/getFactoryV2Pools-moonbeam")
+                    .await?
+                    .json::<apis::curve::GetFactoryV2PoolsRoot>()
+                    .await?;
+            println!(
+                "get_factory_v2_pools_resp:\n{:#?}",
+                get_factory_v2_pools_resp
+            );
+
+            for pda in get_factory_v2_pools_resp.clone().data.pool_data {
+                if pda.address == moonbeam_curve_st_dot.clone() {
+                    // pda.usd_total
+
+                    let get_facto_gauges_resp =
+                        reqwest::get("https://api.curve.fi/api/getFactoGauges/moonbeam")
+                            .await?
+                            .json::<apis::curve::GetFactoGaugesRoot>()
+                            .await?;
+                    println!("get_facto_gauges_resp:\n{:#?}", get_facto_gauges_resp);
+
+                    for g in get_facto_gauges_resp.clone().data.gauges {
+                        if g.swap_token == moonbeam_curve_st_dot.clone() {
+                            // g.extra_rewards
+                            let ten: f64 = 10.0;
+
+                            let mut total_apy = pd.apy;
+
+                            let mut rewards = vec![];
+                            for er in g.extra_rewards {
+                                // let amt: f64 = er.meta_data.rate.parse::<f64>().unwrap_or_default()
+                                //     as f64
+                                //     / ten.powf(er.decimals.parse::<f64>().unwrap_or_default())
+                                //         as f64;
+                                rewards.push(bson!({
+                                    "amount": er.meta_data.rate.parse::<f64>().unwrap_or_default() as f64 / ten.powf(er.decimals.parse::<f64>().unwrap_or_default()) as f64,
+                                    "asset":  er.symbol,
+                                    "valueUSD": er.meta_data.rate.parse::<f64>().unwrap_or_default() as f64 / ten.powf(er.decimals.parse::<f64>().unwrap_or_default()) as f64 * er.token_price,
+                                    "freq": models::Freq::Daily.to_string(),
+                                }));
+                                total_apy += er.apy;
+                            }
+
+                            let timestamp = Utc::now().to_string();
+
+                            println!("chef v0 farm lastUpdatedAtUTC {}", timestamp.clone());
+
+                            let ff = doc! {
+                                "id": pd.index as i32,
+                                "chef": "curve v2",
+                                "chain": "moonbeam",
+                                "protocol": "curve",
+                            };
+                            let ten: f64 = 10.0;
+                            let fu = doc! {
+                                "$set" : {
+                                    "id": pd.index,
+                                    "chef": "curve v2",
+                                    "chain": "moonbeam",
+                                    "protocol": "curve",
+                                    "farmType": models::FarmType::StableAmm.to_string(),
+                                    "farmImpl": models::FarmImplementation::Vyper.to_string(),
+                                    "asset": {
+                                        "symbol": "stDOT LP",
+                                        "address": pd.pool_address.clone(),
+                                        "price": 0,
+                                        "logos": [
+                                            "https://cdn.jsdelivr.net/gh/curvefi/curve-assets/images/assets-moonbeam/0xffffffff1fcacbd218edc0eba20fc2308c778080.png",
+                                            "https://cdn.jsdelivr.net/gh/curvefi/curve-assets/images/assets-moonbeam/0xfa36fe1da08c89ec72ea1f0143a35bfd5daea108.png"
+                                        ],
+                                    },
+                                    "tvl": pda.usd_total as f64,
+                                    "apr.reward": total_apy,
+                                    "apr.base": pd.apy,
+                                    "rewards": rewards,
+                                    "allocPoint": 1,
+                                    "lastUpdatedAtUTC": timestamp.clone(),
+                                }
+                            };
+                            let options = FindOneAndUpdateOptions::builder()
+                                .upsert(Some(true))
+                                .build();
+                            farms_collection
+                                .find_one_and_update(ff, fu, Some(options))
+                                .await?;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // let get_factory_v2_pools_resp =
+    //     reqwest::get("https://api.curve.fi/api/getFactoryV2Pools-moonbeam")
+    //         .await?
+    //         .json::<apis::curve::GetFactoryV2PoolsRoot>()
+    //         .await?;
+    // println!(
+    //     "get_factory_v2_pools_resp:\n{:#?}",
+    //     get_factory_v2_pools_resp
+    // );
+
+    // for pd in get_factory_v2_pools_resp.clone().data.pool_data {
+    //     if pd.address == moonbeam_curve_st_dot.clone() {
+    //         // pd.usd_total
+    //     }
+    // }
+
+    // let get_facto_gauges_resp = reqwest::get("https://api.curve.fi/api/getFactoGauges/moonbeam")
+    //     .await?
+    //     .json::<apis::curve::GetFactoGaugesRoot>()
+    //     .await?;
+    // println!("get_facto_gauges_resp:\n{:#?}", get_facto_gauges_resp);
+
+    // for pd in get_facto_gauges_resp.clone().data.gauges {
+    //     if pd.swap_token == moonbeam_curve_st_dot.clone() {
+    //         // pd.extra_rewards
+    //     }
+    // }
+
+    // let delay = time::Duration::from_secs(60 * 10);
+    // thread::sleep(delay);
 
     let daily_data_tai_ksm_query = r#"
         query {

@@ -88,6 +88,7 @@ pub enum FarmType {
 #[serde(rename_all = "camelCase")]
 pub enum FarmImplementation {
     Solidity,
+    Vyper,
     Ink,
     Pallet,
 }
