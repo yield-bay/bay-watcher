@@ -1409,17 +1409,17 @@ async fn chef_contract_jobs(
                                             reward_asset.clone().unwrap().price;
                                         println!("reward_asset_price: {:?}", reward_asset_price);
 
-                                        // if pid == 38 && p.3.clone() == "solarbeam".to_string() {
-                                        //     let solar_filter = doc! { "address": "0x6bD193Ee6D2104F14F94E2cA6efefae561A4334B", "protocol": "solarbeam", "chain": "moonriver" };
-                                        //     let solar = assets_collection
-                                        //         .find_one(solar_filter, None)
-                                        //         .await?;
-                                        //     if solar.is_some() {
-                                        //         asset_price = solar.unwrap().price;
-                                        //     }
-                                        // } else {
-                                        asset_price = asset.clone().unwrap().price;
-                                        // }
+                                        if pid == 38 && p.3.clone() == "solarbeam".to_string() {
+                                            let solar_filter = doc! { "address": "0x6bD193Ee6D2104F14F94E2cA6efefae561A4334B", "protocol": "solarbeam", "chain": "moonriver" };
+                                            let solar = assets_collection
+                                                .find_one(solar_filter, None)
+                                                .await?;
+                                            if solar.is_some() {
+                                                asset_price = solar.unwrap().price;
+                                            }
+                                        } else {
+                                            asset_price = asset.clone().unwrap().price;
+                                        }
 
                                         println!("asset_price: {:?}", asset_price);
 
