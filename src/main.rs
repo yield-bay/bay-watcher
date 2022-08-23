@@ -4,7 +4,7 @@ use chrono::prelude::Utc;
 use dotenv::dotenv;
 use ethers::{
     middleware::SignerMiddleware,
-    prelude::{abigen, Address, H160, U256},
+    prelude::{abigen, Address, U256},
     providers::{Http, Provider},
     signers::LocalWallet,
     utils::to_checksum,
@@ -18,6 +18,7 @@ use mongodb::{
 use serde::Serialize;
 
 mod apis;
+mod constants;
 mod models;
 mod subgraph;
 
@@ -128,1216 +129,103 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
 
     // Parse a connection string into an options struct.
     let mongo_uri = dotenv::var("DB_CONN_STRING").unwrap();
-    println!("mongo_uri: {}", mongo_uri);
-
-    // Parse a connection string into an options struct.
-    let mut client_options = ClientOptions::parse(mongo_uri).await?;
-
-    // Manually set an option.
-    client_options.app_name = Some("Bay Watcher".to_string());
-
-    // Get a handle to the deployment.
-    let client = MongoClient::with_options(client_options)?;
-
-    // Get a handle to a database.
-    let db = client.database("bayCave");
-
-    let assets_collection = db.collection::<models::Asset>("assets");
-    let farms_collection = db.collection::<models::Farm>("farms");
+    println!("mongo_uri: {}", mongo_uri.clone());
 
     let mut headers = HashMap::new();
     headers.insert("content-type", "application/json");
 
-    // curve api
+    curve_jobs(mongo_uri.clone()).await.unwrap();
 
-    // 0xc6e37086D09ec2048F151D11CdB9F9BbbdB7d685
+    taiga_jobs(mongo_uri.clone()).await.unwrap();
 
-    let moonbeam_curve_st_dot = "0xc6e37086D09ec2048F151D11CdB9F9BbbdB7d685".to_string();
+    let solarbeam_subgraph_client = Client::new_with_headers(
+        constants::subgraph_urls::SOLARBEAM_SUBGRAPH.clone(),
+        headers.clone(),
+    );
+    let stellaswap_subgraph_client = Client::new_with_headers(
+        constants::subgraph_urls::STELLASWAP_SUBGRAPH.clone(),
+        headers.clone(),
+    );
+    let beamswap_subgraph_client = Client::new_with_headers(
+        constants::subgraph_urls::BEAMSWAP_SUBGRAPH.clone(),
+        headers.clone(),
+    );
+    let sushi_subgraph_client = Client::new_with_headers(
+        constants::subgraph_urls::SUSHI_SUBGRAPH.clone(),
+        headers.clone(),
+    );
 
-    let get_factory_apys_resp = reqwest::get("https://api.curve.fi/api/getFactoryAPYs-moonbeam")
-        .await?
-        .json::<apis::curve::GetFactoryAPYsRoot>()
-        .await?;
-    println!("get_factory_apys_resp:\n{:#?}", get_factory_apys_resp);
-
-    for pd in get_factory_apys_resp.clone().data.pool_details {
-        if pd.pool_address == moonbeam_curve_st_dot.clone() {
-            // pd.apy
-            // pd.index
-
-            let get_factory_v2_pools_resp =
-                reqwest::get("https://api.curve.fi/api/getFactoryV2Pools-moonbeam")
-                    .await?
-                    .json::<apis::curve::GetFactoryV2PoolsRoot>()
-                    .await?;
-            println!(
-                "get_factory_v2_pools_resp:\n{:#?}",
-                get_factory_v2_pools_resp
-            );
-
-            for pda in get_factory_v2_pools_resp.clone().data.pool_data {
-                if pda.address == moonbeam_curve_st_dot.clone() {
-                    // pda.usd_total
-
-                    let get_facto_gauges_resp =
-                        reqwest::get("https://api.curve.fi/api/getFactoGauges/moonbeam")
-                            .await?
-                            .json::<apis::curve::GetFactoGaugesRoot>()
-                            .await?;
-                    println!("get_facto_gauges_resp:\n{:#?}", get_facto_gauges_resp);
-
-                    for g in get_facto_gauges_resp.clone().data.gauges {
-                        if g.swap_token == moonbeam_curve_st_dot.clone() {
-                            // g.extra_rewards
-                            let ten: f64 = 10.0;
-
-                            let mut total_apy = pd.apy;
-
-                            let mut rewards = vec![];
-                            for er in g.extra_rewards {
-                                // let amt: f64 = er.meta_data.rate.parse::<f64>().unwrap_or_default()
-                                //     as f64
-                                //     / ten.powf(er.decimals.parse::<f64>().unwrap_or_default())
-                                //         as f64;
-                                rewards.push(bson!({
-                                    "amount": er.meta_data.rate.parse::<f64>().unwrap_or_default() as f64 / ten.powf(er.decimals.parse::<f64>().unwrap_or_default()) as f64,
-                                    "asset":  er.symbol,
-                                    "valueUSD": er.meta_data.rate.parse::<f64>().unwrap_or_default() as f64 / ten.powf(er.decimals.parse::<f64>().unwrap_or_default()) as f64 * er.token_price,
-                                    "freq": models::Freq::Daily.to_string(),
-                                }));
-                                total_apy += er.apy;
-                            }
-
-                            let timestamp = Utc::now().to_string();
-
-                            println!("chef v0 farm lastUpdatedAtUTC {}", timestamp.clone());
-
-                            let ff = doc! {
-                                "id": pd.index as i32,
-                                "chef": "curve v2",
-                                "chain": "moonbeam",
-                                "protocol": "curve",
-                            };
-                            let ten: f64 = 10.0;
-                            let fu = doc! {
-                                "$set" : {
-                                    "id": pd.index,
-                                    "chef": "curve v2",
-                                    "chain": "moonbeam",
-                                    "protocol": "curve",
-                                    "farmType": models::FarmType::StableAmm.to_string(),
-                                    "farmImpl": models::FarmImplementation::Vyper.to_string(),
-                                    "asset": {
-                                        "symbol": "stDOT LP",
-                                        "address": pd.pool_address.clone(),
-                                        "price": 0,
-                                        "logos": [
-                                            "https://cdn.jsdelivr.net/gh/curvefi/curve-assets/images/assets-moonbeam/0xffffffff1fcacbd218edc0eba20fc2308c778080.png",
-                                            "https://cdn.jsdelivr.net/gh/curvefi/curve-assets/images/assets-moonbeam/0xfa36fe1da08c89ec72ea1f0143a35bfd5daea108.png"
-                                        ],
-                                    },
-                                    "tvl": pda.usd_total as f64,
-                                    "apr.reward": total_apy,
-                                    "apr.base": pd.apy,
-                                    "rewards": rewards,
-                                    "allocPoint": 1,
-                                    "lastUpdatedAtUTC": timestamp.clone(),
-                                }
-                            };
-                            let options = FindOneAndUpdateOptions::builder()
-                                .upsert(Some(true))
-                                .build();
-                            farms_collection
-                                .find_one_and_update(ff, fu, Some(options))
-                                .await?;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // let get_factory_v2_pools_resp =
-    //     reqwest::get("https://api.curve.fi/api/getFactoryV2Pools-moonbeam")
-    //         .await?
-    //         .json::<apis::curve::GetFactoryV2PoolsRoot>()
-    //         .await?;
-    // println!(
-    //     "get_factory_v2_pools_resp:\n{:#?}",
-    //     get_factory_v2_pools_resp
-    // );
-
-    // for pd in get_factory_v2_pools_resp.clone().data.pool_data {
-    //     if pd.address == moonbeam_curve_st_dot.clone() {
-    //         // pd.usd_total
-    //     }
-    // }
-
-    // let get_facto_gauges_resp = reqwest::get("https://api.curve.fi/api/getFactoGauges/moonbeam")
-    //     .await?
-    //     .json::<apis::curve::GetFactoGaugesRoot>()
-    //     .await?;
-    // println!("get_facto_gauges_resp:\n{:#?}", get_facto_gauges_resp);
-
-    // for pd in get_facto_gauges_resp.clone().data.gauges {
-    //     if pd.swap_token == moonbeam_curve_st_dot.clone() {
-    //         // pd.extra_rewards
-    //     }
-    // }
-
-    // let delay = time::Duration::from_secs(60 * 10);
-    // thread::sleep(delay);
-
-    let daily_data_tai_ksm_query = r#"
-        query {
-            dailyData(first:30, orderBy: TIMESTAMP_DESC, filter: {poolId: {equalTo: 0}}) {
-                nodes {
-                    yieldVolume
-                    feeVolume
-                    totalSupply
-                }
-            }
-        }
-    "#;
-
-    let daily_data_3_usd_query = r#"
-        query DD3USD($days: Int) {
-            dailyData(first: $days, orderBy: TIMESTAMP_DESC, filter: {poolId: {equalTo: 1}}) {
-                nodes {
-                    yieldVolume
-                    feeVolume
-                    totalSupply
-                }
-            }
-        }
-    "#;
-
-    let token_price_history_query = r#"
-        query TPHQ($asset: String!, $days: Int!) {
-            token(id: $asset) {
-                dailyData(first: $days, orderBy: TIMESTAMP_DESC) {
-                    nodes {
-                        price
-                        timestamp
-                    }
-                }
-            }
-        }
-    "#;
-
-    let _tai_ksm = fetch_tai_ksm(
-        daily_data_tai_ksm_query.to_owned(),
-        token_price_history_query.to_owned(),
-    )
-    .await;
-    let _3usd = fetch_3usd(
-        daily_data_3_usd_query.to_owned(),
-        token_price_history_query.to_owned(),
-    )
-    .await;
-
-    println!("_tai_ksm:\n{:?}\n_3usd:\n{:?}", _tai_ksm, _3usd);
-
-    if _tai_ksm.0 != 0.0 && _tai_ksm.1.len() > 0 {
-        let mut tai_ksm_rewards = vec![];
-        for r in _tai_ksm.1.clone() {
-            tai_ksm_rewards.push(bson!({
-                "amount": r.0 as f64,
-                "asset":  r.1.clone(),
-                "valueUSD": r.2 as f64,
-                "freq": r.3.clone(),
-            }));
-        }
-
-        let timestamp = Utc::now().to_string();
-
-        println!("taiKSM farm lastUpdatedAtUTC {}", timestamp.clone());
-
-        let tai_ksm_ff = doc! {
-            "id": 0,
-            "chef": "taiKSM".to_string(),
-            "chain": "karura".to_string(),
-            "protocol": "taiga".to_string(),
-        };
-        let tai_ksm_fu = doc! {
-            "$set" : {
-                "id": 0,
-                "chef": "taiKSM".to_string(),
-                "chain": "karura".to_string(),
-                "protocol": "taiga".to_string(),
-                "farmType": models::FarmType::StableAmm.to_string(),
-                "farmImpl": models::FarmImplementation::Pallet.to_string(),
-                "asset": {
-                    "symbol": "taiKSM".to_string(),
-                    "address": "taiKSM".to_string(),
-                    "price": 0 as f64,
-                    "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/karura/taiga/taiKSM.png".to_string()],
-                },
-                "tvl": _tai_ksm.0 as f64,
-                "apr.reward": _tai_ksm.2.1 as f64 * 100.0,
-                "apr.base": _tai_ksm.2.0 as f64 * 100.0,
-                "rewards": tai_ksm_rewards,
-                "allocPoint": 1,
-                "lastUpdatedAtUTC": timestamp.clone(),
-            }
-        };
-        let options = FindOneAndUpdateOptions::builder()
-            .upsert(Some(true))
-            .build();
-        farms_collection
-            .find_one_and_update(tai_ksm_ff, tai_ksm_fu, Some(options))
-            .await?;
-    }
-
-    if _3usd.0 != 0.0 && _3usd.1.len() > 0 {
-        let mut _3usd_rewards = vec![];
-        for r in _3usd.1.clone() {
-            _3usd_rewards.push(bson!({
-                "amount": r.0 as f64,
-                "asset":  r.1.clone(),
-                "valueUSD": r.2 as f64,
-                "freq": r.3.clone(),
-            }));
-        }
-
-        let timestamp = Utc::now().to_string();
-
-        println!("3USD farm lastUpdatedAtUTC {}", timestamp.clone());
-
-        let _3usd_ff = doc! {
-            "id": 1,
-            "chef": "3USD".to_string(),
-            "chain": "karura".to_string(),
-            "protocol": "taiga".to_string(),
-        };
-        let _3usd_fu = doc! {
-            "$set" : {
-                "id": 1,
-                "chef": "3USD".to_string(),
-                "chain": "karura".to_string(),
-                "protocol": "taiga".to_string(),
-                "farmType": models::FarmType::StableAmm.to_string(),
-                "farmImpl": models::FarmImplementation::Pallet.to_string(),
-                "asset": {
-                    "symbol": "3USD".to_string(),
-                    "address": "3USD".to_string(),
-                    "price": 0 as f64,
-                    "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/karura/taiga/3USD.png".to_string()],
-                },
-                "tvl": _3usd.0 as f64,
-                "apr.reward": _3usd.2.1 as f64 * 100.0,
-                "apr.base": _3usd.2.0 as f64 * 100.0,
-                "rewards": _3usd_rewards,
-                "allocPoint": 1,
-                "lastUpdatedAtUTC": timestamp.clone(),
-            }
-        };
-        let options = FindOneAndUpdateOptions::builder()
-            .upsert(Some(true))
-            .build();
-        farms_collection
-            .find_one_and_update(_3usd_ff, _3usd_fu, Some(options))
-            .await?;
-    }
-
-    // let delay = time::Duration::from_secs(60 * 10);
-    // thread::sleep(delay);
-
-    let solarbeam_subgraph = "https://api.thegraph.com/subgraphs/name/solar-ape/solarbeam";
-    let stellaswap_subgraph = "https://api.thegraph.com/subgraphs/name/stellaswap/stella-swap";
-    let beamswap_subgraph = "https://api.thegraph.com/subgraphs/name/beamswap/beamswap-dex";
-    let sushi_subgraph = "https://api.thegraph.com/subgraphs/name/sushiswap/exchange-moonriver";
-
-    let solarbeam_blocklytics_subgraph =
-        "https://api.thegraph.com/subgraphs/name/solarbeamio/blocklytics";
-    let solarflare_blocklytics_subgraph =
-        "https://api.thegraph.com/subgraphs/name/solarbeamio/solarflare-blocklytics";
-
-    let tokens_query = r#"
-        query {
-            tokens(orderBy: tradeVolumeUSD, orderDirection: desc, first: 1000) {
-                id
-                symbol
-                name
-                decimals
-                totalLiquidity
-                derivedETH
-                tokenDayData(first: 1, orderBy: date, orderDirection: desc) {
-                    priceUSD
-                }
-            }
-            bundles(first: 1) {
-                ethPrice
-            }
-        }
-    "#;
-
-    let sushi_tokens_query = r#"
-        query {
-            tokens(orderBy: volumeUSD, orderDirection: desc, first: 1000) {
-                id
-                symbol
-                name
-                decimals
-                liquidity
-                derivedETH
-                dayData(first: 1, orderBy: date, orderDirection: desc) {
-                    priceUSD
-                }
-            }
-            bundles(first: 1) {
-                ethPrice
-            }
-        }
-    "#;
-
-    let pairs_query = r#"
-        query {
-            pairs(orderBy: reserveUSD, orderDirection: desc, first: 1000) {
-                id
-                reserveUSD
-                volumeUSD
-                untrackedVolumeUSD
-                totalSupply
-                reserve0
-                reserve1
-                token0Price
-                token1Price
-                token0 {
-                    id
-                    symbol
-                    name
-                    decimals
-                    totalLiquidity
-                    tokenDayData(first: 1, orderBy: date, orderDirection: desc) {
-                        priceUSD
-                    }
-                }
-                token1 {
-                    id
-                    symbol
-                    name
-                    decimals
-                    totalLiquidity
-                    tokenDayData(first: 1, orderBy: date, orderDirection: desc) {
-                        priceUSD
-                    }
-                }
-            }
-        }
-    "#;
-
-    let sushi_pairs_query = r#"
-        query {
-            pairs(orderBy: reserveUSD, orderDirection: desc, first: 1000) {
-                id
-                reserveUSD
-                volumeUSD
-                untrackedVolumeUSD
-                totalSupply
-                reserve0
-                reserve1
-                token0Price
-                token1Price
-                token0 {
-                    id
-                    symbol
-                    name
-                    decimals
-                    liquidity
-                    dayData(first: 1, orderBy: date, orderDirection: desc) {
-                        priceUSD
-                    }
-                }
-                token1 {
-                    id
-                    symbol
-                    name
-                    decimals
-                    liquidity
-                    dayData(first: 1, orderBy: date, orderDirection: desc) {
-                        priceUSD
-                    }
-                }
-            }
-        }
-    "#;
-
-    let one_day_blocks_query = r#"
-        query OneDayBlocks($start: Int!, $end: Int!) {
-            blocks(
-                first: 1
-                orderBy: timestamp
-                orderDirection: asc
-                where: { timestamp_gt: $start, timestamp_lt: $end }
-            ) {
-                id
-                number
-                timestamp
-            }
-        }
-    "#;
-
-    let one_day_pools_query = r#"
-        query OneDayPools($blocknum: Int!) {
-            pairs(orderBy: reserveUSD, orderDirection: desc, first: 1000, block: { number: $blocknum }) {
-                id
-                reserveUSD
-                volumeUSD
-                untrackedVolumeUSD
-            }
-        }
-    "#;
-
-    let pair_day_datas_query = r#"
-        query PairDayDatas($addr: String) {
-            pairDayDatas(
-                orderDirection: desc
-                orderBy: date
-                first: 7
-                where: {pairAddress: $addr}
-            ) {
-                date
-                dailyVolumeUSD
-                pairAddress
-                id
-                token0 {
-                    symbol
-                }
-                token1 {
-                    symbol
-                }
-            }
-        }
-    "#;
-
-    let sushi_pair_day_datas_query = r#"
-        query PairDayDatas($addr: String) {
-            pairDayDatas(
-                orderDirection: desc
-                orderBy: date
-                first: 1
-                where: {pair: $addr}
-            ) {
-                date
-                volumeUSD
-                id
-                pair {
-                    id
-                }
-                token0 {
-                    symbol
-                }
-                token1 {
-                    symbol
-                }
-            }
-        }
-    "#;
-
-    let solarbeam_subgraph_client =
-        Client::new_with_headers(solarbeam_subgraph.clone(), headers.clone());
-    let stellaswap_subgraph_client =
-        Client::new_with_headers(stellaswap_subgraph.clone(), headers.clone());
-    let beamswap_subgraph_client =
-        Client::new_with_headers(beamswap_subgraph.clone(), headers.clone());
-    let sushi_subgraph_client = Client::new_with_headers(sushi_subgraph.clone(), headers.clone());
-
-    let _moonriver_blocklytics_client =
-        Client::new_with_headers(solarbeam_blocklytics_subgraph.clone(), headers.clone());
-    let _moonbeam_blocklytics_client =
-        Client::new_with_headers(solarflare_blocklytics_subgraph.clone(), headers.clone());
+    let _moonriver_blocklytics_client = Client::new_with_headers(
+        constants::subgraph_urls::SOLARBEAM_BLOCKLYTICS_SUBGRAPH.clone(),
+        headers.clone(),
+    );
+    let _moonbeam_blocklytics_client = Client::new_with_headers(
+        constants::subgraph_urls::SOLARFLARE_BLOCKLYTICS_SUBGRAPH.clone(),
+        headers.clone(),
+    );
 
     // subgraph fetching jobs
+
     let protocols = vec![
         (
             "sushiswap",
             "moonriver",
             sushi_subgraph_client.clone(),
-            sushi_subgraph.clone(),
+            constants::subgraph_urls::SUSHI_SUBGRAPH.clone(),
         ),
         (
             "stellaswap",
             "moonbeam",
             stellaswap_subgraph_client.clone(),
-            stellaswap_subgraph.clone(),
+            constants::subgraph_urls::STELLASWAP_SUBGRAPH.clone(),
         ),
         (
             "solarbeam",
             "moonriver",
             solarbeam_subgraph_client.clone(),
-            solarbeam_subgraph.clone(),
+            constants::subgraph_urls::SOLARBEAM_SUBGRAPH.clone(),
         ),
         (
             "beamswap",
             "moonbeam",
             beamswap_subgraph_client.clone(),
-            beamswap_subgraph.clone(),
+            constants::subgraph_urls::BEAMSWAP_SUBGRAPH.clone(),
         ),
     ];
 
-    for p in protocols {
-        println!("subgraph data for {} on {}", p.0.clone(), p.1.clone());
-
-        let client = Client::new_with_headers(p.3.clone(), headers.clone());
-
-        if p.0.clone() == "sushiswap" {
-            let tokens_data = client
-                .query_unwrap::<subgraph::SushiTokensData>(sushi_tokens_query.clone())
-                .await;
-
-            if tokens_data.is_ok() {
-                println!("{} tokens_data {:?}", p.0.clone(), tokens_data.clone());
-                for t in tokens_data.clone().unwrap().tokens.clone() {
-                    let mut price_usd: f64 = 0.0;
-                    if t.day_data.len() >= 1 {
-                        price_usd = t.day_data[0].price_usd.parse().unwrap_or_default();
-                    }
-                    if tokens_data.clone().unwrap().bundles.clone().len() >= 1 {
-                        let derived_eth: f64 = t.derived_eth.parse().unwrap_or_default();
-                        let eth_price: f64 = tokens_data.clone().unwrap().bundles.clone()[0]
-                            .eth_price
-                            .parse()
-                            .unwrap_or_default();
-                        price_usd = derived_eth * eth_price;
-                    }
-
-                    let ta = Address::from_str(t.id.as_str()).unwrap();
-                    let token_addr = to_checksum(&ta, None);
-
-                    println!("token_addr {:?}", token_addr.clone());
-
-                    let decimals: u32 = t.decimals.parse().unwrap_or_default();
-
-                    let mut logo = "".to_string();
-                    if p.0.clone() == "solarbeam" {
-                        logo = format!("https://raw.githubusercontent.com/solarbeamio/solarbeam-tokenlist/main/assets/moonriver/{}/logo.png", token_addr.clone());
-                    } else if p.0.clone() == "stellaswap" {
-                        logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token_addr.clone());
-                        // xStella
-                        if token_addr.clone()
-                            == "0x06A3b410b681c82417A906993aCeFb91bAB6A080".to_string()
-                        {
-                            logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xStella.png");
-                        }
-                        // xcINTR
-                        if token_addr.clone()
-                            == "0xFffFFFFF4C1cbCd97597339702436d4F18a375Ab".to_string()
-                        {
-                            logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/INTR.png");
-                        }
-                        // xcaUSD
-                        if token_addr.clone()
-                            == "0xfFfFFFFF52C56A9257bB97f4B2b6F7B2D624ecda".to_string()
-                        {
-                            logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xcaUSD.png");
-                        }
-                    } else if p.0.clone() == "beamswap" {
-                        logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token_addr.clone());
-                    } else if p.0.clone() == "sushiswap" {
-                        logo = format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token_addr.clone());
-                        // WBTC.eth
-                        if token_addr.clone()
-                            == "0xE6a991Ffa8CfE62B0bf6BF72959A3d4f11B2E0f5".to_string()
-                        {
-                            logo = format!("https://raw.githubusercontent.com/sushiswap/icons/master/token/btc.jpg");
-                        }
-                    }
-
-                    println!("logo {}", logo.clone());
-
-                    let liquidity: f64 = t.liquidity.parse().unwrap_or_default();
-
-                    let f = doc! {
-                        "address": token_addr.clone(),
-                        "chain": p.1.clone(),
-                        "protocol": p.0.clone(),
-                    };
-
-                    let timestamp = Utc::now().to_string();
-
-                    println!("token lastUpdatedAtUTC {}", timestamp.clone());
-
-                    let u = doc! {
-                        "$set" : {
-                            "address": token_addr.clone(),
-                            "chain": p.1.clone(),
-                            "protocol": p.0.clone(),
-                            "name": t.name,
-                            "symbol": t.symbol,
-                            "decimals": decimals,
-                            "logos": [
-                                logo.clone(),
-                            ],
-                            "price": price_usd,
-                            "liquidity": liquidity,
-                            "totalSupply": 0.0,
-                            "isLP": false,
-                            "feesAPR": 0.0,
-                            "underlyingAssets": [],
-                            "underlyingAssetsAlloc": [],
-                            "lastUpdatedAtUTC": timestamp.clone(),
-                        }
-                    };
-
-                    let options = FindOneAndUpdateOptions::builder()
-                        .upsert(Some(true))
-                        .build();
-                    assets_collection
-                        .find_one_and_update(f, u, Some(options))
-                        .await?;
-                }
-            } else {
-                println!(
-                    "couldn't fetch tokens_data for {} {:?}",
-                    p.0.clone(),
-                    tokens_data.err()
-                );
-            }
-        } else {
-            let tokens_data = client
-                // p.2.clone()
-                .query_unwrap::<subgraph::TokensData>(tokens_query.clone())
-                .await;
-
-            if tokens_data.is_ok() {
-                println!("{} tokens_data {:?}", p.0.clone(), tokens_data.clone());
-                for t in tokens_data.clone().unwrap().tokens.clone() {
-                    let mut price_usd: f64 = 0.0;
-                    if t.token_day_data.len() >= 1 {
-                        price_usd = t.token_day_data[0].price_usd.parse().unwrap_or_default();
-                    }
-                    if tokens_data.clone().unwrap().bundles.clone().len() >= 1 {
-                        let derived_eth: f64 = t.derived_eth.parse().unwrap_or_default();
-                        let eth_price: f64 = tokens_data.clone().unwrap().bundles.clone()[0]
-                            .eth_price
-                            .parse()
-                            .unwrap_or_default();
-                        price_usd = derived_eth * eth_price;
-                    }
-
-                    let ta = Address::from_str(t.id.as_str()).unwrap();
-                    let token_addr = to_checksum(&ta, None);
-
-                    println!("token_addr {:?}", token_addr.clone());
-
-                    let decimals: u32 = t.decimals.parse().unwrap_or_default();
-
-                    let mut logo = "".to_string();
-                    if p.0.clone() == "solarbeam" {
-                        logo = format!("https://raw.githubusercontent.com/solarbeamio/solarbeam-tokenlist/main/assets/moonriver/{}/logo.png", token_addr.clone());
-                    } else if p.0.clone() == "stellaswap" {
-                        logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token_addr.clone());
-                        // xStella
-                        if token_addr.clone()
-                            == "0x06A3b410b681c82417A906993aCeFb91bAB6A080".to_string()
-                        {
-                            logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xStella.png");
-                        }
-                        // xcINTR
-                        if token_addr.clone()
-                            == "0xFffFFFFF4C1cbCd97597339702436d4F18a375Ab".to_string()
-                        {
-                            logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/INTR.png");
-                        }
-                        // xcaUSD
-                        if token_addr.clone()
-                            == "0xfFfFFFFF52C56A9257bB97f4B2b6F7B2D624ecda".to_string()
-                        {
-                            logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xcaUSD.png");
-                        }
-                    } else if p.0.clone() == "beamswap" {
-                        logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token_addr.clone());
-                    } else if p.0.clone() == "sushiswap" {
-                        logo = format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token_addr.clone());
-                        // WBTC.eth
-                        if token_addr.clone()
-                            == "0xE6a991Ffa8CfE62B0bf6BF72959A3d4f11B2E0f5".to_string()
-                        {
-                            logo = format!("https://raw.githubusercontent.com/sushiswap/icons/master/token/btc.jpg");
-                        }
-                    }
-
-                    println!("logo {}", logo.clone());
-
-                    let liquidity: f64 = t.total_liquidity.parse().unwrap_or_default();
-
-                    // stKSM or wstKSM
-                    if p.0.clone() == "solarbeam"
-                        && (token_addr.clone() == "0xFfc7780C34B450d917d557E728f033033CB4fA8C"
-                            || token_addr.clone() == "0x3bfd113ad0329a7994a681236323fb16E16790e3")
-                    {
-                        let xcksm = assets_collection.find_one(doc! {"chain":"moonriver", "protocol":"solarbeam", "address":"0xFfFFfFff1FcaCBd218EDc0EbA20Fc2308C778080"}, None).await?;
-                        price_usd = xcksm.clone().unwrap().price;
-                    }
-
-                    let f = doc! {
-                        "address": token_addr.clone(),
-                        "chain": p.1.clone(),
-                        "protocol": p.0.clone(),
-                    };
-
-                    let timestamp = Utc::now().to_string();
-
-                    println!("token lastUpdatedAtUTC {}", timestamp.clone());
-
-                    let u = doc! {
-                        "$set" : {
-                            "address": token_addr.clone(),
-                            "chain": p.1.clone(),
-                            "protocol": p.0.clone(),
-                            "name": t.name,
-                            "symbol": t.symbol,
-                            "decimals": decimals,
-                            "logos": [
-                                logo.clone(),
-                            ],
-                            "price": price_usd,
-                            "liquidity": liquidity,
-                            "totalSupply": 0.0,
-                            "isLP": false,
-                            "feesAPR": 0.0,
-                            "underlyingAssets": [],
-                            "underlyingAssetsAlloc": [],
-                            "lastUpdatedAtUTC": timestamp.clone(),
-                        }
-                    };
-
-                    let options = FindOneAndUpdateOptions::builder()
-                        .upsert(Some(true))
-                        .build();
-                    assets_collection
-                        .find_one_and_update(f, u, Some(options))
-                        .await?;
-                }
-            } else {
-                println!(
-                    "couldn't fetch tokens_data for {} {:?}",
-                    p.0.clone(),
-                    tokens_data.err()
-                );
-            }
-        }
-
-        let mut one_day_volume_usd: HashMap<String, f64> = HashMap::new();
-
-        if p.1.clone() == "moonbeam" {
-            let block_number = get_one_day_block(
-                solarflare_blocklytics_subgraph.to_string(),
-                one_day_blocks_query.to_string(),
-            )
-            .await;
-            if block_number != 0 {
-                let pairs = get_one_day_pools(
-                    p.3.clone().to_string(),
-                    one_day_pools_query.to_string(),
-                    block_number,
-                )
-                .await;
-                for pair in pairs {
-                    let pair_id = Address::from_str(pair.id.as_str()).unwrap();
-                    let pair_addr = to_checksum(&pair_id, None);
-                    one_day_volume_usd.insert(
-                        pair_addr,
-                        pair.untracked_volume_usd.parse().unwrap_or_default(),
-                    );
-                }
-            }
-        } else if p.1.clone() == "moonriver" {
-            let block_number = get_one_day_block(
-                solarbeam_blocklytics_subgraph.to_string(),
-                one_day_blocks_query.to_string(),
-            )
-            .await;
-            // if p.0.clone() == "sushiswap" {
-            //     if block_number != 0 {
-            //         let pairs = get_one_day_pools(
-            //             p.3.clone().to_string(),
-            //             one_day_pools_query.to_string(),
-            //             block_number,
-            //         )
-            //         .await;
-            //         for pair in pairs {
-            //             let pair_id = Address::from_str(pair.id.as_str()).unwrap();
-            //             let pair_addr = to_checksum(&pair_id, None);
-            //             one_day_volume_usd.insert(
-            //                 pair_addr,
-            //                 pair.untracked_volume_usd.parse().unwrap_or_default(),
-            //             );
-            //         }
-            //     }
-            // } else {
-            if block_number != 0 {
-                let pairs = get_one_day_pools(
-                    p.3.clone().to_string(),
-                    one_day_pools_query.to_string(),
-                    block_number,
-                )
-                .await;
-                for pair in pairs {
-                    let pair_id = Address::from_str(pair.id.as_str()).unwrap();
-                    let pair_addr = to_checksum(&pair_id, None);
-                    one_day_volume_usd.insert(
-                        pair_addr,
-                        pair.untracked_volume_usd.parse().unwrap_or_default(),
-                    );
-                }
-            }
-            // }
-        }
-
-        if p.0.clone() == "sushiswap" {
-            let pairs_data = client
-                // p.2.clone()
-                .query_unwrap::<subgraph::SushiPairsData>(sushi_pairs_query.clone())
-                .await;
-
-            if pairs_data.is_ok() {
-                println!("{} pairs_data {:?}", p.0.clone(), pairs_data);
-
-                for pair in pairs_data.clone().unwrap().pairs.clone() {
-                    let token0price: f64 = pair.token0price.parse().unwrap_or_default();
-                    let token1price: f64 = pair.token1price.parse().unwrap_or_default();
-
-                    let mut token0alloc = 0.0;
-                    let mut token1alloc = 0.0;
-
-                    if token0price > 0.0 && token1price > 0.0 {
-                        if token0price > token1price {
-                            token0alloc = (1.0 / token0price) * 100.0;
-                            token1alloc = 100.0 - token0alloc;
-                        } else {
-                            token1alloc = (1.0 / token1price) * 100.0;
-                            token0alloc = 100.0 - token1alloc;
-                        }
-                    }
-
-                    let pa = Address::from_str(pair.id.as_str()).unwrap();
-                    let pair_addr = to_checksum(&pa, None);
-                    println!("pair_addr {:?}", pair_addr.clone());
-
-                    let t0a = Address::from_str(pair.token0.id.as_str()).unwrap();
-                    let token0_addr = to_checksum(&t0a, None);
-                    println!("token0_addr {:?}", token0_addr.clone());
-
-                    let t1a = Address::from_str(pair.token1.id.as_str()).unwrap();
-                    let token1_addr = to_checksum(&t1a, None);
-                    println!("token1_addr {:?}", token1_addr.clone());
-
-                    let mut token0logo = "".to_string();
-                    let mut token1logo = "".to_string();
-                    if p.0.clone() == "solarbeam" {
-                        token0logo = format!("https://raw.githubusercontent.com/solarbeamio/solarbeam-tokenlist/main/assets/moonriver/{}/logo.png", token0_addr.clone());
-                        token1logo = format!("https://raw.githubusercontent.com/solarbeamio/solarbeam-tokenlist/main/assets/moonriver/{}/logo.png", token1_addr.clone());
-                    } else if p.0.clone() == "stellaswap" {
-                        token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token0_addr.clone());
-                        token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token1_addr.clone());
-
-                        // xStella
-                        if token0_addr.clone()
-                            == "0x06A3b410b681c82417A906993aCeFb91bAB6A080".to_string()
-                        {
-                            token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xStella.png");
-                        }
-                        if token1_addr.clone()
-                            == "0x06A3b410b681c82417A906993aCeFb91bAB6A080".to_string()
-                        {
-                            token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xStella.png");
-                        }
-                        // xcINTR
-                        if token0_addr.clone()
-                            == "0xFffFFFFF4C1cbCd97597339702436d4F18a375Ab".to_string()
-                        {
-                            token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/INTR.png");
-                        }
-                        if token1_addr.clone()
-                            == "0xFffFFFFF4C1cbCd97597339702436d4F18a375Ab".to_string()
-                        {
-                            token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/INTR.png");
-                        }
-                        // xcaUSD
-                        if token0logo.clone()
-                            == "0xfFfFFFFF52C56A9257bB97f4B2b6F7B2D624ecda".to_string()
-                        {
-                            token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xcaUSD.png");
-                        }
-                        if token1logo.clone()
-                            == "0xfFfFFFFF52C56A9257bB97f4B2b6F7B2D624ecda".to_string()
-                        {
-                            token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xcaUSD.png");
-                        }
-                    } else if p.0.clone() == "beamswap" {
-                        token0logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token0_addr.clone());
-                        token1logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token1_addr.clone());
-                    } else if p.0.clone() == "sushiswap" {
-                        token0logo=format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token0_addr.clone());
-                        token1logo=format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token1_addr.clone());
-
-                        // WBTC.eth
-                        if token0_addr.clone()
-                            == "0xE6a991Ffa8CfE62B0bf6BF72959A3d4f11B2E0f5".to_string()
-                        {
-                            token0logo = format!("https://raw.githubusercontent.com/sushiswap/icons/master/token/btc.jpg");
-                        }
-                        if token1_addr.clone()
-                            == "0xE6a991Ffa8CfE62B0bf6BF72959A3d4f11B2E0f5".to_string()
-                        {
-                            token1logo = format!("https://raw.githubusercontent.com/sushiswap/icons/master/token/btc.jpg");
-                        }
-                    }
-
-                    let token0decimals: u32 = pair.token0.decimals.parse().unwrap_or_default();
-                    let token1decimals: u32 = pair.token1.decimals.parse().unwrap_or_default();
-
-                    let mut decimals = token0decimals;
-                    if token1decimals > token0decimals {
-                        decimals = token1decimals;
-                    }
-
-                    let liquidity: f64 = pair.reserve_usd.parse().unwrap_or_default();
-                    let total_supply: f64 = pair.total_supply.parse().unwrap_or_default();
-
-                    let mut price_usd: f64 = 0.0;
-
-                    if total_supply != 0.0 {
-                        price_usd = liquidity / total_supply;
-                    }
-
-                    println!("price_usd {}", price_usd);
-
-                    let mut fees_apr = 0.0;
-                    let odv = one_day_volume_usd.get(&pair_addr.clone());
-                    if odv.is_some() {
-                        fees_apr = odv.unwrap() * 0.0025 * 365.0 * 100.0 / liquidity;
-                    }
-
-                    let f = doc! {
-                        "address": pair_addr.clone(),
-                        "chain": p.1.clone(),
-                        "protocol": p.0.clone(),
-                    };
-
-                    let timestamp = Utc::now().to_string();
-
-                    println!("pair lastUpdatedAtUTC {}", timestamp.clone());
-
-                    let u = doc! {
-                        "$set" : {
-                            "address": pair_addr.clone(),
-                            "chain": p.1.clone(),
-                            "protocol": p.0.clone(),
-                            "name": format!("{}-{} LP", pair.token0.name, pair.token1.name),
-                            "symbol": format!("{}-{} LP", pair.token0.symbol, pair.token1.symbol),
-                            "decimals": decimals,
-                            "logos": [
-                                token0logo.clone(),
-                                token1logo.clone(),
-                            ],
-                            "price": price_usd,
-                            "liquidity": liquidity,
-                            "totalSupply": total_supply,
-                            "isLP": true,
-                            "feesAPR": fees_apr,
-                            "underlyingAssets": [token0_addr.clone(), token1_addr.clone()],
-                            "underlyingAssetsAlloc": [token0alloc, token1alloc],
-                            "lastUpdatedAtUTC": timestamp.clone(),
-                        }
-                    };
-
-                    let options = FindOneAndUpdateOptions::builder()
-                        .upsert(Some(true))
-                        .build();
-                    assets_collection
-                        .find_one_and_update(f, u, Some(options))
-                        .await?;
-                }
-            } else {
-                println!(
-                    "couldn't fetch pairs_data for {} {:?}",
-                    p.0.clone(),
-                    pairs_data.err()
-                );
-            }
-        } else {
-            let pairs_data = client
-                // p.2.clone()
-                .query_unwrap::<subgraph::PairsData>(pairs_query.clone())
-                .await;
-
-            if pairs_data.is_ok() {
-                println!("{} pairs_data {:?}", p.0.clone(), pairs_data);
-
-                for pair in pairs_data.clone().unwrap().pairs.clone() {
-                    let token0price: f64 = pair.token0price.parse().unwrap_or_default();
-                    let token1price: f64 = pair.token1price.parse().unwrap_or_default();
-
-                    let mut token0alloc = 0.0;
-                    let mut token1alloc = 0.0;
-
-                    if token0price > 0.0 && token1price > 0.0 {
-                        if token0price > token1price {
-                            token0alloc = (1.0 / token0price) * 100.0;
-                            token1alloc = 100.0 - token0alloc;
-                        } else {
-                            token1alloc = (1.0 / token1price) * 100.0;
-                            token0alloc = 100.0 - token1alloc;
-                        }
-                    }
-
-                    let pa = Address::from_str(pair.id.as_str()).unwrap();
-                    let pair_addr = to_checksum(&pa, None);
-                    println!("pair_addr {:?}", pair_addr.clone());
-
-                    let t0a = Address::from_str(pair.token0.id.as_str()).unwrap();
-                    let token0_addr = to_checksum(&t0a, None);
-                    println!("token0_addr {:?}", token0_addr.clone());
-
-                    let t1a = Address::from_str(pair.token1.id.as_str()).unwrap();
-                    let token1_addr = to_checksum(&t1a, None);
-                    println!("token1_addr {:?}", token1_addr.clone());
-
-                    let mut token0logo = "".to_string();
-                    let mut token1logo = "".to_string();
-                    if p.0.clone() == "solarbeam" {
-                        token0logo = format!("https://raw.githubusercontent.com/solarbeamio/solarbeam-tokenlist/main/assets/moonriver/{}/logo.png", token0_addr.clone());
-                        token1logo = format!("https://raw.githubusercontent.com/solarbeamio/solarbeam-tokenlist/main/assets/moonriver/{}/logo.png", token1_addr.clone());
-                    } else if p.0.clone() == "stellaswap" {
-                        token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token0_addr.clone());
-                        token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token1_addr.clone());
-
-                        // xStella
-                        if token0_addr.clone()
-                            == "0x06A3b410b681c82417A906993aCeFb91bAB6A080".to_string()
-                        {
-                            token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xStella.png");
-                        }
-                        if token1_addr.clone()
-                            == "0x06A3b410b681c82417A906993aCeFb91bAB6A080".to_string()
-                        {
-                            token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xStella.png");
-                        }
-                        // xcINTR
-                        if token0_addr.clone()
-                            == "0xFffFFFFF4C1cbCd97597339702436d4F18a375Ab".to_string()
-                        {
-                            token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/INTR.png");
-                        }
-                        if token1_addr.clone()
-                            == "0xFffFFFFF4C1cbCd97597339702436d4F18a375Ab".to_string()
-                        {
-                            token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/INTR.png");
-                        }
-                        // xcaUSD
-                        if token0logo.clone()
-                            == "0xfFfFFFFF52C56A9257bB97f4B2b6F7B2D624ecda".to_string()
-                        {
-                            token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xcaUSD.png");
-                        }
-                        if token1logo.clone()
-                            == "0xfFfFFFFF52C56A9257bB97f4B2b6F7B2D624ecda".to_string()
-                        {
-                            token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xcaUSD.png");
-                        }
-                    } else if p.0.clone() == "beamswap" {
-                        token0logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token0_addr.clone());
-                        token1logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token1_addr.clone());
-                    } else if p.0.clone() == "sushiswap" {
-                        token0logo=format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token0_addr.clone());
-                        token1logo=format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token1_addr.clone());
-
-                        // WBTC.eth
-                        if token0_addr.clone()
-                            == "0xE6a991Ffa8CfE62B0bf6BF72959A3d4f11B2E0f5".to_string()
-                        {
-                            token0logo = format!("https://raw.githubusercontent.com/sushiswap/icons/master/token/btc.jpg");
-                        }
-                        if token1_addr.clone()
-                            == "0xE6a991Ffa8CfE62B0bf6BF72959A3d4f11B2E0f5".to_string()
-                        {
-                            token1logo = format!("https://raw.githubusercontent.com/sushiswap/icons/master/token/btc.jpg");
-                        }
-                    }
-
-                    let token0decimals: u32 = pair.token0.decimals.parse().unwrap_or_default();
-                    let token1decimals: u32 = pair.token1.decimals.parse().unwrap_or_default();
-
-                    let mut decimals = token0decimals;
-                    if token1decimals > token0decimals {
-                        decimals = token1decimals;
-                    }
-
-                    let mut liquidity: f64 = pair.reserve_usd.parse().unwrap_or_default();
-                    // wstKSM-xcKSM LP
-                    if pair_addr.clone() == "0x5568872bc43Bae3757F697c0e1b241b62Eddcc17" {
-                        liquidity *= 2.0;
-                    }
-                    let total_supply: f64 = pair.total_supply.parse().unwrap_or_default();
-
-                    let mut price_usd: f64 = 0.0;
-
-                    if total_supply != 0.0 {
-                        price_usd = liquidity / total_supply;
-                    }
-
-                    println!("price_usd {}", price_usd);
-
-                    let mut fees_apr = 0.0;
-                    let odv = one_day_volume_usd.get(&pair_addr.clone());
-                    if odv.is_some() {
-                        fees_apr = odv.unwrap() * 0.0025 * 365.0 * 100.0 / liquidity;
-                    }
-
-                    let f = doc! {
-                        "address": pair_addr.clone(),
-                        "chain": p.1.clone(),
-                        "protocol": p.0.clone(),
-                    };
-
-                    let timestamp = Utc::now().to_string();
-
-                    println!("pair lastUpdatedAtUTC {}", timestamp.clone());
-
-                    let u = doc! {
-                        "$set" : {
-                            "address": pair_addr.clone(),
-                            "chain": p.1.clone(),
-                            "protocol": p.0.clone(),
-                            "name": format!("{}-{} LP", pair.token0.name, pair.token1.name),
-                            "symbol": format!("{}-{} LP", pair.token0.symbol, pair.token1.symbol),
-                            "decimals": decimals,
-                            "logos": [
-                                token0logo.clone(),
-                                token1logo.clone(),
-                            ],
-                            "price": price_usd,
-                            "liquidity": liquidity,
-                            "totalSupply": total_supply,
-                            "isLP": true,
-                            "feesAPR": fees_apr,
-                            "underlyingAssets": [token0_addr.clone(), token1_addr.clone()],
-                            "underlyingAssetsAlloc": [token0alloc, token1alloc],
-                            "lastUpdatedAtUTC": timestamp.clone(),
-                        }
-                    };
-
-                    let options = FindOneAndUpdateOptions::builder()
-                        .upsert(Some(true))
-                        .build();
-                    assets_collection
-                        .find_one_and_update(f, u, Some(options))
-                        .await?;
-                }
-            } else {
-                println!(
-                    "couldn't fetch pairs_data for {} {:?}",
-                    p.0.clone(),
-                    pairs_data.err()
-                );
-            }
-        }
-    }
+    subgraph_jobs(mongo_uri.clone(), protocols, headers.clone())
+        .await
+        .unwrap();
 
     // smart contract fetching jobs
+
+    chef_contract_jobs(
+        mongo_uri.clone(),
+        sushi_subgraph_client.clone(),
+        beamswap_subgraph_client.clone(),
+        stellaswap_subgraph_client.clone(),
+        solarbeam_subgraph_client.clone(),
+    )
+    .await
+    .unwrap();
+
+    Ok(())
+}
+
+async fn chef_contract_jobs(
+    mongo_uri: String,
+    sushi_subgraph_client: Client,
+    beamswap_subgraph_client: Client,
+    stellaswap_subgraph_client: Client,
+    solarbeam_subgraph_client: Client,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut client_options = ClientOptions::parse(mongo_uri).await?;
+    client_options.app_name = Some("Bay Watcher".to_string());
+    let client = MongoClient::with_options(client_options)?;
+    let db = client.database("bayCave");
+
+    let assets_collection = db.collection::<models::Asset>("asset");
+    let farms_collection = db.collection::<models::Farm>("farms");
 
     let pk = dotenv::var("PRIVATE_KEY").unwrap();
     let wallet: LocalWallet = pk.parse().expect("fail parse");
@@ -1375,7 +263,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
         "0x3dB01570D97631f69bbb0ba39796865456Cf89A5".parse::<Address>()?;
     let sushi_mini_chef = IChefV2::new(sushi_mini_chef_address, Arc::clone(&moonriver_client));
 
-    let _protocols = vec![
+    let protocols = vec![
         (
             sushi_mini_chef_address,
             sushi_mini_chef,
@@ -1384,7 +272,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
             "v0".to_string(),
             "0x3dB01570D97631f69bbb0ba39796865456Cf89A5".to_string(),
             sushi_subgraph_client.clone(),
-            sushi_subgraph.clone(),
+            constants::subgraph_urls::SUSHI_SUBGRAPH.clone(),
             moonriver_client.clone(),
         ),
         (
@@ -1395,7 +283,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
             "v2".to_string(),
             "0xC6ca172FC8BDB803c5e12731109744fb0200587b".to_string(),
             beamswap_subgraph_client.clone(),
-            beamswap_subgraph.clone(),
+            constants::subgraph_urls::BEAMSWAP_SUBGRAPH.clone(),
             moonbeam_client.clone(),
         ),
         (
@@ -1406,7 +294,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
             "v1".to_string(),
             "0xEDFB330F5FA216C9D2039B99C8cE9dA85Ea91c1E".to_string(),
             stellaswap_subgraph_client.clone(),
-            stellaswap_subgraph.clone(),
+            constants::subgraph_urls::STELLASWAP_SUBGRAPH.clone(),
             moonbeam_client.clone(),
         ),
         (
@@ -1417,7 +305,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
             "v2".to_string(),
             "0xF3a5454496E26ac57da879bf3285Fa85DEBF0388".to_string(),
             stellaswap_subgraph_client.clone(),
-            stellaswap_subgraph.clone(),
+            constants::subgraph_urls::STELLASWAP_SUBGRAPH.clone(),
             moonbeam_client.clone(),
         ),
         (
@@ -1428,12 +316,12 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
             "v2".to_string(),
             "0x0329867a8c457e9F75e25b0685011291CD30904F".to_string(),
             solarbeam_subgraph_client.clone(),
-            solarbeam_subgraph.clone(),
+            constants::subgraph_urls::SOLARBEAM_SUBGRAPH.clone(),
             moonriver_client.clone(),
         ),
     ];
 
-    for p in _protocols.clone() {
+    for p in protocols.clone() {
         let pool_length: U256 = p.1.pool_length().call().await?;
         println!("pool_length {}", pool_length.as_u32());
 
@@ -1460,7 +348,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                     Arc::clone(&moonriver_client),
                 );
 
-                let (acc_native_reward_per_share, last_reward_timestamp, alloc_point): (
+                let (_acc_native_reward_per_share, _last_reward_timestamp, alloc_point): (
                     u128,
                     u64,
                     u64,
@@ -1486,7 +374,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                     let asset_filter = doc! { "address": asset_addr.clone() };
                     let asset = assets_collection.find_one(asset_filter, None).await?;
 
-                    let mut asset_price: f64 = 0.0;
+                    let mut asset_price: f64;
                     let mut asset_tvl: f64 = 0.0;
 
                     let mut rewards = vec![];
@@ -1551,8 +439,8 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                 println!("asset_price: {:?}", asset_price);
 
                                 let (
-                                    acc_native_reward_per_share,
-                                    last_reward_timestamp,
+                                    _acc_native_reward_per_share,
+                                    _last_reward_timestamp,
                                     r_alloc_point,
                                 ): (u128, u64, u64) = sushi_mini_chef
                                     .pool_info(ethers::prelude::U256::from(pid))
@@ -1603,7 +491,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                             };
                             let pair_day_datas =
                                 p.6.query_with_vars_unwrap::<subgraph::SushiPairDayDatas, Vars>(
-                                    &sushi_pair_day_datas_query.clone(),
+                                    &constants::chef::SUSHI_PAIR_DAY_DATAS_QUERY.clone(),
                                     vars,
                                 )
                                 .await;
@@ -1643,7 +531,6 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                 "chain": p.2.clone(),
                                 "protocol": p.3.clone(),
                             };
-                            let ten: f64 = 10.0;
                             let fu = doc! {
                                 "$set" : {
                                     "id": pid,
@@ -1724,8 +611,8 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                         let asset_filter = doc! { "address": asset_addr.clone() };
                         let asset = assets_collection.find_one(asset_filter, None).await?;
 
-                        let mut asset_price: f64 = 0.0;
-                        let mut asset_tvl: u128 = 0;
+                        let asset_price: f64;
+                        let asset_tvl: u128;
 
                         let mut rewards = vec![];
 
@@ -1786,7 +673,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                 };
                                 let pair_day_datas =
                                     p.6.query_with_vars_unwrap::<subgraph::PairDayDatas, Vars>(
-                                        &pair_day_datas_query.clone(),
+                                        &constants::chef::PAIR_DAY_DATAS_QUERY.clone(),
                                         vars,
                                     )
                                     .await;
@@ -2572,7 +1459,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                                 };
                                 let pair_day_datas =
                                     p.6.query_with_vars_unwrap::<subgraph::PairDayDatas, Vars>(
-                                        &pair_day_datas_query.clone(),
+                                        &constants::chef::PAIR_DAY_DATAS_QUERY.clone(),
                                         vars,
                                     )
                                     .await;
@@ -2666,6 +1553,923 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
+    }
+
+    Ok(())
+}
+
+async fn subgraph_jobs(
+    mongo_uri: String,
+    protocols: Vec<(&str, &str, gql_client::Client, &str)>,
+    headers: HashMap<&str, &str>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut client_options = ClientOptions::parse(mongo_uri).await?;
+    client_options.app_name = Some("Bay Watcher".to_string());
+    let client = MongoClient::with_options(client_options)?;
+    let db = client.database("bayCave");
+
+    let assets_collection = db.collection::<models::Asset>("asset");
+
+    for p in protocols {
+        println!("subgraph data for {} on {}", p.0.clone(), p.1.clone());
+
+        let client = Client::new_with_headers(p.3.clone(), headers.clone());
+
+        if p.0.clone() == "sushiswap" {
+            let tokens_data = client
+                .query_unwrap::<subgraph::SushiTokensData>(
+                    constants::chef::SUSHI_TOKENS_QUERY.clone(),
+                )
+                .await;
+
+            if tokens_data.is_ok() {
+                println!("{} tokens_data {:?}", p.0.clone(), tokens_data.clone());
+                for t in tokens_data.clone().unwrap().tokens.clone() {
+                    let mut price_usd: f64 = 0.0;
+                    if t.day_data.len() >= 1 {
+                        price_usd = t.day_data[0].price_usd.parse().unwrap_or_default();
+                    }
+                    if tokens_data.clone().unwrap().bundles.clone().len() >= 1 {
+                        let derived_eth: f64 = t.derived_eth.parse().unwrap_or_default();
+                        let eth_price: f64 = tokens_data.clone().unwrap().bundles.clone()[0]
+                            .eth_price
+                            .parse()
+                            .unwrap_or_default();
+                        price_usd = derived_eth * eth_price;
+                    }
+
+                    let ta = Address::from_str(t.id.as_str()).unwrap();
+                    let token_addr = to_checksum(&ta, None);
+
+                    println!("token_addr {:?}", token_addr.clone());
+
+                    let decimals: u32 = t.decimals.parse().unwrap_or_default();
+
+                    let mut logo = "".to_string();
+                    if p.0.clone() == "solarbeam" {
+                        logo = format!("https://raw.githubusercontent.com/solarbeamio/solarbeam-tokenlist/main/assets/moonriver/{}/logo.png", token_addr.clone());
+                    } else if p.0.clone() == "stellaswap" {
+                        logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token_addr.clone());
+                        // xStella
+                        if token_addr.clone()
+                            == "0x06A3b410b681c82417A906993aCeFb91bAB6A080".to_string()
+                        {
+                            logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xStella.png");
+                        }
+                        // xcINTR
+                        if token_addr.clone()
+                            == "0xFffFFFFF4C1cbCd97597339702436d4F18a375Ab".to_string()
+                        {
+                            logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/INTR.png");
+                        }
+                        // xcaUSD
+                        if token_addr.clone()
+                            == "0xfFfFFFFF52C56A9257bB97f4B2b6F7B2D624ecda".to_string()
+                        {
+                            logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xcaUSD.png");
+                        }
+                    } else if p.0.clone() == "beamswap" {
+                        logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token_addr.clone());
+                    } else if p.0.clone() == "sushiswap" {
+                        logo = format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token_addr.clone());
+                        // WBTC.eth
+                        if token_addr.clone()
+                            == "0xE6a991Ffa8CfE62B0bf6BF72959A3d4f11B2E0f5".to_string()
+                        {
+                            logo = format!("https://raw.githubusercontent.com/sushiswap/icons/master/token/btc.jpg");
+                        }
+                    }
+
+                    println!("logo {}", logo.clone());
+
+                    let liquidity: f64 = t.liquidity.parse().unwrap_or_default();
+
+                    let f = doc! {
+                        "address": token_addr.clone(),
+                        "chain": p.1.clone(),
+                        "protocol": p.0.clone(),
+                    };
+
+                    let timestamp = Utc::now().to_string();
+
+                    println!("token lastUpdatedAtUTC {}", timestamp.clone());
+
+                    let u = doc! {
+                        "$set" : {
+                            "address": token_addr.clone(),
+                            "chain": p.1.clone(),
+                            "protocol": p.0.clone(),
+                            "name": t.name,
+                            "symbol": t.symbol,
+                            "decimals": decimals,
+                            "logos": [
+                                logo.clone(),
+                            ],
+                            "price": price_usd,
+                            "liquidity": liquidity,
+                            "totalSupply": 0.0,
+                            "isLP": false,
+                            "feesAPR": 0.0,
+                            "underlyingAssets": [],
+                            "underlyingAssetsAlloc": [],
+                            "lastUpdatedAtUTC": timestamp.clone(),
+                        }
+                    };
+
+                    let options = FindOneAndUpdateOptions::builder()
+                        .upsert(Some(true))
+                        .build();
+                    assets_collection
+                        .find_one_and_update(f, u, Some(options))
+                        .await?;
+                }
+            } else {
+                println!(
+                    "couldn't fetch tokens_data for {} {:?}",
+                    p.0.clone(),
+                    tokens_data.err()
+                );
+            }
+        } else {
+            let tokens_data = client
+                // p.2.clone()
+                .query_unwrap::<subgraph::TokensData>(constants::chef::TOKENS_QUERY.clone())
+                .await;
+
+            if tokens_data.is_ok() {
+                println!("{} tokens_data {:?}", p.0.clone(), tokens_data.clone());
+                for t in tokens_data.clone().unwrap().tokens.clone() {
+                    let mut price_usd: f64 = 0.0;
+                    if t.token_day_data.len() >= 1 {
+                        price_usd = t.token_day_data[0].price_usd.parse().unwrap_or_default();
+                    }
+                    if tokens_data.clone().unwrap().bundles.clone().len() >= 1 {
+                        let derived_eth: f64 = t.derived_eth.parse().unwrap_or_default();
+                        let eth_price: f64 = tokens_data.clone().unwrap().bundles.clone()[0]
+                            .eth_price
+                            .parse()
+                            .unwrap_or_default();
+                        price_usd = derived_eth * eth_price;
+                    }
+
+                    let ta = Address::from_str(t.id.as_str()).unwrap();
+                    let token_addr = to_checksum(&ta, None);
+
+                    println!("token_addr {:?}", token_addr.clone());
+
+                    let decimals: u32 = t.decimals.parse().unwrap_or_default();
+
+                    let mut logo = "".to_string();
+                    if p.0.clone() == "solarbeam" {
+                        logo = format!("https://raw.githubusercontent.com/solarbeamio/solarbeam-tokenlist/main/assets/moonriver/{}/logo.png", token_addr.clone());
+                    } else if p.0.clone() == "stellaswap" {
+                        logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token_addr.clone());
+                        // xStella
+                        if token_addr.clone()
+                            == "0x06A3b410b681c82417A906993aCeFb91bAB6A080".to_string()
+                        {
+                            logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xStella.png");
+                        }
+                        // xcINTR
+                        if token_addr.clone()
+                            == "0xFffFFFFF4C1cbCd97597339702436d4F18a375Ab".to_string()
+                        {
+                            logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/INTR.png");
+                        }
+                        // xcaUSD
+                        if token_addr.clone()
+                            == "0xfFfFFFFF52C56A9257bB97f4B2b6F7B2D624ecda".to_string()
+                        {
+                            logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xcaUSD.png");
+                        }
+                    } else if p.0.clone() == "beamswap" {
+                        logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token_addr.clone());
+                    } else if p.0.clone() == "sushiswap" {
+                        logo = format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token_addr.clone());
+                        // WBTC.eth
+                        if token_addr.clone()
+                            == "0xE6a991Ffa8CfE62B0bf6BF72959A3d4f11B2E0f5".to_string()
+                        {
+                            logo = format!("https://raw.githubusercontent.com/sushiswap/icons/master/token/btc.jpg");
+                        }
+                    }
+
+                    println!("logo {}", logo.clone());
+
+                    let liquidity: f64 = t.total_liquidity.parse().unwrap_or_default();
+
+                    // stKSM or wstKSM
+                    if p.0.clone() == "solarbeam"
+                        && (token_addr.clone() == "0xFfc7780C34B450d917d557E728f033033CB4fA8C"
+                            || token_addr.clone() == "0x3bfd113ad0329a7994a681236323fb16E16790e3")
+                    {
+                        let xcksm = assets_collection.find_one(doc! {"chain":"moonriver", "protocol":"solarbeam", "address":"0xFfFFfFff1FcaCBd218EDc0EbA20Fc2308C778080"}, None).await?;
+                        price_usd = xcksm.clone().unwrap().price;
+                    }
+
+                    let f = doc! {
+                        "address": token_addr.clone(),
+                        "chain": p.1.clone(),
+                        "protocol": p.0.clone(),
+                    };
+
+                    let timestamp = Utc::now().to_string();
+
+                    println!("token lastUpdatedAtUTC {}", timestamp.clone());
+
+                    let u = doc! {
+                        "$set" : {
+                            "address": token_addr.clone(),
+                            "chain": p.1.clone(),
+                            "protocol": p.0.clone(),
+                            "name": t.name,
+                            "symbol": t.symbol,
+                            "decimals": decimals,
+                            "logos": [
+                                logo.clone(),
+                            ],
+                            "price": price_usd,
+                            "liquidity": liquidity,
+                            "totalSupply": 0.0,
+                            "isLP": false,
+                            "feesAPR": 0.0,
+                            "underlyingAssets": [],
+                            "underlyingAssetsAlloc": [],
+                            "lastUpdatedAtUTC": timestamp.clone(),
+                        }
+                    };
+
+                    let options = FindOneAndUpdateOptions::builder()
+                        .upsert(Some(true))
+                        .build();
+                    assets_collection
+                        .find_one_and_update(f, u, Some(options))
+                        .await?;
+                }
+            } else {
+                println!(
+                    "couldn't fetch tokens_data for {} {:?}",
+                    p.0.clone(),
+                    tokens_data.err()
+                );
+            }
+        }
+
+        let mut one_day_volume_usd: HashMap<String, f64> = HashMap::new();
+
+        if p.1.clone() == "moonbeam" {
+            let block_number = get_one_day_block(
+                constants::subgraph_urls::SOLARFLARE_BLOCKLYTICS_SUBGRAPH.to_string(),
+                constants::chef::ONE_DAY_BLOCKS_QUERY.to_string(),
+            )
+            .await;
+            if block_number != 0 {
+                let pairs = get_one_day_pools(
+                    p.3.clone().to_string(),
+                    constants::chef::ONE_DAY_POOLS_QUERY.to_string(),
+                    block_number,
+                )
+                .await;
+                for pair in pairs {
+                    let pair_id = Address::from_str(pair.id.as_str()).unwrap();
+                    let pair_addr = to_checksum(&pair_id, None);
+                    one_day_volume_usd.insert(
+                        pair_addr,
+                        pair.untracked_volume_usd.parse().unwrap_or_default(),
+                    );
+                }
+            }
+        } else if p.1.clone() == "moonriver" {
+            let block_number = get_one_day_block(
+                constants::subgraph_urls::SOLARBEAM_BLOCKLYTICS_SUBGRAPH.to_string(),
+                constants::chef::ONE_DAY_BLOCKS_QUERY.to_string(),
+            )
+            .await;
+            // if p.0.clone() == "sushiswap" {
+            //     if block_number != 0 {
+            //         let pairs = get_one_day_pools(
+            //             p.3.clone().to_string(),
+            //             one_day_pools_query.to_string(),
+            //             block_number,
+            //         )
+            //         .await;
+            //         for pair in pairs {
+            //             let pair_id = Address::from_str(pair.id.as_str()).unwrap();
+            //             let pair_addr = to_checksum(&pair_id, None);
+            //             one_day_volume_usd.insert(
+            //                 pair_addr,
+            //                 pair.untracked_volume_usd.parse().unwrap_or_default(),
+            //             );
+            //         }
+            //     }
+            // } else {
+            if block_number != 0 {
+                let pairs = get_one_day_pools(
+                    p.3.clone().to_string(),
+                    constants::chef::ONE_DAY_POOLS_QUERY.to_string(),
+                    block_number,
+                )
+                .await;
+                for pair in pairs {
+                    let pair_id = Address::from_str(pair.id.as_str()).unwrap();
+                    let pair_addr = to_checksum(&pair_id, None);
+                    one_day_volume_usd.insert(
+                        pair_addr,
+                        pair.untracked_volume_usd.parse().unwrap_or_default(),
+                    );
+                }
+            }
+            // }
+        }
+
+        if p.0.clone() == "sushiswap" {
+            let pairs_data = client
+                // p.2.clone()
+                .query_unwrap::<subgraph::SushiPairsData>(
+                    constants::chef::SUSHI_PAIRS_QUERY.clone(),
+                )
+                .await;
+
+            if pairs_data.is_ok() {
+                println!("{} pairs_data {:?}", p.0.clone(), pairs_data);
+
+                for pair in pairs_data.clone().unwrap().pairs.clone() {
+                    let token0price: f64 = pair.token0price.parse().unwrap_or_default();
+                    let token1price: f64 = pair.token1price.parse().unwrap_or_default();
+
+                    let mut token0alloc = 0.0;
+                    let mut token1alloc = 0.0;
+
+                    if token0price > 0.0 && token1price > 0.0 {
+                        if token0price > token1price {
+                            token0alloc = (1.0 / token0price) * 100.0;
+                            token1alloc = 100.0 - token0alloc;
+                        } else {
+                            token1alloc = (1.0 / token1price) * 100.0;
+                            token0alloc = 100.0 - token1alloc;
+                        }
+                    }
+
+                    let pa = Address::from_str(pair.id.as_str()).unwrap();
+                    let pair_addr = to_checksum(&pa, None);
+                    println!("pair_addr {:?}", pair_addr.clone());
+
+                    let t0a = Address::from_str(pair.token0.id.as_str()).unwrap();
+                    let token0_addr = to_checksum(&t0a, None);
+                    println!("token0_addr {:?}", token0_addr.clone());
+
+                    let t1a = Address::from_str(pair.token1.id.as_str()).unwrap();
+                    let token1_addr = to_checksum(&t1a, None);
+                    println!("token1_addr {:?}", token1_addr.clone());
+
+                    let mut token0logo = "".to_string();
+                    let mut token1logo = "".to_string();
+                    if p.0.clone() == "solarbeam" {
+                        token0logo = format!("https://raw.githubusercontent.com/solarbeamio/solarbeam-tokenlist/main/assets/moonriver/{}/logo.png", token0_addr.clone());
+                        token1logo = format!("https://raw.githubusercontent.com/solarbeamio/solarbeam-tokenlist/main/assets/moonriver/{}/logo.png", token1_addr.clone());
+                    } else if p.0.clone() == "stellaswap" {
+                        token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token0_addr.clone());
+                        token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token1_addr.clone());
+
+                        // xStella
+                        if token0_addr.clone()
+                            == "0x06A3b410b681c82417A906993aCeFb91bAB6A080".to_string()
+                        {
+                            token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xStella.png");
+                        }
+                        if token1_addr.clone()
+                            == "0x06A3b410b681c82417A906993aCeFb91bAB6A080".to_string()
+                        {
+                            token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xStella.png");
+                        }
+                        // xcINTR
+                        if token0_addr.clone()
+                            == "0xFffFFFFF4C1cbCd97597339702436d4F18a375Ab".to_string()
+                        {
+                            token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/INTR.png");
+                        }
+                        if token1_addr.clone()
+                            == "0xFffFFFFF4C1cbCd97597339702436d4F18a375Ab".to_string()
+                        {
+                            token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/INTR.png");
+                        }
+                        // xcaUSD
+                        if token0logo.clone()
+                            == "0xfFfFFFFF52C56A9257bB97f4B2b6F7B2D624ecda".to_string()
+                        {
+                            token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xcaUSD.png");
+                        }
+                        if token1logo.clone()
+                            == "0xfFfFFFFF52C56A9257bB97f4B2b6F7B2D624ecda".to_string()
+                        {
+                            token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xcaUSD.png");
+                        }
+                    } else if p.0.clone() == "beamswap" {
+                        token0logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token0_addr.clone());
+                        token1logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token1_addr.clone());
+                    } else if p.0.clone() == "sushiswap" {
+                        token0logo=format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token0_addr.clone());
+                        token1logo=format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token1_addr.clone());
+
+                        // WBTC.eth
+                        if token0_addr.clone()
+                            == "0xE6a991Ffa8CfE62B0bf6BF72959A3d4f11B2E0f5".to_string()
+                        {
+                            token0logo = format!("https://raw.githubusercontent.com/sushiswap/icons/master/token/btc.jpg");
+                        }
+                        if token1_addr.clone()
+                            == "0xE6a991Ffa8CfE62B0bf6BF72959A3d4f11B2E0f5".to_string()
+                        {
+                            token1logo = format!("https://raw.githubusercontent.com/sushiswap/icons/master/token/btc.jpg");
+                        }
+                    }
+
+                    let token0decimals: u32 = pair.token0.decimals.parse().unwrap_or_default();
+                    let token1decimals: u32 = pair.token1.decimals.parse().unwrap_or_default();
+
+                    let mut decimals = token0decimals;
+                    if token1decimals > token0decimals {
+                        decimals = token1decimals;
+                    }
+
+                    let liquidity: f64 = pair.reserve_usd.parse().unwrap_or_default();
+                    let total_supply: f64 = pair.total_supply.parse().unwrap_or_default();
+
+                    let mut price_usd: f64 = 0.0;
+
+                    if total_supply != 0.0 {
+                        price_usd = liquidity / total_supply;
+                    }
+
+                    println!("price_usd {}", price_usd);
+
+                    let mut fees_apr = 0.0;
+                    let odv = one_day_volume_usd.get(&pair_addr.clone());
+                    if odv.is_some() {
+                        fees_apr = odv.unwrap() * 0.0025 * 365.0 * 100.0 / liquidity;
+                    }
+
+                    let f = doc! {
+                        "address": pair_addr.clone(),
+                        "chain": p.1.clone(),
+                        "protocol": p.0.clone(),
+                    };
+
+                    let timestamp = Utc::now().to_string();
+
+                    println!("pair lastUpdatedAtUTC {}", timestamp.clone());
+
+                    let u = doc! {
+                        "$set" : {
+                            "address": pair_addr.clone(),
+                            "chain": p.1.clone(),
+                            "protocol": p.0.clone(),
+                            "name": format!("{}-{} LP", pair.token0.name, pair.token1.name),
+                            "symbol": format!("{}-{} LP", pair.token0.symbol, pair.token1.symbol),
+                            "decimals": decimals,
+                            "logos": [
+                                token0logo.clone(),
+                                token1logo.clone(),
+                            ],
+                            "price": price_usd,
+                            "liquidity": liquidity,
+                            "totalSupply": total_supply,
+                            "isLP": true,
+                            "feesAPR": fees_apr,
+                            "underlyingAssets": [token0_addr.clone(), token1_addr.clone()],
+                            "underlyingAssetsAlloc": [token0alloc, token1alloc],
+                            "lastUpdatedAtUTC": timestamp.clone(),
+                        }
+                    };
+
+                    let options = FindOneAndUpdateOptions::builder()
+                        .upsert(Some(true))
+                        .build();
+                    assets_collection
+                        .find_one_and_update(f, u, Some(options))
+                        .await?;
+                }
+            } else {
+                println!(
+                    "couldn't fetch pairs_data for {} {:?}",
+                    p.0.clone(),
+                    pairs_data.err()
+                );
+            }
+        } else {
+            let pairs_data = client
+                // p.2.clone()
+                .query_unwrap::<subgraph::PairsData>(constants::chef::PAIRS_QUERY.clone())
+                .await;
+
+            if pairs_data.is_ok() {
+                println!("{} pairs_data {:?}", p.0.clone(), pairs_data);
+
+                for pair in pairs_data.clone().unwrap().pairs.clone() {
+                    let token0price: f64 = pair.token0price.parse().unwrap_or_default();
+                    let token1price: f64 = pair.token1price.parse().unwrap_or_default();
+
+                    let mut token0alloc = 0.0;
+                    let mut token1alloc = 0.0;
+
+                    if token0price > 0.0 && token1price > 0.0 {
+                        if token0price > token1price {
+                            token0alloc = (1.0 / token0price) * 100.0;
+                            token1alloc = 100.0 - token0alloc;
+                        } else {
+                            token1alloc = (1.0 / token1price) * 100.0;
+                            token0alloc = 100.0 - token1alloc;
+                        }
+                    }
+
+                    let pa = Address::from_str(pair.id.as_str()).unwrap();
+                    let pair_addr = to_checksum(&pa, None);
+                    println!("pair_addr {:?}", pair_addr.clone());
+
+                    let t0a = Address::from_str(pair.token0.id.as_str()).unwrap();
+                    let token0_addr = to_checksum(&t0a, None);
+                    println!("token0_addr {:?}", token0_addr.clone());
+
+                    let t1a = Address::from_str(pair.token1.id.as_str()).unwrap();
+                    let token1_addr = to_checksum(&t1a, None);
+                    println!("token1_addr {:?}", token1_addr.clone());
+
+                    let mut token0logo = "".to_string();
+                    let mut token1logo = "".to_string();
+                    if p.0.clone() == "solarbeam" {
+                        token0logo = format!("https://raw.githubusercontent.com/solarbeamio/solarbeam-tokenlist/main/assets/moonriver/{}/logo.png", token0_addr.clone());
+                        token1logo = format!("https://raw.githubusercontent.com/solarbeamio/solarbeam-tokenlist/main/assets/moonriver/{}/logo.png", token1_addr.clone());
+                    } else if p.0.clone() == "stellaswap" {
+                        token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token0_addr.clone());
+                        token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token1_addr.clone());
+
+                        // xStella
+                        if token0_addr.clone()
+                            == "0x06A3b410b681c82417A906993aCeFb91bAB6A080".to_string()
+                        {
+                            token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xStella.png");
+                        }
+                        if token1_addr.clone()
+                            == "0x06A3b410b681c82417A906993aCeFb91bAB6A080".to_string()
+                        {
+                            token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xStella.png");
+                        }
+                        // xcINTR
+                        if token0_addr.clone()
+                            == "0xFffFFFFF4C1cbCd97597339702436d4F18a375Ab".to_string()
+                        {
+                            token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/INTR.png");
+                        }
+                        if token1_addr.clone()
+                            == "0xFffFFFFF4C1cbCd97597339702436d4F18a375Ab".to_string()
+                        {
+                            token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/INTR.png");
+                        }
+                        // xcaUSD
+                        if token0logo.clone()
+                            == "0xfFfFFFFF52C56A9257bB97f4B2b6F7B2D624ecda".to_string()
+                        {
+                            token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xcaUSD.png");
+                        }
+                        if token1logo.clone()
+                            == "0xfFfFFFFF52C56A9257bB97f4B2b6F7B2D624ecda".to_string()
+                        {
+                            token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xcaUSD.png");
+                        }
+                    } else if p.0.clone() == "beamswap" {
+                        token0logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token0_addr.clone());
+                        token1logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token1_addr.clone());
+                    } else if p.0.clone() == "sushiswap" {
+                        token0logo=format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token0_addr.clone());
+                        token1logo=format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token1_addr.clone());
+
+                        // WBTC.eth
+                        if token0_addr.clone()
+                            == "0xE6a991Ffa8CfE62B0bf6BF72959A3d4f11B2E0f5".to_string()
+                        {
+                            token0logo = format!("https://raw.githubusercontent.com/sushiswap/icons/master/token/btc.jpg");
+                        }
+                        if token1_addr.clone()
+                            == "0xE6a991Ffa8CfE62B0bf6BF72959A3d4f11B2E0f5".to_string()
+                        {
+                            token1logo = format!("https://raw.githubusercontent.com/sushiswap/icons/master/token/btc.jpg");
+                        }
+                    }
+
+                    let token0decimals: u32 = pair.token0.decimals.parse().unwrap_or_default();
+                    let token1decimals: u32 = pair.token1.decimals.parse().unwrap_or_default();
+
+                    let mut decimals = token0decimals;
+                    if token1decimals > token0decimals {
+                        decimals = token1decimals;
+                    }
+
+                    let mut liquidity: f64 = pair.reserve_usd.parse().unwrap_or_default();
+                    // wstKSM-xcKSM LP
+                    if pair_addr.clone() == "0x5568872bc43Bae3757F697c0e1b241b62Eddcc17" {
+                        liquidity *= 2.0;
+                    }
+                    let total_supply: f64 = pair.total_supply.parse().unwrap_or_default();
+
+                    let mut price_usd: f64 = 0.0;
+
+                    if total_supply != 0.0 {
+                        price_usd = liquidity / total_supply;
+                    }
+
+                    println!("price_usd {}", price_usd);
+
+                    let mut fees_apr = 0.0;
+                    let odv = one_day_volume_usd.get(&pair_addr.clone());
+                    if odv.is_some() {
+                        fees_apr = odv.unwrap() * 0.0025 * 365.0 * 100.0 / liquidity;
+                    }
+
+                    let f = doc! {
+                        "address": pair_addr.clone(),
+                        "chain": p.1.clone(),
+                        "protocol": p.0.clone(),
+                    };
+
+                    let timestamp = Utc::now().to_string();
+
+                    println!("pair lastUpdatedAtUTC {}", timestamp.clone());
+
+                    let u = doc! {
+                        "$set" : {
+                            "address": pair_addr.clone(),
+                            "chain": p.1.clone(),
+                            "protocol": p.0.clone(),
+                            "name": format!("{}-{} LP", pair.token0.name, pair.token1.name),
+                            "symbol": format!("{}-{} LP", pair.token0.symbol, pair.token1.symbol),
+                            "decimals": decimals,
+                            "logos": [
+                                token0logo.clone(),
+                                token1logo.clone(),
+                            ],
+                            "price": price_usd,
+                            "liquidity": liquidity,
+                            "totalSupply": total_supply,
+                            "isLP": true,
+                            "feesAPR": fees_apr,
+                            "underlyingAssets": [token0_addr.clone(), token1_addr.clone()],
+                            "underlyingAssetsAlloc": [token0alloc, token1alloc],
+                            "lastUpdatedAtUTC": timestamp.clone(),
+                        }
+                    };
+
+                    let options = FindOneAndUpdateOptions::builder()
+                        .upsert(Some(true))
+                        .build();
+                    assets_collection
+                        .find_one_and_update(f, u, Some(options))
+                        .await?;
+                }
+            } else {
+                println!(
+                    "couldn't fetch pairs_data for {} {:?}",
+                    p.0.clone(),
+                    pairs_data.err()
+                );
+            }
+        }
+    }
+
+    Ok(())
+}
+
+async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>> {
+    let mut client_options = ClientOptions::parse(mongo_uri).await?;
+    client_options.app_name = Some("Bay Watcher".to_string());
+    let client = MongoClient::with_options(client_options)?;
+    let db = client.database("bayCave");
+
+    let farms_collection = db.collection::<models::Farm>("farms");
+
+    let moonbeam_curve_st_dot = "0xc6e37086D09ec2048F151D11CdB9F9BbbdB7d685".to_string();
+
+    let get_factory_apys_resp = reqwest::get("https://api.curve.fi/api/getFactoryAPYs-moonbeam")
+        .await?
+        .json::<apis::curve::GetFactoryAPYsRoot>()
+        .await?;
+    println!("get_factory_apys_resp:\n{:#?}", get_factory_apys_resp);
+
+    for pd in get_factory_apys_resp.clone().data.pool_details {
+        if pd.pool_address == moonbeam_curve_st_dot.clone() {
+            // pd.apy
+            // pd.index
+
+            let get_factory_v2_pools_resp =
+                reqwest::get("https://api.curve.fi/api/getFactoryV2Pools-moonbeam")
+                    .await?
+                    .json::<apis::curve::GetFactoryV2PoolsRoot>()
+                    .await?;
+            println!(
+                "get_factory_v2_pools_resp:\n{:#?}",
+                get_factory_v2_pools_resp
+            );
+
+            for pda in get_factory_v2_pools_resp.clone().data.pool_data {
+                if pda.address == moonbeam_curve_st_dot.clone() {
+                    // pda.usd_total
+
+                    let get_facto_gauges_resp =
+                        reqwest::get("https://api.curve.fi/api/getFactoGauges/moonbeam")
+                            .await?
+                            .json::<apis::curve::GetFactoGaugesRoot>()
+                            .await?;
+                    println!("get_facto_gauges_resp:\n{:#?}", get_facto_gauges_resp);
+
+                    for g in get_facto_gauges_resp.clone().data.gauges {
+                        if g.swap_token == moonbeam_curve_st_dot.clone() {
+                            // g.extra_rewards
+                            let ten: f64 = 10.0;
+
+                            let mut total_apy = pd.apy;
+
+                            let mut rewards = vec![];
+                            for er in g.extra_rewards {
+                                rewards.push(bson!({
+                                    "amount": er.meta_data.rate.parse::<f64>().unwrap_or_default() as f64 / ten.powf(er.decimals.parse::<f64>().unwrap_or_default()) as f64,
+                                    "asset":  er.symbol,
+                                    "valueUSD": er.meta_data.rate.parse::<f64>().unwrap_or_default() as f64 / ten.powf(er.decimals.parse::<f64>().unwrap_or_default()) as f64 * er.token_price,
+                                    "freq": models::Freq::Daily.to_string(),
+                                }));
+                                total_apy += er.apy;
+                            }
+
+                            let timestamp = Utc::now().to_string();
+
+                            println!("curve v2 farm lastUpdatedAtUTC {}", timestamp.clone());
+
+                            let ff = doc! {
+                                "id": pd.index as i32,
+                                "chef": "curve v2",
+                                "chain": "moonbeam",
+                                "protocol": "curve",
+                            };
+                            let fu = doc! {
+                                "$set" : {
+                                    "id": pd.index,
+                                    "chef": "curve v2",
+                                    "chain": "moonbeam",
+                                    "protocol": "curve",
+                                    "farmType": models::FarmType::StableAmm.to_string(),
+                                    "farmImpl": models::FarmImplementation::Vyper.to_string(),
+                                    "asset": {
+                                        "symbol": "stDOT LP",
+                                        "address": pd.pool_address.clone(),
+                                        "price": 0,
+                                        "logos": [
+                                            "https://cdn.jsdelivr.net/gh/curvefi/curve-assets/images/assets-moonbeam/0xffffffff1fcacbd218edc0eba20fc2308c778080.png",
+                                            "https://cdn.jsdelivr.net/gh/curvefi/curve-assets/images/assets-moonbeam/0xfa36fe1da08c89ec72ea1f0143a35bfd5daea108.png"
+                                        ],
+                                    },
+                                    "tvl": pda.usd_total as f64,
+                                    "apr.reward": total_apy,
+                                    "apr.base": pd.apy,
+                                    "rewards": rewards,
+                                    "allocPoint": 1,
+                                    "lastUpdatedAtUTC": timestamp.clone(),
+                                }
+                            };
+                            let options = FindOneAndUpdateOptions::builder()
+                                .upsert(Some(true))
+                                .build();
+                            farms_collection
+                                .find_one_and_update(ff, fu, Some(options))
+                                .await?;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+async fn taiga_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>> {
+    let mut client_options = ClientOptions::parse(mongo_uri).await?;
+    client_options.app_name = Some("Bay Watcher".to_string());
+    let client = MongoClient::with_options(client_options)?;
+    let db = client.database("bayCave");
+
+    let farms_collection = db.collection::<models::Farm>("farms");
+
+    let _tai_ksm = fetch_tai_ksm(
+        constants::taiga::DAILY_DATA_TAI_KSM_QUERY.to_owned(),
+        constants::taiga::TOKEN_PRICE_HISTORY_QUERY.to_owned(),
+    )
+    .await;
+    let _3usd = fetch_3usd(
+        constants::taiga::DAILY_DATA_3_USD_QUERY.to_owned(),
+        constants::taiga::TOKEN_PRICE_HISTORY_QUERY.to_owned(),
+    )
+    .await;
+
+    println!("_tai_ksm:\n{:?}\n_3usd:\n{:?}", _tai_ksm, _3usd);
+
+    if _tai_ksm.0 != 0.0 && _tai_ksm.1.len() > 0 {
+        let mut tai_ksm_rewards = vec![];
+        for r in _tai_ksm.1.clone() {
+            tai_ksm_rewards.push(bson!({
+                "amount": r.0 as f64,
+                "asset":  r.1.clone(),
+                "valueUSD": r.2 as f64,
+                "freq": r.3.clone(),
+            }));
+        }
+
+        let timestamp = Utc::now().to_string();
+
+        println!("taiKSM farm lastUpdatedAtUTC {}", timestamp.clone());
+
+        let tai_ksm_ff = doc! {
+            "id": 0,
+            "chef": "taiKSM".to_string(),
+            "chain": "karura".to_string(),
+            "protocol": "taiga".to_string(),
+        };
+        let tai_ksm_fu = doc! {
+            "$set" : {
+                "id": 0,
+                "chef": "taiKSM".to_string(),
+                "chain": "karura".to_string(),
+                "protocol": "taiga".to_string(),
+                "farmType": models::FarmType::StableAmm.to_string(),
+                "farmImpl": models::FarmImplementation::Pallet.to_string(),
+                "asset": {
+                    "symbol": "taiKSM".to_string(),
+                    "address": "taiKSM".to_string(),
+                    "price": 0 as f64,
+                    "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/karura/taiga/taiKSM.png".to_string()],
+                },
+                "tvl": _tai_ksm.0 as f64,
+                "apr.reward": _tai_ksm.2.1 as f64 * 100.0,
+                "apr.base": _tai_ksm.2.0 as f64 * 100.0,
+                "rewards": tai_ksm_rewards,
+                "allocPoint": 1,
+                "lastUpdatedAtUTC": timestamp.clone(),
+            }
+        };
+        let options = FindOneAndUpdateOptions::builder()
+            .upsert(Some(true))
+            .build();
+        farms_collection
+            .find_one_and_update(tai_ksm_ff, tai_ksm_fu, Some(options))
+            .await?;
+    }
+
+    if _3usd.0 != 0.0 && _3usd.1.len() > 0 {
+        let mut _3usd_rewards = vec![];
+        for r in _3usd.1.clone() {
+            _3usd_rewards.push(bson!({
+                "amount": r.0 as f64,
+                "asset":  r.1.clone(),
+                "valueUSD": r.2 as f64,
+                "freq": r.3.clone(),
+            }));
+        }
+
+        let timestamp = Utc::now().to_string();
+
+        println!("3USD farm lastUpdatedAtUTC {}", timestamp.clone());
+
+        let _3usd_ff = doc! {
+            "id": 1,
+            "chef": "3USD".to_string(),
+            "chain": "karura".to_string(),
+            "protocol": "taiga".to_string(),
+        };
+        let _3usd_fu = doc! {
+            "$set" : {
+                "id": 1,
+                "chef": "3USD".to_string(),
+                "chain": "karura".to_string(),
+                "protocol": "taiga".to_string(),
+                "farmType": models::FarmType::StableAmm.to_string(),
+                "farmImpl": models::FarmImplementation::Pallet.to_string(),
+                "asset": {
+                    "symbol": "3USD".to_string(),
+                    "address": "3USD".to_string(),
+                    "price": 0 as f64,
+                    "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/karura/taiga/3USD.png".to_string()],
+                },
+                "tvl": _3usd.0 as f64,
+                "apr.reward": _3usd.2.1 as f64 * 100.0,
+                "apr.base": _3usd.2.0 as f64 * 100.0,
+                "rewards": _3usd_rewards,
+                "allocPoint": 1,
+                "lastUpdatedAtUTC": timestamp.clone(),
+            }
+        };
+        let options = FindOneAndUpdateOptions::builder()
+            .upsert(Some(true))
+            .build();
+        farms_collection
+            .find_one_and_update(_3usd_ff, _3usd_fu, Some(options))
+            .await?;
     }
 
     Ok(())
