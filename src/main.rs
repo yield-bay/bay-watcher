@@ -515,7 +515,7 @@ async fn chef_contract_jobs(
                                 {
                                     base_apr = 0.0;
                                 } else {
-                                    base_apr = daily_volume_lw * 0.002 * 365.0 * 100.0
+                                    base_apr = daily_volume_lw * 0.0025 * 365.0 * 100.0
                                         / (asset.clone().unwrap_or_default().total_supply
                                             * asset.clone().unwrap_or_default().price);
                                 }

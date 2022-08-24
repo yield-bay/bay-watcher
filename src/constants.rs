@@ -202,6 +202,7 @@ pub mod chef {
                 orderDirection: desc
                 orderBy: date
                 first: 1
+                skip: 1
                 where: {pair: $addr}
             ) {
                 date
