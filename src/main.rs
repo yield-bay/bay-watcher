@@ -30,6 +30,8 @@ abigen!(
         function poolTotalLp(uint256) external view returns (uint256)
         function poolRewarders(uint256) external view returns (address [])
         function poolRewardsPerSec(uint256) external view returns (address[], string[], uint256[], uint256[])
+        function stellaPerSec() external view returns (uint256)
+        function totalAllocPoint() external view returns (uint256)
     ]"#,
 );
 
@@ -582,6 +584,22 @@ async fn chef_contract_jobs(
                     };
                     let fu = doc! {
                         "$set" : {
+                            "id": pid,
+                            "chef": p.5.clone(),
+                            "chain": p.2.clone(),
+                            "protocol": p.3.clone(),
+                            "farmType": farm_type.to_string(),
+                            "farmImpl": farm_implementation.to_string(),
+                            "asset": {
+                                "symbol": "",
+                                "address": "",
+                                "price": 0,
+                                "logos": [],
+                            },
+                            "tvl": 0,
+                            "apr.reward": 0,
+                            "apr.base": 0,
+                            "rewards": [],
                             "allocPoint": ap,
                             "lastUpdatedAtUTC": timestamp.clone(),
                         }
@@ -1450,24 +1468,47 @@ async fn chef_contract_jobs(
 
                                         println!("asset_price: {:?}", asset_price);
 
-                                        let rewards_per_day: u128 =
+                                        let mut rewards_per_day: u128 =
                                             rewards_per_sec[i].as_u128() * 60 * 60 * 24;
                                         asset_tvl = total_lp.as_u128();
+
+                                        let ten: i128 = 10;
 
                                         if p.3.clone() == "stellaswap".to_string()
                                             && p.5.clone()
                                                 == "0xF3a5454496E26ac57da879bf3285Fa85DEBF0388"
                                                     .to_string()
+                                            && reward_asset.clone().unwrap().symbol
+                                                == "STELLA".to_string()
                                         {
-                                        }
+                                            // let stella_per_sec: U256 =
+                                            //     p.1.stella_per_sec().call().await?;
+                                            // let total_alloc_point: U256 =
+                                            //     p.1.total_alloc_point().call().await?;
 
-                                        let ten: i128 = 10;
-                                        rewards.push(bson!({
-                                            "amount": rewards_per_day as f64 / ten.pow(decimals[i].as_u128().try_into().unwrap()) as f64,
-                                            "asset":  reward_asset.clone().unwrap().symbol,
-                                            "valueUSD": (rewards_per_day as f64 / ten.pow(decimals[i].as_u128().try_into().unwrap()) as f64) * reward_asset_price,
-                                            "freq": models::Freq::Daily.to_string(),
-                                        }));
+                                            // println!(
+                                            //     "stella_per_sec {:?}, total_alloc_point {:?}",
+                                            //     stella_per_sec, total_alloc_point
+                                            // );
+                                            // rewards.push(bson!({
+                                            //     "amount": (ap as u128 / total_alloc_point.as_u128()) as f64 * (60.0 * 60.0 * 24.0 * stella_per_sec.as_u128() as f64 / ten.pow(decimals[i].as_u128().try_into().unwrap()) as f64), // rewards_per_day as f64 / ten.pow(decimals[i].as_u128().try_into().unwrap()) as f64,
+                                            //     "asset":  reward_asset.clone().unwrap().symbol,
+                                            //     "valueUSD": (ap as u128 / total_alloc_point.as_u128()) as f64 * (60.0 * 60.0 * 24.0 * stella_per_sec.as_u128() as f64 / ten.pow(decimals[i].as_u128().try_into().unwrap()) as f64) * reward_asset_price,
+                                            //     "freq": models::Freq::Daily.to_string(),
+                                            // }));
+                                            // rewards_per_day = (ap / total_alloc_point.as_u32())
+                                            //     as u128
+                                            //     * (60 * 60 * 24 * stella_per_sec.as_u32()) as u128;
+                                        }
+                                        // else {
+                                            // let ten: i128 = 10;
+                                            rewards.push(bson!({
+                                                "amount": rewards_per_day as f64 / ten.pow(decimals[i].as_u32().try_into().unwrap()) as f64,
+                                                "asset":  reward_asset.clone().unwrap().symbol,
+                                                "valueUSD": (rewards_per_day as f64 / ten.pow(decimals[i].as_u32().try_into().unwrap()) as f64) * reward_asset_price,
+                                                "freq": models::Freq::Daily.to_string(),
+                                            }));
+                                        // }
 
                                         // reward_apr/farm_apr/pool_apr
                                         println!(
@@ -1607,6 +1648,22 @@ async fn chef_contract_jobs(
                     };
                     let fu = doc! {
                         "$set" : {
+                            "id": pid,
+                            "chef": p.5.clone(),
+                            "chain": p.2.clone(),
+                            "protocol": p.3.clone(),
+                            "farmType": farm_type.to_string(),
+                            "farmImpl": farm_implementation.to_string(),
+                            "asset": {
+                                "symbol": "",
+                                "address": "",
+                                "price": 0,
+                                "logos": [],
+                            },
+                            "tvl": 0,
+                            "apr.reward": 0,
+                            "apr.base": 0,
+                            "rewards": [],
                             "allocPoint": ap,
                             "lastUpdatedAtUTC": timestamp.clone(),
                         }
