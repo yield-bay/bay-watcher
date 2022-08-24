@@ -134,8 +134,10 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
     let mut headers = HashMap::new();
     headers.insert("content-type", "application/json");
 
+    println!("------------------------------\ncurve_jobs");
     curve_jobs(mongo_uri.clone()).await.unwrap();
 
+    println!("------------------------------\ntaiga_jobs");
     taiga_jobs(mongo_uri.clone()).await.unwrap();
 
     let solarbeam_subgraph_client = Client::new_with_headers(
@@ -193,12 +195,14 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
         ),
     ];
 
+    println!("------------------------------\nsubgraph_jobs");
     subgraph_jobs(mongo_uri.clone(), protocols, headers.clone())
         .await
         .unwrap();
 
     // smart contract fetching jobs
 
+    println!("------------------------------\nchef_contract_jobs");
     chef_contract_jobs(
         mongo_uri.clone(),
         sushi_subgraph_client.clone(),
@@ -369,7 +373,7 @@ async fn chef_contract_jobs(
                         .await?;
 
                     let asset_addr = ethers::utils::to_checksum(&lp_token.to_owned(), None);
-                    println!("asset_addr: {:?}", asset_addr.clone());
+                    // println!("asset_addr: {:?}", asset_addr.clone());
 
                     let asset_filter = doc! { "address": asset_addr.clone() };
                     let asset = assets_collection.find_one(asset_filter, None).await?;
@@ -497,12 +501,12 @@ async fn chef_contract_jobs(
                                 .await;
                             if pair_day_datas.is_ok() {
                                 // TODO: check if formula for sushi base apr is correct
-                                println!("ukk {:?}", pair_day_datas.clone().unwrap());
+                                // println!("ukk {:?}", pair_day_datas.clone().unwrap());
                                 let mut daily_volume_lw: f64 = 0.0;
                                 for pdd in pair_day_datas.clone().unwrap().pair_day_datas {
                                     let dv: f64 = pdd.volume_usd.parse().unwrap_or_default();
                                     daily_volume_lw += dv;
-                                    println!("ukkdv {:?}", dv);
+                                    // println!("ukkdv {:?}", dv);
                                 }
                                 // daily_volume_lw /= pair_day_datas.unwrap().pair_day_datas.len() as f64;
 
@@ -745,11 +749,11 @@ async fn chef_contract_jobs(
                             }
                         }
                     } else {
-                        let rewarders =
-                            p.1.pool_rewarders(ethers::prelude::U256::from(pid))
-                                .call()
-                                .await?;
-                        println!("rewarders: {:?}", rewarders);
+                        // let rewarders =
+                        //     p.1.pool_rewarders(ethers::prelude::U256::from(pid))
+                        //         .call()
+                        //         .await?;
+                        // println!("rewarders: {:?}", rewarders);
 
                         let (addresses, symbols, decimals, rewards_per_sec) =
                             p.1.pool_rewards_per_sec(ethers::prelude::U256::from(pid))
@@ -913,7 +917,7 @@ async fn chef_contract_jobs(
 
                                 let timestamp = Utc::now().to_string();
 
-                                println!("token lastUpdatedAtUTC {}", timestamp.clone());
+                                // println!("token lastUpdatedAtUTC {}", timestamp.clone());
 
                                 let u = doc! {
                                     "$set" : {
@@ -967,7 +971,7 @@ async fn chef_contract_jobs(
 
                                 let timestamp = Utc::now().to_string();
 
-                                println!("token lastUpdatedAtUTC {}", timestamp.clone());
+                                // println!("token lastUpdatedAtUTC {}", timestamp.clone());
 
                                 let u = doc! {
                                     "$set" : {
@@ -1023,7 +1027,7 @@ async fn chef_contract_jobs(
 
                                 let timestamp = Utc::now().to_string();
 
-                                println!("token lastUpdatedAtUTC {}", timestamp.clone());
+                                // println!("token lastUpdatedAtUTC {}", timestamp.clone());
 
                                 let u = doc! {
                                     "$set" : {
@@ -1079,7 +1083,7 @@ async fn chef_contract_jobs(
 
                                 let timestamp = Utc::now().to_string();
 
-                                println!("token lastUpdatedAtUTC {}", timestamp.clone());
+                                // println!("token lastUpdatedAtUTC {}", timestamp.clone());
 
                                 let u = doc! {
                                     "$set" : {
@@ -1137,7 +1141,7 @@ async fn chef_contract_jobs(
 
                                 let timestamp = Utc::now().to_string();
 
-                                println!("token lastUpdatedAtUTC {}", timestamp.clone());
+                                // println!("token lastUpdatedAtUTC {}", timestamp.clone());
 
                                 let u = doc! {
                                     "$set" : {
@@ -1192,7 +1196,7 @@ async fn chef_contract_jobs(
 
                                 let timestamp = Utc::now().to_string();
 
-                                println!("token lastUpdatedAtUTC {}", timestamp.clone());
+                                // println!("token lastUpdatedAtUTC {}", timestamp.clone());
 
                                 let u = doc! {
                                     "$set" : {
@@ -1331,7 +1335,7 @@ async fn chef_contract_jobs(
 
                                 let timestamp = Utc::now().to_string();
 
-                                println!("token lastUpdatedAtUTC {}", timestamp.clone());
+                                // println!("token lastUpdatedAtUTC {}", timestamp.clone());
 
                                 let u = doc! {
                                     "$set" : {
@@ -1435,7 +1439,6 @@ async fn chef_contract_jobs(
                                             "freq": models::Freq::Daily.to_string(),
                                         }));
 
-                                        println!("slaayyyyyyyy asset_price {}", asset_price);
                                         // reward_apr/farm_apr/pool_apr
                                         println!(
                                             "rewards/sec: {} rewards/day: {} asset_tvl: {}",
@@ -1594,7 +1597,7 @@ async fn subgraph_jobs(
                 .await;
 
             if tokens_data.is_ok() {
-                println!("{} tokens_data {:?}", p.0.clone(), tokens_data.clone());
+                // println!("{} tokens_data {:?}", p.0.clone(), tokens_data.clone());
                 for t in tokens_data.clone().unwrap().tokens.clone() {
                     let mut price_usd: f64 = 0.0;
                     if t.day_data.len() >= 1 {
@@ -1612,7 +1615,7 @@ async fn subgraph_jobs(
                     let ta = Address::from_str(t.id.as_str()).unwrap();
                     let token_addr = to_checksum(&ta, None);
 
-                    println!("token_addr {:?}", token_addr.clone());
+                    // println!("token_addr {:?}", token_addr.clone());
 
                     let decimals: u32 = t.decimals.parse().unwrap_or_default();
 
@@ -1651,7 +1654,7 @@ async fn subgraph_jobs(
                         }
                     }
 
-                    println!("logo {}", logo.clone());
+                    // println!("logo {}", logo.clone());
 
                     let liquidity: f64 = t.liquidity.parse().unwrap_or_default();
 
@@ -1663,7 +1666,7 @@ async fn subgraph_jobs(
 
                     let timestamp = Utc::now().to_string();
 
-                    println!("token lastUpdatedAtUTC {}", timestamp.clone());
+                    // println!("token lastUpdatedAtUTC {}", timestamp.clone());
 
                     let u = doc! {
                         "$set" : {
@@ -1708,7 +1711,7 @@ async fn subgraph_jobs(
                 .await;
 
             if tokens_data.is_ok() {
-                println!("{} tokens_data {:?}", p.0.clone(), tokens_data.clone());
+                // println!("{} tokens_data {:?}", p.0.clone(), tokens_data.clone());
                 for t in tokens_data.clone().unwrap().tokens.clone() {
                     let mut price_usd: f64 = 0.0;
                     if t.token_day_data.len() >= 1 {
@@ -1726,7 +1729,7 @@ async fn subgraph_jobs(
                     let ta = Address::from_str(t.id.as_str()).unwrap();
                     let token_addr = to_checksum(&ta, None);
 
-                    println!("token_addr {:?}", token_addr.clone());
+                    // println!("token_addr {:?}", token_addr.clone());
 
                     let decimals: u32 = t.decimals.parse().unwrap_or_default();
 
@@ -1765,7 +1768,7 @@ async fn subgraph_jobs(
                         }
                     }
 
-                    println!("logo {}", logo.clone());
+                    // println!("logo {}", logo.clone());
 
                     let liquidity: f64 = t.total_liquidity.parse().unwrap_or_default();
 
@@ -1786,7 +1789,7 @@ async fn subgraph_jobs(
 
                     let timestamp = Utc::now().to_string();
 
-                    println!("token lastUpdatedAtUTC {}", timestamp.clone());
+                    // println!("token lastUpdatedAtUTC {}", timestamp.clone());
 
                     let u = doc! {
                         "$set" : {
@@ -1902,7 +1905,7 @@ async fn subgraph_jobs(
                 .await;
 
             if pairs_data.is_ok() {
-                println!("{} pairs_data {:?}", p.0.clone(), pairs_data);
+                // println!("{} pairs_data {:?}", p.0.clone(), pairs_data);
 
                 for pair in pairs_data.clone().unwrap().pairs.clone() {
                     let token0price: f64 = pair.token0price.parse().unwrap_or_default();
@@ -1923,15 +1926,15 @@ async fn subgraph_jobs(
 
                     let pa = Address::from_str(pair.id.as_str()).unwrap();
                     let pair_addr = to_checksum(&pa, None);
-                    println!("pair_addr {:?}", pair_addr.clone());
+                    // println!("pair_addr {:?}", pair_addr.clone());
 
                     let t0a = Address::from_str(pair.token0.id.as_str()).unwrap();
                     let token0_addr = to_checksum(&t0a, None);
-                    println!("token0_addr {:?}", token0_addr.clone());
+                    // println!("token0_addr {:?}", token0_addr.clone());
 
                     let t1a = Address::from_str(pair.token1.id.as_str()).unwrap();
                     let token1_addr = to_checksum(&t1a, None);
-                    println!("token1_addr {:?}", token1_addr.clone());
+                    // println!("token1_addr {:?}", token1_addr.clone());
 
                     let mut token0logo = "".to_string();
                     let mut token1logo = "".to_string();
@@ -2012,7 +2015,7 @@ async fn subgraph_jobs(
                         price_usd = liquidity / total_supply;
                     }
 
-                    println!("price_usd {}", price_usd);
+                    // println!("price_usd {}", price_usd);
 
                     let mut fees_apr = 0.0;
                     let odv = one_day_volume_usd.get(&pair_addr.clone());
@@ -2028,7 +2031,7 @@ async fn subgraph_jobs(
 
                     let timestamp = Utc::now().to_string();
 
-                    println!("pair lastUpdatedAtUTC {}", timestamp.clone());
+                    // println!("pair lastUpdatedAtUTC {}", timestamp.clone());
 
                     let u = doc! {
                         "$set" : {
@@ -2074,7 +2077,7 @@ async fn subgraph_jobs(
                 .await;
 
             if pairs_data.is_ok() {
-                println!("{} pairs_data {:?}", p.0.clone(), pairs_data);
+                // println!("{} pairs_data {:?}", p.0.clone(), pairs_data);
 
                 for pair in pairs_data.clone().unwrap().pairs.clone() {
                     let token0price: f64 = pair.token0price.parse().unwrap_or_default();
@@ -2095,15 +2098,15 @@ async fn subgraph_jobs(
 
                     let pa = Address::from_str(pair.id.as_str()).unwrap();
                     let pair_addr = to_checksum(&pa, None);
-                    println!("pair_addr {:?}", pair_addr.clone());
+                    // println!("pair_addr {:?}", pair_addr.clone());
 
                     let t0a = Address::from_str(pair.token0.id.as_str()).unwrap();
                     let token0_addr = to_checksum(&t0a, None);
-                    println!("token0_addr {:?}", token0_addr.clone());
+                    // println!("token0_addr {:?}", token0_addr.clone());
 
                     let t1a = Address::from_str(pair.token1.id.as_str()).unwrap();
                     let token1_addr = to_checksum(&t1a, None);
-                    println!("token1_addr {:?}", token1_addr.clone());
+                    // println!("token1_addr {:?}", token1_addr.clone());
 
                     let mut token0logo = "".to_string();
                     let mut token1logo = "".to_string();
@@ -2188,7 +2191,7 @@ async fn subgraph_jobs(
                         price_usd = liquidity / total_supply;
                     }
 
-                    println!("price_usd {}", price_usd);
+                    // println!("price_usd {}", price_usd);
 
                     let mut fees_apr = 0.0;
                     let odv = one_day_volume_usd.get(&pair_addr.clone());
@@ -2204,7 +2207,7 @@ async fn subgraph_jobs(
 
                     let timestamp = Utc::now().to_string();
 
-                    println!("pair lastUpdatedAtUTC {}", timestamp.clone());
+                    // println!("pair lastUpdatedAtUTC {}", timestamp.clone());
 
                     let u = doc! {
                         "$set" : {
@@ -2263,7 +2266,10 @@ async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>>
         .await?
         .json::<apis::curve::GetFactoryAPYsRoot>()
         .await?;
-    println!("get_factory_apys_resp:\n{:#?}", get_factory_apys_resp);
+    println!(
+        "get_factory_apys_resp:\n{:#?}",
+        get_factory_apys_resp.success
+    );
 
     for pd in get_factory_apys_resp.clone().data.pool_details {
         if pd.pool_address == moonbeam_curve_st_dot.clone() {
@@ -2277,7 +2283,7 @@ async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>>
                     .await?;
             println!(
                 "get_factory_v2_pools_resp:\n{:#?}",
-                get_factory_v2_pools_resp
+                get_factory_v2_pools_resp.success
             );
 
             for pda in get_factory_v2_pools_resp.clone().data.pool_data {
@@ -2289,7 +2295,10 @@ async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>>
                             .await?
                             .json::<apis::curve::GetFactoGaugesRoot>()
                             .await?;
-                    println!("get_facto_gauges_resp:\n{:#?}", get_facto_gauges_resp);
+                    println!(
+                        "get_facto_gauges_resp:\n{:#?}",
+                        get_facto_gauges_resp.success
+                    );
 
                     for g in get_facto_gauges_resp.clone().data.gauges {
                         if g.swap_token == moonbeam_curve_st_dot.clone() {
@@ -2379,7 +2388,7 @@ async fn taiga_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>>
     )
     .await;
 
-    println!("_tai_ksm:\n{:?}\n_3usd:\n{:?}", _tai_ksm, _3usd);
+    println!("_tai_ksm:\n{:?}\n_3usd:\n{:?}", _tai_ksm.0, _3usd.0);
 
     if _tai_ksm.0 != 0.0 && _tai_ksm.1.len() > 0 {
         let mut tai_ksm_rewards = vec![];
@@ -2642,7 +2651,10 @@ async fn fetch_tai_ksm(
     let mut rewards = vec![];
 
     if pool_data.is_ok() {
-        println!("pool_datau {:?}", pool_data.clone().unwrap());
+        println!(
+            "pool_datau {:?}",
+            pool_data.clone().unwrap().daily_data.nodes.len()
+        );
 
         let tai_price_history =
             get_token_price_history(karura_dex_query_str.clone(), "TAI".to_string(), 1).await;
@@ -2802,7 +2814,7 @@ async fn get_token_price_history(
         .query_with_vars_unwrap::<subgraph::KaruraTokenPriceHistoryData, Vars>(&query_str, vars)
         .await;
 
-    println!("price_history_data {:?}", price_history_data);
+    // println!("price_history_data {:?}", price_history_data);
 
     let ph = price_history_data
         .unwrap_or_default()
