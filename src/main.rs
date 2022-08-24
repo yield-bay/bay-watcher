@@ -569,6 +569,29 @@ async fn chef_contract_jobs(
                     }
                 } else {
                     println!("allocPoint = 0");
+
+                    let timestamp = Utc::now().to_string();
+
+                    println!("chef v0 farm lastUpdatedAtUTC {}", timestamp.clone());
+
+                    let ff = doc! {
+                        "id": pid as i32,
+                        "chef": p.5.clone(),
+                        "chain": p.2.clone(),
+                        "protocol": p.3.clone(),
+                    };
+                    let fu = doc! {
+                        "$set" : {
+                            "allocPoint": ap,
+                            "lastUpdatedAtUTC": timestamp.clone(),
+                        }
+                    };
+                    let options = FindOneAndUpdateOptions::builder()
+                        .upsert(Some(true))
+                        .build();
+                    farms_collection
+                        .find_one_and_update(ff, fu, Some(options))
+                        .await?;
                 }
             } else {
                 let (
@@ -1431,6 +1454,13 @@ async fn chef_contract_jobs(
                                             rewards_per_sec[i].as_u128() * 60 * 60 * 24;
                                         asset_tvl = total_lp.as_u128();
 
+                                        if p.3.clone() == "stellaswap".to_string()
+                                            && p.5.clone()
+                                                == "0xF3a5454496E26ac57da879bf3285Fa85DEBF0388"
+                                                    .to_string()
+                                        {
+                                        }
+
                                         let ten: i128 = 10;
                                         rewards.push(bson!({
                                             "amount": rewards_per_day as f64 / ten.pow(decimals[i].as_u128().try_into().unwrap()) as f64,
@@ -1564,6 +1594,29 @@ async fn chef_contract_jobs(
                     }
                 } else {
                     println!("allocPoint = 0");
+
+                    let timestamp = Utc::now().to_string();
+
+                    println!("chef v1/v2 farm lastUpdatedAtUTC {}", timestamp.clone());
+
+                    let ff = doc! {
+                        "id": pid as i32,
+                        "chef": p.5.clone(),
+                        "chain": p.2.clone(),
+                        "protocol": p.3.clone(),
+                    };
+                    let fu = doc! {
+                        "$set" : {
+                            "allocPoint": ap,
+                            "lastUpdatedAtUTC": timestamp.clone(),
+                        }
+                    };
+                    let options = FindOneAndUpdateOptions::builder()
+                        .upsert(Some(true))
+                        .build();
+                    farms_collection
+                        .find_one_and_update(ff, fu, Some(options))
+                        .await?;
                 }
             }
         }
