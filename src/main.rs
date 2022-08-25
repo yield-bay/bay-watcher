@@ -377,7 +377,7 @@ async fn chef_contract_jobs(
                     let asset_addr = ethers::utils::to_checksum(&lp_token.to_owned(), None);
                     // println!("asset_addr: {:?}", asset_addr.clone());
 
-                    let asset_filter = doc! { "address": asset_addr.clone() };
+                    let asset_filter = doc! { "address": asset_addr.clone(), "protocol": p.3.clone(), "chain": p.2.clone() };
                     let asset = assets_collection.find_one(asset_filter, None).await?;
 
                     let mut asset_price: f64;
@@ -653,7 +653,7 @@ async fn chef_contract_jobs(
                             Arc::clone(&moonbeam_client),
                         );
 
-                        let asset_filter = doc! { "address": asset_addr.clone() };
+                        let asset_filter = doc! { "address": asset_addr.clone(), "protocol": p.3.clone(), "chain": p.2.clone() };
                         let asset = assets_collection.find_one(asset_filter, None).await?;
 
                         let asset_price: f64;
@@ -1423,7 +1423,7 @@ async fn chef_contract_jobs(
                             let asset_addr = ethers::utils::to_checksum(&lp_token.to_owned(), None);
                             println!("asset_addr: {:?}", asset_addr.clone());
 
-                            let asset_filter = doc! { "address": asset_addr.clone() };
+                            let asset_filter = doc! { "address": asset_addr.clone(), "protocol": p.3.clone(), "chain": p.2.clone() };
                             let asset = assets_collection.find_one(asset_filter, None).await?;
 
                             let mut asset_price: f64 = 0.0;
@@ -1444,7 +1444,7 @@ async fn chef_contract_jobs(
                                         ethers::utils::to_checksum(&addresses[i].to_owned(), None);
                                     println!("reward_asset_addr: {:?}", reward_asset_addr);
 
-                                    let reward_asset_filter = doc! { "address": reward_asset_addr };
+                                    let reward_asset_filter = doc! { "address": reward_asset_addr, "protocol": p.3.clone(), "chain": p.2.clone() };
                                     let reward_asset = assets_collection
                                         .find_one(reward_asset_filter, None)
                                         .await?;
