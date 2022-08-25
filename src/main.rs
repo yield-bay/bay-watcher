@@ -1481,34 +1481,23 @@ async fn chef_contract_jobs(
                                             && reward_asset.clone().unwrap().symbol
                                                 == "STELLA".to_string()
                                         {
-                                            // let stella_per_sec: U256 =
-                                            //     p.1.stella_per_sec().call().await?;
-                                            // let total_alloc_point: U256 =
-                                            //     p.1.total_alloc_point().call().await?;
+                                            let stella_per_sec: U256 =
+                                                p.1.stella_per_sec().call().await?;
+                                            let total_alloc_point: U256 =
+                                                p.1.total_alloc_point().call().await?;
 
-                                            // println!(
-                                            //     "stella_per_sec {:?}, total_alloc_point {:?}",
-                                            //     stella_per_sec, total_alloc_point
-                                            // );
-                                            // rewards.push(bson!({
-                                            //     "amount": (ap as u128 / total_alloc_point.as_u128()) as f64 * (60.0 * 60.0 * 24.0 * stella_per_sec.as_u128() as f64 / ten.pow(decimals[i].as_u128().try_into().unwrap()) as f64), // rewards_per_day as f64 / ten.pow(decimals[i].as_u128().try_into().unwrap()) as f64,
-                                            //     "asset":  reward_asset.clone().unwrap().symbol,
-                                            //     "valueUSD": (ap as u128 / total_alloc_point.as_u128()) as f64 * (60.0 * 60.0 * 24.0 * stella_per_sec.as_u128() as f64 / ten.pow(decimals[i].as_u128().try_into().unwrap()) as f64) * reward_asset_price,
-                                            //     "freq": models::Freq::Daily.to_string(),
-                                            // }));
-                                            // rewards_per_day = (ap / total_alloc_point.as_u32())
-                                            //     as u128
-                                            //     * (60 * 60 * 24 * stella_per_sec.as_u32()) as u128;
+                                            rewards_per_day = ((ap as u128)
+                                                * (60 * 60 * 24 * stella_per_sec.as_u128())
+                                                / total_alloc_point.as_u128())
+                                                as u128;
                                         }
-                                        // else {
-                                            // let ten: i128 = 10;
-                                            rewards.push(bson!({
-                                                "amount": rewards_per_day as f64 / ten.pow(decimals[i].as_u32().try_into().unwrap()) as f64,
-                                                "asset":  reward_asset.clone().unwrap().symbol,
-                                                "valueUSD": (rewards_per_day as f64 / ten.pow(decimals[i].as_u32().try_into().unwrap()) as f64) * reward_asset_price,
-                                                "freq": models::Freq::Daily.to_string(),
-                                            }));
-                                        // }
+
+                                        rewards.push(bson!({
+                                            "amount": rewards_per_day as f64 / ten.pow(decimals[i].as_u32().try_into().unwrap()) as f64,
+                                            "asset":  reward_asset.clone().unwrap().symbol,
+                                            "valueUSD": (rewards_per_day as f64 / ten.pow(decimals[i].as_u32().try_into().unwrap()) as f64) * reward_asset_price,
+                                            "freq": models::Freq::Daily.to_string(),
+                                        }));
 
                                         // reward_apr/farm_apr/pool_apr
                                         println!(
