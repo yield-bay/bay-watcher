@@ -2404,7 +2404,7 @@ async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>>
                             // g.extra_rewards
                             let ten: f64 = 10.0;
 
-                            let mut total_apy = pd.apy;
+                            let mut total_apy = 0.0;
 
                             let mut rewards = vec![];
                             for er in g.extra_rewards {
