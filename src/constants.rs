@@ -237,3 +237,8 @@ pub mod subgraph_urls {
     pub const SOLARFLARE_BLOCKLYTICS_SUBGRAPH: &str =
         "https://api.thegraph.com/subgraphs/name/solarbeamio/solarflare-blocklytics";
 }
+
+pub mod utils {
+    pub const MOONRIVER_BLOCK_TIME: f64 = 14.6;
+    pub const MOONBEAM_BLOCK_TIME: f64 = 12.4;
+}

@@ -36,6 +36,14 @@ abigen!(
 );
 
 abigen!(
+    IFarmingV3,
+    r#"[
+        function poolLength() external view returns (uint256)
+        function getPoolInfo(uint256) external view returns (address, uint256, address[], uint256[], uint256[], uint256, uint256, uint256)
+    ]"#,
+);
+
+abigen!(
     IStellaDistributorV1,
     r#"[
         function poolLength() external view returns (uint256)
@@ -117,6 +125,18 @@ abigen!(
     ]"#,
 );
 
+abigen!(
+    ILpToken,
+    r#"[
+        function name() external view returns (string)
+        function symbol() external view returns (string)
+        function decimals() external view returns (uint8)
+        function balanceOf(address) external view returns (uint256)
+        function token0() external view returns (address)
+        function token1() external view returns (address)
+    ]"#,
+);
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let delay = time::Duration::from_secs(60 * 2);
@@ -135,6 +155,9 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut headers = HashMap::new();
     headers.insert("content-type", "application/json");
+
+    println!("------------------------------\nzenlink_jobs");
+    zenlink_jobs(mongo_uri.clone()).await.unwrap();
 
     println!("------------------------------\ncurve_jobs");
     curve_jobs(mongo_uri.clone()).await.unwrap();
@@ -214,6 +237,443 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
     )
     .await
     .unwrap();
+
+    Ok(())
+}
+
+async fn zenlink_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>> {
+    let mut client_options = ClientOptions::parse(mongo_uri).await?;
+    client_options.app_name = Some("Bay Watcher".to_string());
+    let client = MongoClient::with_options(client_options)?;
+    let db = client.database("bayCave");
+
+    let assets_collection = db.collection::<models::Asset>("assets");
+    let farms_collection = db.collection::<models::Farm>("farms");
+
+    let pk = dotenv::var("PRIVATE_KEY").unwrap();
+    let wallet: LocalWallet = pk.parse().expect("fail parse");
+
+    let moonriver_url = dotenv::var("MOONRIVER_URL").unwrap();
+    let moonbeam_url = dotenv::var("MOONBEAM_URL").unwrap();
+
+    let moonriver_provider_service =
+        Provider::<Http>::try_from(moonriver_url.clone()).expect("failed");
+    let moonriver_provider = SignerMiddleware::new(moonriver_provider_service, wallet.clone());
+
+    let moonbeam_provider_service =
+        Provider::<Http>::try_from(moonbeam_url.clone()).expect("failed");
+    let moonbeam_provider = SignerMiddleware::new(moonbeam_provider_service, wallet.clone());
+
+    let moonriver_client = SignerMiddleware::new(moonriver_provider.clone(), wallet.clone());
+    let moonriver_client = Arc::new(moonriver_client);
+
+    let moonbeam_client = SignerMiddleware::new(moonbeam_provider.clone(), wallet.clone());
+    let moonbeam_client = Arc::new(moonbeam_client);
+
+    let zenlink_moonriver_chef_v3_address =
+        "0xf4Ec122d32F2117674Ce127b72c40506c52A72F8".parse::<Address>()?;
+    let zenlink_moonriver_chef_v3 = IFarmingV3::new(
+        zenlink_moonriver_chef_v3_address,
+        Arc::clone(&moonriver_client),
+    );
+
+    let zenlink_moonbeam_chef_v3_address =
+        "0xD6708344553cd975189cf45AAe2AB3cd749661f4".parse::<Address>()?;
+    let zenlink_moonbeam_chef_v3 = IFarmingV3::new(
+        zenlink_moonbeam_chef_v3_address,
+        Arc::clone(&moonbeam_client),
+    );
+
+    let moonriver_pool_length: U256 = zenlink_moonriver_chef_v3.pool_length().call().await?;
+    println!("moonriver_pool_length {}", moonriver_pool_length.as_u32());
+
+    let moonbeam_pool_length: U256 = zenlink_moonbeam_chef_v3.pool_length().call().await?;
+    println!("moonbeam_pool_length {}", moonbeam_pool_length.as_u32());
+
+    let assets_moonbeam_resp =
+        reqwest::get("https://api.zenlink.pro/assets?default=true&chain=moonbeam")
+            .await?
+            .json::<apis::zenlink::AssetsRoot>()
+            .await?;
+    println!("assets_moonbeam_resp:\n{:#?}", assets_moonbeam_resp);
+
+    for a in assets_moonbeam_resp.tokens.clone() {
+        let mut price = 0.0;
+        if a.symbol == "ZLK".to_string() {
+            let zlk_price_resp = reqwest::get("https://api.coingecko.com/api/v3/simple/price?ids=zenlink-network-token&vs_currencies=USD")
+                .await?
+                .json::<HashMap<String, HashMap<String, f64>>>()
+                .await?;
+
+            println!("zlk_price_resp {:?}", zlk_price_resp);
+            price = *zlk_price_resp
+                .get("zenlink-network-token")
+                .unwrap()
+                .get("usd")
+                .unwrap();
+
+            println!("zlk price {:?}", price);
+        }
+        let f = doc! {
+            "address": a.address.clone(),
+            "chain": "moonbeam".to_string(),
+            "protocol": "zenlink".to_string(),
+        };
+
+        let timestamp = Utc::now().to_string();
+
+        let u = doc! {
+            "$set" : {
+                "address": a.address.clone(),
+                "chain": "moonbeam".to_string(),
+                "protocol": "zenlink".to_string(),
+                "name": a.symbol.clone(),
+                "symbol": a.symbol.clone(),
+                "decimals": a.decimals,
+                "logos": [ a.logo_url.clone() ],
+                "price": price,
+                "liquidity": 0,
+                "totalSupply": 0,
+                "isLP": false,
+                "feesAPR": 0.0,
+                "underlyingAssets": [],
+                "underlyingAssetsAlloc": [],
+                "lastUpdatedAtUTC": timestamp.clone(),
+            }
+        };
+
+        let options = FindOneAndUpdateOptions::builder()
+            .upsert(Some(true))
+            .build();
+        assets_collection
+            .find_one_and_update(f, u, Some(options))
+            .await?;
+    }
+
+    let pairs_moonbeam_resp =
+        reqwest::get("https://api.zenlink.pro/pairs?default=true&chain=moonbeam")
+            .await?
+            .json::<HashMap<String, apis::zenlink::Pair>>()
+            .await?;
+    println!("pairs_moonbeam_resp:\n{:#?}", pairs_moonbeam_resp);
+
+    for a in pairs_moonbeam_resp.iter().clone() {
+        let f = doc! {
+            "address": a.0.clone(),
+            "chain": "moonbeam".to_string(),
+            "protocol": "zenlink".to_string(),
+        };
+
+        let timestamp = Utc::now().to_string();
+
+        let baddr = ethers::prelude::Address::from_str(&a.1.base_id.to_owned());
+        let bid = ethers::utils::to_checksum(&baddr.unwrap(), None);
+        let qaddr = ethers::prelude::Address::from_str(&a.1.quote_id.to_owned());
+        let qid = ethers::utils::to_checksum(&qaddr.unwrap(), None);
+
+        let bvol: f64 = a.1.base_volume.parse().unwrap_or_default();
+        let qvol: f64 = a.1.quote_volume.parse().unwrap_or_default();
+
+        let last_price: f64 = a.1.last_price.parse().unwrap_or_default();
+        println!(
+            "bid {:?} qid {:?} price {:?} bvol {:?} qvol {:?} liq {:?}",
+            bid.clone(),
+            qid.clone(),
+            last_price,
+            bvol,
+            qvol,
+            bvol + qvol
+        );
+
+        let u = doc! {
+            "$set" : {
+                "address": a.0.clone(),
+                "chain": "moonbeam".to_string(),
+                "protocol": "zenlink".to_string(),
+                "name": format!("{}-{} LP", a.1.base_name.clone(), a.1.quote_name.clone()),
+                "symbol": format!("{}-{} LP", a.1.base_symbol.clone(), a.1.quote_symbol.clone()),
+                "decimals": 18,
+                "logos": [
+                    format!("https://raw.githubusercontent.com/zenlinkpro/assets/master/blockchains/moonbeam/assets/{}/logo.png", bid.clone()),
+                    format!("https://raw.githubusercontent.com/zenlinkpro/assets/master/blockchains/moonbeam/assets/{}/logo.png", qid.clone())
+                ],
+                "price": last_price,
+                "liquidity": bvol + qvol,
+                "totalSupply": 0,
+                "isLP": true,
+                "feesAPR": 0.0,
+                "underlyingAssets": [
+                    bid.clone(),
+                    qid.clone()
+                ],
+                "underlyingAssetsAlloc": [
+                    0.5,
+                    0.5
+                ],
+                "lastUpdatedAtUTC": timestamp.clone(),
+            }
+        };
+
+        let options = FindOneAndUpdateOptions::builder()
+            .upsert(Some(true))
+            .build();
+        assets_collection
+            .find_one_and_update(f, u, Some(options))
+            .await?;
+    }
+
+    for pid in 0..moonbeam_pool_length.as_u32() {
+        // let mut yes = true;
+
+        let (
+            farming_token,
+            amount,
+            reward_tokens,
+            reward_per_block,
+            acc_reward_per_share,
+            last_reward_block,
+            start_block,
+            claimable_interval,
+        ): (
+            Address,
+            U256,
+            Vec<Address>,
+            Vec<U256>,
+            Vec<U256>,
+            U256,
+            U256,
+            U256,
+        ) = zenlink_moonbeam_chef_v3
+            .get_pool_info(ethers::prelude::U256::from(pid))
+            .call()
+            .await?;
+
+        println!(
+            "get_pool_info[{:?}]:\n {:?} {:?} {:?} {:?} {:?} {:?} {:?} {:?}",
+            pid,
+            farming_token,
+            amount,
+            reward_tokens,
+            reward_per_block,
+            acc_reward_per_share,
+            last_reward_block,
+            start_block,
+            claimable_interval
+        );
+
+        let mut farm_type = models::FarmType::SingleStaking;
+
+        let ft_addr = ethers::utils::to_checksum(&farming_token.to_owned(), None);
+        let mut asset_filter = doc! { "address": ft_addr.clone(), "chain": "moonbeam".to_string(), "protocol": "zenlink" };
+        if ft_addr.clone() != "0x3Fd9b6C9A24E09F67b7b706d72864aEbb439100C".to_string() {
+            let ft = ft_addr.parse::<Address>()?;
+            println!("{:?}", ft_addr);
+            let lp = ILpToken::new(ft, Arc::clone(&moonbeam_client));
+            println!("{:?}", lp);
+
+            let token0: Address = lp.token_0().call().await?;
+            let token1: Address = lp.token_1().call().await?;
+            let token0_addr = ethers::utils::to_checksum(&token0.to_owned(), None);
+            let token1_addr = ethers::utils::to_checksum(&token1.to_owned(), None);
+
+            let asset_addr = ethers::utils::to_checksum(&farming_token.to_owned(), None);
+            println!(
+                "asset_addr: {:?} token0_addr {:?} token1_addr {:?}",
+                asset_addr.clone(),
+                token0_addr.clone(),
+                token1_addr.clone()
+            );
+
+            // let asset_filter = doc! { "address": asset_addr.clone(), "chain": "moonbeam".to_string(), "price": {"$ne": 0.0} };
+            asset_filter = doc! { "underlyingAssets": [token0_addr.clone(),token1_addr.clone()], "protocol": "zenlink".to_string(), "chain": "moonbeam".to_string() };
+
+            farm_type = models::FarmType::StandardAmm;
+        }
+        let asset = assets_collection.find_one(asset_filter, None).await?;
+
+        // println!("asset {:?}", asset.clone().unwrap());
+
+        let mut asset_price: f64 = 0.0;
+        let mut asset_tvl: u128 = 0;
+
+        let mut rewards = vec![];
+        let mut total_reward_apr = 0.0;
+
+        if asset.is_some() {
+            println!(
+                "--------------------\nasset: {:?}",
+                asset.clone().unwrap().symbol
+            );
+
+            for i in 0..reward_tokens.len() {
+                let reward_asset_addr =
+                    ethers::utils::to_checksum(&reward_tokens[i].to_owned(), None);
+                println!("reward_asset_addr: {:?}", reward_asset_addr);
+
+                let reward_asset_filter = doc! { "address": reward_asset_addr, "protocol": "zenlink", "chain": "moonbeam" };
+                let reward_asset = assets_collection
+                    .find_one(reward_asset_filter, None)
+                    .await?;
+
+                if reward_asset.is_some() {
+                    let reward_asset_price = reward_asset.clone().unwrap().price;
+                    println!("reward_asset_price: {:?}", reward_asset_price);
+
+                    // if pid == 38 && p.3.clone() == "solarbeam".to_string() {
+                    //     let solar_filter = doc! { "address": "0x6bD193Ee6D2104F14F94E2cA6efefae561A4334B", "protocol": "solarbeam", "chain": "moonriver" };
+                    //     let solar = assets_collection
+                    //         .find_one(solar_filter, None)
+                    //         .await?;
+                    //     if solar.is_some() {
+                    //         asset_price = solar.unwrap().price;
+                    //     }
+                    // } else {
+                    asset_price = asset.clone().unwrap().price;
+                    // }
+
+                    println!("asset_price: {:?}", asset_price);
+
+                    let rpb = reward_per_block[i].as_u128();
+                    let rewards_per_sec: f64 = rpb as f64 / constants::utils::MOONBEAM_BLOCK_TIME;
+                    // let rewards_per_day: f64 = rewards_per_sec * 60.0 * 60.0 * 24.0;
+                    let rewards_per_day: u128 = rewards_per_sec as u128 * 60 * 60 * 24;
+                    println!(
+                        "rpb {:?} rewards_per_sec {:?} rewards_per_day {:?}",
+                        rpb, rewards_per_sec, rewards_per_day
+                    );
+
+                    if asset.clone().unwrap().address
+                        == "0x3Fd9b6C9A24E09F67b7b706d72864aEbb439100C".to_string()
+                    {
+                        asset_tvl = amount.as_u128();
+                    } else {
+                        asset_tvl = asset.clone().unwrap().liquidity as u128;
+                    }
+
+                    let ten: i128 = 10;
+
+                    if rewards_per_day != 0 {
+                        rewards.push(bson!({
+                            "amount": rewards_per_day as f64 / ten.pow(reward_asset.clone().unwrap().decimals) as f64,
+                            "asset":  reward_asset.clone().unwrap().symbol,
+                            "valueUSD": (rewards_per_day as f64 / ten.pow(reward_asset.clone().unwrap().decimals) as f64) * reward_asset_price,
+                            "freq": models::Freq::Daily.to_string(),
+                        }));
+
+                        // reward_apr/farm_apr/pool_apr
+                        println!(
+                            "rewards/sec: {} rewards/day: {} asset_tvl: {}",
+                            rewards_per_sec, rewards_per_day, asset_tvl
+                        );
+                        let mut reward_apr = 0.0;
+                        if asset.clone().unwrap().address
+                            == "0x3Fd9b6C9A24E09F67b7b706d72864aEbb439100C".to_string()
+                        {
+                            reward_apr = ((rewards_per_day as f64
+                                / ten.pow(reward_asset.clone().unwrap().decimals) as f64
+                                * reward_asset_price)
+                                / (asset_tvl as f64 * asset_price / ten.pow(18) as f64))
+                                * 365.0
+                                * 100.0;
+                        } else {
+                            reward_apr = ((rewards_per_day as f64
+                                / ten.pow(reward_asset.clone().unwrap().decimals) as f64
+                                * reward_asset_price)
+                                / (asset_tvl as f64 * asset_price))
+                                * 365.0
+                                * 100.0;
+                        }
+
+                        println!("reward_apr: {}", reward_apr);
+                        if asset_tvl != 0 && asset_price != 0.0 {
+                            total_reward_apr += reward_apr;
+                        }
+                    } else {
+                        // yes = false;
+                    }
+                }
+            }
+
+            let ten: f64 = 10.0;
+
+            let mut atvl = 0.0;
+            if asset.clone().unwrap().address
+                == "0x3Fd9b6C9A24E09F67b7b706d72864aEbb439100C".to_string()
+            {
+                atvl = asset_tvl as f64 * asset_price / ten.powf(18.0)
+            } else {
+                atvl = asset_tvl as f64 * asset_price;
+            }
+
+            println!(
+                "rewards {:?} total_reward_apr {:?} tvl {:?}",
+                rewards.clone(),
+                total_reward_apr,
+                atvl
+            );
+            println!("--------------------\n");
+
+            if rewards.len() > 0 {
+                let timestamp = Utc::now().to_string();
+
+                println!(
+                    "zenlink chef v3 farm lastUpdatedAtUTC {}",
+                    timestamp.clone()
+                );
+
+                let ff = doc! {
+                    "id": pid as i32,
+                    "chef": "0xD6708344553cd975189cf45AAe2AB3cd749661f4".to_string(),
+                    "chain": "moonbeam".to_string(),
+                    "protocol": "zenlink".to_string(),
+                };
+                let ten: f64 = 10.0;
+                let fu = doc! {
+                    "$set" : {
+                        "id": pid,
+                        "chef": "0xD6708344553cd975189cf45AAe2AB3cd749661f4".to_string(),
+                        "chain": "moonbeam".to_string(),
+                        "protocol": "zenlink".to_string(),
+                        "farmType": farm_type.to_string(),
+                        "farmImpl": models::FarmImplementation::Solidity.to_string(),
+                        "asset": {
+                            "symbol": asset.clone().unwrap().symbol,
+                            "address": asset.clone().unwrap().address,
+                            "price": asset.clone().unwrap().price,
+                            "logos": asset.clone().unwrap().logos,
+                            // "underlying_assets": farm_assets,
+                        },
+                        "tvl": atvl,
+                        "apr.reward": total_reward_apr,
+                        "apr.base": 0.0,
+                        "rewards": rewards,
+                        "allocPoint": 1,
+                        "lastUpdatedAtUTC": timestamp.clone(),
+                    }
+                };
+                let options = FindOneAndUpdateOptions::builder()
+                    .upsert(Some(true))
+                    .build();
+                farms_collection
+                    .find_one_and_update(ff, fu, Some(options))
+                    .await?;
+            }
+        }
+    }
+
+    // let assets_moonriver_resp =
+    //     reqwest::get("https://api.zenlink.pro/assets?default=true&chain=moonriver")
+    //         .await?
+    //         .json::<apis::zenlink::AssetsRoot>()
+    //         .await?;
+    // println!("assets_moonriver_resp:\n{:#?}", assets_moonriver_resp);
+
+    // let pairs_moonriver_resp =
+    //     reqwest::get("https://api.zenlink.pro/pairs?default=true&chain=moonriver")
+    //         .await?
+    //         .json::<HashMap<String, apis::zenlink::Pair>>()
+    //         .await?;
+    // println!("pairs_moonriver_resp:\n{:#?}", pairs_moonriver_resp);
 
     Ok(())
 }
