@@ -952,7 +952,7 @@ async fn chef_contract_jobs(
 
                                 let f = doc! {
                                     "address": "0xfb29918d393AaAa7dD118B51A8b7fCf862F5f336".clone(),
-                                    "chain": p.5.clone(),
+                                    "chain": p.2.clone(),
                                     "protocol": p.3.clone(),
                                 };
 
@@ -963,7 +963,7 @@ async fn chef_contract_jobs(
                                 let u = doc! {
                                     "$set" : {
                                         "address": "0xfb29918d393AaAa7dD118B51A8b7fCf862F5f336".to_string(),
-                                        "chain": p.5.clone(),
+                                        "chain": p.2.clone(),
                                         "protocol": p.3.clone(),
                                         "name": "Solarbeam Stable AMM - USD Pool".to_string(),
                                         "symbol": "3pool".to_string(),
@@ -1006,7 +1006,7 @@ async fn chef_contract_jobs(
 
                                 let f = doc! {
                                     "address": "0x884609A4D86BBA8477112E36e27f7A4ACecB3575".clone(),
-                                    "chain": p.5.clone(),
+                                    "chain": p.2.clone(),
                                     "protocol": p.3.clone(),
                                 };
 
@@ -1017,7 +1017,7 @@ async fn chef_contract_jobs(
                                 let u = doc! {
                                     "$set" : {
                                         "address": "0x884609A4D86BBA8477112E36e27f7A4ACecB3575".to_string(),
-                                        "chain": p.5.clone(),
+                                        "chain": p.2.clone(),
                                         "protocol": p.3.clone(),
                                         "name": "Solarbeam Stable AMM - FRAX Pool".to_string(),
                                         "symbol": "FRAX-3pool".to_string(),
@@ -1062,7 +1062,7 @@ async fn chef_contract_jobs(
 
                                 let f = doc! {
                                     "address": "0x8CDB472731B4f815d67e76885a22269ad7f0e398".clone(),
-                                    "chain": p.5.clone(),
+                                    "chain": p.2.clone(),
                                     "protocol": p.3.clone(),
                                 };
 
@@ -1073,7 +1073,7 @@ async fn chef_contract_jobs(
                                 let u = doc! {
                                     "$set" : {
                                         "address": "0x8CDB472731B4f815d67e76885a22269ad7f0e398".to_string(),
-                                        "chain": p.5.clone(),
+                                        "chain": p.2.clone(),
                                         "protocol": p.3.clone(),
                                         "name": "Solarbeam Stable AMM - MAI Pool".to_string(),
                                         "symbol": "MAI-3pool".to_string(),
@@ -1118,7 +1118,7 @@ async fn chef_contract_jobs(
 
                                 let f = doc! {
                                     "address": "0x4BaB767c98186bA28eA66f2a69cd0DA351D60b36".clone(),
-                                    "chain": p.5.clone(),
+                                    "chain": p.2.clone(),
                                     "protocol": p.3.clone(),
                                 };
 
@@ -1129,7 +1129,7 @@ async fn chef_contract_jobs(
                                 let u = doc! {
                                     "$set" : {
                                         "address": "0x4BaB767c98186bA28eA66f2a69cd0DA351D60b36".to_string(),
-                                        "chain": p.5.clone(),
+                                        "chain": p.2.clone(),
                                         "protocol": p.3.clone(),
                                         "name": "Solarbeam Stable AMM - MIM Pool".to_string(),
                                         "symbol": "MIM-3pool".to_string(),
@@ -1176,7 +1176,7 @@ async fn chef_contract_jobs(
 
                                 let f = doc! {
                                     "address": "0x4F707d051b4b49B63e72Cc671e78E152ec66f2fA".clone(),
-                                    "chain": p.5.clone(),
+                                    "chain": p.2.clone(),
                                     "protocol": p.3.clone(),
                                 };
 
@@ -1187,7 +1187,7 @@ async fn chef_contract_jobs(
                                 let u = doc! {
                                     "$set" : {
                                         "address": "0x4F707d051b4b49B63e72Cc671e78E152ec66f2fA".to_string(),
-                                        "chain": p.5.clone(),
+                                        "chain": p.2.clone(),
                                         "protocol": p.3.clone(),
                                         "name": "Solarbeam Stable AMM - kBTC Pool".to_string(),
                                         "symbol": "kBTC-BTC".to_string(),
@@ -1231,7 +1231,7 @@ async fn chef_contract_jobs(
 
                                 let f = doc! {
                                     "address": "0x493147C85Fe43F7B056087a6023dF32980Bcb2D1".clone(),
-                                    "chain": p.5.clone(),
+                                    "chain": p.2.clone(),
                                     "protocol": p.3.clone(),
                                 };
 
@@ -1242,7 +1242,7 @@ async fn chef_contract_jobs(
                                 let u = doc! {
                                     "$set" : {
                                         "address": "0x493147C85Fe43F7B056087a6023dF32980Bcb2D1".to_string(),
-                                        "chain": p.5.clone(),
+                                        "chain": p.2.clone(),
                                         "protocol": p.3.clone(),
                                         "name": "Solarbeam Stable AMM - stKSM Pool".to_string(),
                                         "symbol": "stKSM".to_string(),
@@ -1370,7 +1370,7 @@ async fn chef_contract_jobs(
 
                                 let f = doc! {
                                     "address": "0x9BF6910790D70E9b5B07Cb28271C42531B929b4c".clone(),
-                                    "chain": p.5.clone(),
+                                    "chain": p.2.clone(),
                                     "protocol": p.3.clone(),
                                 };
 
@@ -1381,7 +1381,7 @@ async fn chef_contract_jobs(
                                 let u = doc! {
                                     "$set" : {
                                         "address": "0x9BF6910790D70E9b5B07Cb28271C42531B929b4c".to_string(),
-                                        "chain": p.5.clone(),
+                                        "chain": p.2.clone(),
                                         "protocol": p.3.clone(),
                                         "name": "Beamswap Stable DEX - Stable Multichain".to_string(),
                                         "symbol": "4pool".to_string(),
@@ -1432,8 +1432,6 @@ async fn chef_contract_jobs(
                             let mut rewards = vec![];
 
                             if asset.is_some() {
-                                println!("asset: {:?}", asset.clone().unwrap().symbol);
-
                                 for i in 0..symbols.len() {
                                     println!("rwrd[{}]", i);
 
