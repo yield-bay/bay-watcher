@@ -136,8 +136,8 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
     let mut headers = HashMap::new();
     headers.insert("content-type", "application/json");
 
-    // println!("------------------------------\ncurve_jobs");
-    // curve_jobs(mongo_uri.clone()).await.unwrap();
+    println!("------------------------------\ncurve_jobs");
+    curve_jobs(mongo_uri.clone()).await.unwrap();
 
     println!("------------------------------\ntaiga_jobs");
     taiga_jobs(mongo_uri.clone()).await.unwrap();

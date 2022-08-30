@@ -10,13 +10,13 @@ use serde_json::Value;
 pub struct GetFactoGaugesRoot {
     pub success: bool,
     pub data: GetFactoGaugesData,
+    pub generated_time_ms: i64,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetFactoGaugesData {
     pub gauges: Vec<Gauge>,
-    pub generated_time_ms: i64,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -91,6 +91,7 @@ pub struct MetaData {
 pub struct GetFactoryAPYsRoot {
     pub success: bool,
     pub data: GetFactoryAPYsData,
+    pub generated_time_ms: i64,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -99,7 +100,6 @@ pub struct GetFactoryAPYsData {
     pub pool_details: Vec<PoolDetail>,
     pub total_volume: f64,
     pub latest: i64,
-    pub generated_time_ms: i64,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -121,6 +121,7 @@ pub struct PoolDetail {
 pub struct GetFactoryV2PoolsRoot {
     pub success: bool,
     pub data: GetFactoryV2PoolsData,
+    pub generated_time_ms: i64,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -128,7 +129,6 @@ pub struct GetFactoryV2PoolsRoot {
 pub struct GetFactoryV2PoolsData {
     pub pool_data: Vec<PoolDaum>,
     pub tvl_all: f64,
-    pub generated_time_ms: i64,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
