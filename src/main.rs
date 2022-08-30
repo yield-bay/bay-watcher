@@ -1718,40 +1718,10 @@ async fn subgraph_jobs(
 
                     let decimals: u32 = t.decimals.parse().unwrap_or_default();
 
-                    let mut logo = "".to_string();
-                    if p.0.clone() == "solarbeam" {
-                        logo = format!("https://raw.githubusercontent.com/solarbeamio/solarbeam-tokenlist/main/assets/moonriver/{}/logo.png", token_addr.clone());
-                    } else if p.0.clone() == "stellaswap" {
-                        logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token_addr.clone());
-                        // xStella
-                        if token_addr.clone()
-                            == "0x06A3b410b681c82417A906993aCeFb91bAB6A080".to_string()
-                        {
-                            logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xStella.png");
-                        }
-                        // xcINTR
-                        if token_addr.clone()
-                            == "0xFffFFFFF4C1cbCd97597339702436d4F18a375Ab".to_string()
-                        {
-                            logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/INTR.png");
-                        }
-                        // xcaUSD
-                        if token_addr.clone()
-                            == "0xfFfFFFFF52C56A9257bB97f4B2b6F7B2D624ecda".to_string()
-                        {
-                            logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xcaUSD.png");
-                        }
-                    } else if p.0.clone() == "beamswap" {
-                        logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token_addr.clone());
-                    } else if p.0.clone() == "sushiswap" {
-                        logo = format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token_addr.clone());
-                        // WBTC.eth
-                        if token_addr.clone()
-                            == "0xE6a991Ffa8CfE62B0bf6BF72959A3d4f11B2E0f5".to_string()
-                        {
-                            logo = format!("https://raw.githubusercontent.com/sushiswap/icons/master/token/btc.jpg");
-                        }
-                    }
+                    let logo = format!(
+                        "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+                        t.symbol
+                    );
 
                     // println!("logo {}", logo.clone());
 
@@ -1832,40 +1802,10 @@ async fn subgraph_jobs(
 
                     let decimals: u32 = t.decimals.parse().unwrap_or_default();
 
-                    let mut logo = "".to_string();
-                    if p.0.clone() == "solarbeam" {
-                        logo = format!("https://raw.githubusercontent.com/solarbeamio/solarbeam-tokenlist/main/assets/moonriver/{}/logo.png", token_addr.clone());
-                    } else if p.0.clone() == "stellaswap" {
-                        logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token_addr.clone());
-                        // xStella
-                        if token_addr.clone()
-                            == "0x06A3b410b681c82417A906993aCeFb91bAB6A080".to_string()
-                        {
-                            logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xStella.png");
-                        }
-                        // xcINTR
-                        if token_addr.clone()
-                            == "0xFffFFFFF4C1cbCd97597339702436d4F18a375Ab".to_string()
-                        {
-                            logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/INTR.png");
-                        }
-                        // xcaUSD
-                        if token_addr.clone()
-                            == "0xfFfFFFFF52C56A9257bB97f4B2b6F7B2D624ecda".to_string()
-                        {
-                            logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xcaUSD.png");
-                        }
-                    } else if p.0.clone() == "beamswap" {
-                        logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token_addr.clone());
-                    } else if p.0.clone() == "sushiswap" {
-                        logo = format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token_addr.clone());
-                        // WBTC.eth
-                        if token_addr.clone()
-                            == "0xE6a991Ffa8CfE62B0bf6BF72959A3d4f11B2E0f5".to_string()
-                        {
-                            logo = format!("https://raw.githubusercontent.com/sushiswap/icons/master/token/btc.jpg");
-                        }
-                    }
+                    let logo = format!(
+                        "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+                        t.symbol
+                    );
 
                     // println!("logo {}", logo.clone());
 
@@ -2035,67 +1975,20 @@ async fn subgraph_jobs(
                     let token1_addr = to_checksum(&t1a, None);
                     // println!("token1_addr {:?}", token1_addr.clone());
 
-                    let mut token0logo = "".to_string();
-                    let mut token1logo = "".to_string();
-                    if p.0.clone() == "solarbeam" {
-                        token0logo = format!("https://raw.githubusercontent.com/solarbeamio/solarbeam-tokenlist/main/assets/moonriver/{}/logo.png", token0_addr.clone());
-                        token1logo = format!("https://raw.githubusercontent.com/solarbeamio/solarbeam-tokenlist/main/assets/moonriver/{}/logo.png", token1_addr.clone());
-                    } else if p.0.clone() == "stellaswap" {
-                        token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token0_addr.clone());
-                        token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token1_addr.clone());
+                    let token0logo = format!(
+                        "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+                        pair.token0.symbol
+                    );
+                    let token1logo = format!(
+                        "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+                        pair.token1.symbol
+                    );
 
-                        // xStella
-                        if token0_addr.clone()
-                            == "0x06A3b410b681c82417A906993aCeFb91bAB6A080".to_string()
-                        {
-                            token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xStella.png");
-                        }
-                        if token1_addr.clone()
-                            == "0x06A3b410b681c82417A906993aCeFb91bAB6A080".to_string()
-                        {
-                            token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xStella.png");
-                        }
-                        // xcINTR
-                        if token0_addr.clone()
-                            == "0xFffFFFFF4C1cbCd97597339702436d4F18a375Ab".to_string()
-                        {
-                            token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/INTR.png");
-                        }
-                        if token1_addr.clone()
-                            == "0xFffFFFFF4C1cbCd97597339702436d4F18a375Ab".to_string()
-                        {
-                            token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/INTR.png");
-                        }
-                        // xcaUSD
-                        if token0logo.clone()
-                            == "0xfFfFFFFF52C56A9257bB97f4B2b6F7B2D624ecda".to_string()
-                        {
-                            token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xcaUSD.png");
-                        }
-                        if token1logo.clone()
-                            == "0xfFfFFFFF52C56A9257bB97f4B2b6F7B2D624ecda".to_string()
-                        {
-                            token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xcaUSD.png");
-                        }
-                    } else if p.0.clone() == "beamswap" {
-                        token0logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token0_addr.clone());
-                        token1logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token1_addr.clone());
-                    } else if p.0.clone() == "sushiswap" {
-                        token0logo=format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token0_addr.clone());
-                        token1logo=format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token1_addr.clone());
-
-                        // WBTC.eth
-                        if token0_addr.clone()
-                            == "0xE6a991Ffa8CfE62B0bf6BF72959A3d4f11B2E0f5".to_string()
-                        {
-                            token0logo = format!("https://raw.githubusercontent.com/sushiswap/icons/master/token/btc.jpg");
-                        }
-                        if token1_addr.clone()
-                            == "0xE6a991Ffa8CfE62B0bf6BF72959A3d4f11B2E0f5".to_string()
-                        {
-                            token1logo = format!("https://raw.githubusercontent.com/sushiswap/icons/master/token/btc.jpg");
-                        }
-                    }
+                    println!(
+                        "token0logo {:?} token1logo {:?}",
+                        token0logo.clone(),
+                        token1logo.clone()
+                    );
 
                     let token0decimals: u32 = pair.token0.decimals.parse().unwrap_or_default();
                     let token1decimals: u32 = pair.token1.decimals.parse().unwrap_or_default();
@@ -2207,67 +2100,20 @@ async fn subgraph_jobs(
                     let token1_addr = to_checksum(&t1a, None);
                     // println!("token1_addr {:?}", token1_addr.clone());
 
-                    let mut token0logo = "".to_string();
-                    let mut token1logo = "".to_string();
-                    if p.0.clone() == "solarbeam" {
-                        token0logo = format!("https://raw.githubusercontent.com/solarbeamio/solarbeam-tokenlist/main/assets/moonriver/{}/logo.png", token0_addr.clone());
-                        token1logo = format!("https://raw.githubusercontent.com/solarbeamio/solarbeam-tokenlist/main/assets/moonriver/{}/logo.png", token1_addr.clone());
-                    } else if p.0.clone() == "stellaswap" {
-                        token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token0_addr.clone());
-                        token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/tokenlist/{}/logo.png", token1_addr.clone());
+                    let token0logo = format!(
+                        "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+                        pair.token0.symbol
+                    );
+                    let token1logo = format!(
+                        "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+                        pair.token1.symbol
+                    );
 
-                        // xStella
-                        if token0_addr.clone()
-                            == "0x06A3b410b681c82417A906993aCeFb91bAB6A080".to_string()
-                        {
-                            token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xStella.png");
-                        }
-                        if token1_addr.clone()
-                            == "0x06A3b410b681c82417A906993aCeFb91bAB6A080".to_string()
-                        {
-                            token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xStella.png");
-                        }
-                        // xcINTR
-                        if token0_addr.clone()
-                            == "0xFffFFFFF4C1cbCd97597339702436d4F18a375Ab".to_string()
-                        {
-                            token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/INTR.png");
-                        }
-                        if token1_addr.clone()
-                            == "0xFffFFFFF4C1cbCd97597339702436d4F18a375Ab".to_string()
-                        {
-                            token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/INTR.png");
-                        }
-                        // xcaUSD
-                        if token0logo.clone()
-                            == "0xfFfFFFFF52C56A9257bB97f4B2b6F7B2D624ecda".to_string()
-                        {
-                            token0logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xcaUSD.png");
-                        }
-                        if token1logo.clone()
-                            == "0xfFfFFFFF52C56A9257bB97f4B2b6F7B2D624ecda".to_string()
-                        {
-                            token1logo = format!("https://raw.githubusercontent.com/stellaswap/assets/main/bridge/xcaUSD.png");
-                        }
-                    } else if p.0.clone() == "beamswap" {
-                        token0logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token0_addr.clone());
-                        token1logo = format!("https://raw.githubusercontent.com/BeamSwap/beamswap-tokenlist/main/assets/chains/moonbeam/{}/logo.png", token1_addr.clone());
-                    } else if p.0.clone() == "sushiswap" {
-                        token0logo=format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token0_addr.clone());
-                        token1logo=format!("https://raw.githubusercontent.com/sushiswap/list/master/logos/token-logos/network/moonriver/{}.jpg",token1_addr.clone());
-
-                        // WBTC.eth
-                        if token0_addr.clone()
-                            == "0xE6a991Ffa8CfE62B0bf6BF72959A3d4f11B2E0f5".to_string()
-                        {
-                            token0logo = format!("https://raw.githubusercontent.com/sushiswap/icons/master/token/btc.jpg");
-                        }
-                        if token1_addr.clone()
-                            == "0xE6a991Ffa8CfE62B0bf6BF72959A3d4f11B2E0f5".to_string()
-                        {
-                            token1logo = format!("https://raw.githubusercontent.com/sushiswap/icons/master/token/btc.jpg");
-                        }
-                    }
+                    println!(
+                        "token0logo {:?} token1logo {:?}",
+                        token0logo.clone(),
+                        token1logo.clone()
+                    );
 
                     let token0decimals: u32 = pair.token0.decimals.parse().unwrap_or_default();
                     let token1decimals: u32 = pair.token1.decimals.parse().unwrap_or_default();
@@ -2440,8 +2286,8 @@ async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>>
                                         "address": pd.pool_address.clone(),
                                         "price": 0,
                                         "logos": [
-                                            "https://cdn.jsdelivr.net/gh/curvefi/curve-assets/images/assets-moonbeam/0xffffffff1fcacbd218edc0eba20fc2308c778080.png",
-                                            "https://cdn.jsdelivr.net/gh/curvefi/curve-assets/images/assets-moonbeam/0xfa36fe1da08c89ec72ea1f0143a35bfd5daea108.png"
+                                            "https://raw.githubusercontent.com/yield-bay/assets/main/list/xcDOT.png",
+                                            "https://raw.githubusercontent.com/yield-bay/assets/main/list/stDOT.png",
                                         ],
                                     },
                                     "tvl": pda.usd_total as f64,
@@ -2522,7 +2368,7 @@ async fn taiga_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>>
                     "symbol": "taiKSM".to_string(),
                     "address": "taiKSM".to_string(),
                     "price": 0 as f64,
-                    "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/karura/taiga/taiKSM.png".to_string()],
+                    "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/list/taiKSM.png".to_string()],
                 },
                 "tvl": _tai_ksm.0 as f64,
                 "apr.reward": _tai_ksm.2.1 as f64 * 100.0,
@@ -2573,7 +2419,7 @@ async fn taiga_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>>
                     "symbol": "3USD".to_string(),
                     "address": "3USD".to_string(),
                     "price": 0 as f64,
-                    "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/karura/taiga/3USD.png".to_string()],
+                    "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/list/3USD.png".to_string()],
                 },
                 "tvl": _3usd.0 as f64,
                 "apr.reward": _3usd.2.1 as f64 * 100.0,
