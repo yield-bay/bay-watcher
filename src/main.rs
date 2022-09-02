@@ -21,6 +21,7 @@ mod apis;
 mod constants;
 mod models;
 mod subgraph;
+mod subsquid;
 
 abigen!(
     IChefV2,
@@ -32,6 +33,14 @@ abigen!(
         function poolRewardsPerSec(uint256) external view returns (address[], string[], uint256[], uint256[])
         function stellaPerSec() external view returns (uint256)
         function totalAllocPoint() external view returns (uint256)
+    ]"#,
+);
+
+abigen!(
+    IFarming,
+    r#"[
+        function poolLength() external view returns (uint256)
+        function getPoolInfo(uint256) external view returns (address, uint256, address[], uint256[], uint256[], uint256, uint256, uint256)
     ]"#,
 );
 
@@ -117,6 +126,18 @@ abigen!(
     ]"#,
 );
 
+abigen!(
+    ILpToken,
+    r#"[
+        function name() external view returns (string)
+        function symbol() external view returns (string)
+        function decimals() external view returns (uint8)
+        function balanceOf(address) external view returns (uint256)
+        function token0() external view returns (address)
+        function token1() external view returns (address)
+    ]"#,
+);
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let delay = time::Duration::from_secs(60 * 2);
@@ -158,6 +179,10 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
         constants::subgraph_urls::SUSHI_SUBGRAPH.clone(),
         headers.clone(),
     );
+    let zenlink_astar_subsquid_client = Client::new_with_headers(
+        constants::subgraph_urls::ZENLINK_ASTAR_SUBSQUID.clone(),
+        headers.clone(),
+    );
 
     let _moonriver_blocklytics_client = Client::new_with_headers(
         constants::subgraph_urls::SOLARBEAM_BLOCKLYTICS_SUBGRAPH.clone(),
@@ -195,6 +220,12 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
             beamswap_subgraph_client.clone(),
             constants::subgraph_urls::BEAMSWAP_SUBGRAPH.clone(),
         ),
+        (
+            "zenlink",
+            "astar",
+            zenlink_astar_subsquid_client.clone(),
+            constants::subgraph_urls::ZENLINK_ASTAR_SUBSQUID.clone(),
+        ),
     ];
 
     println!("------------------------------\nsubgraph_jobs");
@@ -211,6 +242,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
         beamswap_subgraph_client.clone(),
         stellaswap_subgraph_client.clone(),
         solarbeam_subgraph_client.clone(),
+        zenlink_astar_subsquid_client.clone(),
     )
     .await
     .unwrap();
@@ -224,6 +256,7 @@ async fn chef_contract_jobs(
     beamswap_subgraph_client: Client,
     stellaswap_subgraph_client: Client,
     solarbeam_subgraph_client: Client,
+    zenlink_astar_subsquid_client: Client,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut client_options = ClientOptions::parse(mongo_uri).await?;
     client_options.app_name = Some("Bay Watcher".to_string());
@@ -238,6 +271,7 @@ async fn chef_contract_jobs(
 
     let moonriver_url = dotenv::var("MOONRIVER_URL").unwrap();
     let moonbeam_url = dotenv::var("MOONBEAM_URL").unwrap();
+    let astar_url = dotenv::var("ASTAR_URL").unwrap();
 
     let moonriver_provider_service =
         Provider::<Http>::try_from(moonriver_url.clone()).expect("failed");
@@ -247,8 +281,14 @@ async fn chef_contract_jobs(
         Provider::<Http>::try_from(moonbeam_url.clone()).expect("failed");
     let moonbeam_provider = SignerMiddleware::new(moonbeam_provider_service, wallet.clone());
 
+    let astar_provider_service = Provider::<Http>::try_from(astar_url.clone()).expect("failed");
+    let astar_provider = SignerMiddleware::new(astar_provider_service, wallet.clone());
+
     let moonriver_client = SignerMiddleware::new(moonriver_provider.clone(), wallet.clone());
     let moonriver_client = Arc::new(moonriver_client);
+
+    let astar_client = SignerMiddleware::new(astar_provider.clone(), wallet.clone());
+    let astar_client = Arc::new(astar_client);
 
     let moonbeam_client = SignerMiddleware::new(moonbeam_provider.clone(), wallet.clone());
     let moonbeam_client = Arc::new(moonbeam_client);
@@ -268,6 +308,10 @@ async fn chef_contract_jobs(
     let sushi_mini_chef_address =
         "0x3dB01570D97631f69bbb0ba39796865456Cf89A5".parse::<Address>()?;
     let sushi_mini_chef = IChefV2::new(sushi_mini_chef_address, Arc::clone(&moonriver_client));
+
+    let zenlink_astar_chef_address =
+        "0x460ee9DBc82B2Be84ADE50629dDB09f6A1746545".parse::<Address>()?;
+    let zenlink_astar_chef = IChefV2::new(zenlink_astar_chef_address, Arc::clone(&astar_client));
 
     let protocols = vec![
         (
@@ -325,6 +369,17 @@ async fn chef_contract_jobs(
             constants::subgraph_urls::SOLARBEAM_SUBGRAPH.clone(),
             moonriver_client.clone(),
         ),
+        (
+            zenlink_astar_chef_address,
+            zenlink_astar_chef,
+            "astar".to_string(),
+            "zenlink".to_string(),
+            "v3".to_string(),
+            "0x460ee9DBc82B2Be84ADE50629dDB09f6A1746545".to_string(),
+            zenlink_astar_subsquid_client.clone(),
+            constants::subgraph_urls::ZENLINK_ASTAR_SUBSQUID.clone(),
+            astar_client.clone(),
+        ),
     ];
 
     for p in protocols.clone() {
@@ -339,7 +394,393 @@ async fn chef_contract_jobs(
                 pid
             );
 
-            if p.4.clone() == "v0".to_string() {
+            if p.3.clone() == "zenlink".to_string() {
+                let zenlink_astar_chef_address =
+                    "0x460ee9DBc82B2Be84ADE50629dDB09f6A1746545".parse::<Address>()?;
+                let zenlink_astar_chef =
+                    IFarming::new(zenlink_astar_chef_address, Arc::clone(&astar_client));
+
+                let (
+                    farming_token,
+                    amount,
+                    reward_tokens,
+                    reward_per_block,
+                    acc_reward_per_share,
+                    last_reward_block,
+                    start_block,
+                    claimable_interval,
+                ): (
+                    Address,
+                    U256,
+                    Vec<Address>,
+                    Vec<U256>,
+                    Vec<U256>,
+                    U256,
+                    U256,
+                    U256,
+                ) = zenlink_astar_chef
+                    .get_pool_info(ethers::prelude::U256::from(pid))
+                    .call()
+                    .await?;
+
+                let ft_addr = ethers::utils::to_checksum(&farming_token.to_owned(), None);
+
+                let mut farm_type = models::FarmType::StandardAmm;
+                // 4pool
+                if pid == 3 {
+                    // 0xb0Fa056fFFb74c0FB215F86D691c94Ed45b686Aa
+
+                    farm_type = models::FarmType::StableAmm;
+
+                    let stable_asset = IStableLpToken::new(farming_token, Arc::clone(&p.8.clone()));
+                    let name: String = stable_asset.name().call().await?;
+                    let symbol: String = stable_asset.symbol().call().await?;
+                    println!("name: {:?}", name);
+
+                    let owner_addr: Address = stable_asset.owner().call().await?; // or 0xb0Fa056fFFb74c0FB215F86D691c94Ed45b686Aa
+
+                    let owner = IStableLpTokenOwner::new(owner_addr, Arc::clone(&p.8.clone()));
+                    let stable_lp_underlying_tokens = owner.get_tokens().call().await?;
+                    let stable_lp_underlying_balances = owner.get_token_balances().call().await?;
+                    println!(
+                        "stable_lp_underlying_tokens: {:#?}",
+                        stable_lp_underlying_tokens
+                    );
+                    println!(
+                        "stable_lp_underlying_balances: {:#?}",
+                        stable_lp_underlying_balances
+                    );
+
+                    let bai_addr = "0x733ebcC6DF85f8266349DEFD0980f8Ced9B45f35";
+                    let busd_addr = "0x4Bf769b05E832FCdc9053fFFBC78Ca889aCb5E1E";
+                    let dai_addr = "0x6De33698e9e9b787e09d3Bd7771ef63557E148bb";
+                    let usdc_addr = "0x6a2d262D56735DbA19Dd70682B39F6bE9a931D98";
+
+                    let bai = IAnyswapV5ERC20::new(bai_addr.parse::<Address>()?, p.8.clone());
+                    let busd = IAnyswapV5ERC20::new(busd_addr.parse::<Address>()?, p.8.clone());
+                    let dai = IAnyswapV5ERC20::new(dai_addr.parse::<Address>()?, p.8.clone());
+                    let usdc = IAnyswapV5ERC20::new(usdc_addr.parse::<Address>()?, p.8.clone());
+
+                    let bai_filter =
+                        doc! {"chain":"astar", "protocol":"zenlink", "address": bai_addr};
+                    let bai_asset = assets_collection.find_one(bai_filter, None).await?;
+                    let busd_filter =
+                        doc! {"chain":"astar", "protocol":"zenlink", "address": busd_addr};
+                    let busd_asset = assets_collection.find_one(busd_filter, None).await?;
+                    let dai_filter =
+                        doc! {"chain":"astar", "protocol":"zenlink", "address": dai_addr};
+                    let dai_asset = assets_collection.find_one(dai_filter, None).await?;
+                    let usdc_filter =
+                        doc! {"chain":"astar", "protocol":"zenlink", "address": usdc_addr};
+                    let usdc_asset = assets_collection.find_one(usdc_filter, None).await?;
+
+                    let ten: f64 = 10.0;
+                    let bai_bal: U256 = bai.balance_of(owner_addr).call().await?;
+                    let busd_bal: U256 = busd.balance_of(owner_addr).call().await?;
+                    let dai_bal: U256 = dai.balance_of(owner_addr).call().await?;
+                    let usdc_bal: U256 = usdc.balance_of(owner_addr).call().await?;
+
+                    // let ft_addr = "0x755cbAC2246e8219e720591Dd362a772076ab653";
+
+                    let _4pool =
+                        IStableLpToken::new(ft_addr.parse::<Address>()?, Arc::clone(&p.8.clone()));
+                    let _4pool_bal: U256 = _4pool.balance_of(owner_addr).call().await?;
+
+                    //
+                    let usd_pool_liq = bai_bal.as_u128() as f64 * bai_asset.clone().unwrap().price
+                        / ten.powf(18.0)
+                        + busd_bal.as_u128() as f64 * busd_asset.clone().unwrap().price
+                            / ten.powf(18.0)
+                        + dai_bal.as_u128() as f64 * dai_asset.clone().unwrap().price
+                            / ten.powf(18.0)
+                        + usdc_bal.as_u128() as f64 * usdc_asset.clone().unwrap().price
+                            / ten.powf(6.0);
+                    println!("4pool usd_pool_liq {}", usd_pool_liq);
+                    let total_supply: U256 = stable_asset.total_supply().call().await?;
+                    let ts = total_supply.as_u128() as f64 / ten.powf(18.0);
+
+                    let usd_pool_price = usd_pool_liq / ts;
+                    println!("usd_pool_price {}", usd_pool_price);
+
+                    let f = doc! {
+                        "address": ft_addr.to_string(),
+                        "chain": p.2.clone(),
+                        "protocol": p.3.clone(),
+                    };
+
+                    let timestamp = Utc::now().to_string();
+
+                    // println!("token lastUpdatedAtUTC {}", timestamp.clone());
+
+                    let u = doc! {
+                        "$set" : {
+                            "address": ft_addr.to_string(),
+                            "chain": p.2.clone(),
+                            "protocol": p.3.clone(),
+                            "name": "Zenlink Stable AMM 4pool LP".to_string(),
+                            "symbol": "4pool".to_string(),
+                            "decimals": 18,
+                            "logos": [
+                                bai_asset.clone().unwrap().logos.get(0),
+                                busd_asset.clone().unwrap().logos.get(0),
+                                dai_asset.clone().unwrap().logos.get(0),
+                                usdc_asset.clone().unwrap().logos.get(0),
+                            ],
+                            "price": usd_pool_price,
+                            "liquidity": usd_pool_liq,
+                            "totalSupply": ts,
+                            "isLP": true,
+                            "feesAPR": 0.0,
+                            "underlyingAssets": [
+                                bai_asset.clone().unwrap().address,
+                                busd_asset.clone().unwrap().address,
+                                dai_asset.clone().unwrap().address,
+                                usdc_asset.clone().unwrap().address,
+                            ],
+                            "underlyingAssetsAlloc": [0.25, 0.25, 0.25, 0.25],
+                            "lastUpdatedAtUTC": timestamp.clone(),
+                        }
+                    };
+
+                    let options = FindOneAndUpdateOptions::builder()
+                        .upsert(Some(true))
+                        .build();
+                    assets_collection
+                        .find_one_and_update(f, u, Some(options))
+                        .await?;
+                    //
+                } else {
+                }
+
+                let mut asset_filter =
+                    doc! { "address": ft_addr.clone(), "chain": "astar", "protocol": "zenlink" };
+
+                let asset = assets_collection.find_one(asset_filter, None).await?;
+
+                // println!("asset {:?}", asset.clone().unwrap());
+
+                let mut asset_price: f64 = 0.0;
+                let mut asset_tvl: u128 = 0;
+
+                let mut rewards = vec![];
+                let mut total_reward_apr = 0.0;
+
+                if asset.is_some() {
+                    println!(
+                        "--------------------\nasset: {:?}",
+                        asset.clone().unwrap().symbol
+                    );
+
+                    for i in 0..reward_tokens.len() {
+                        let reward_asset_addr =
+                            ethers::utils::to_checksum(&reward_tokens[i].to_owned(), None);
+                        println!("reward_asset_addr: {:?}", reward_asset_addr);
+
+                        let reward_asset_filter = doc! { "address": reward_asset_addr, "protocol": "zenlink", "chain": "astar" };
+                        let reward_asset = assets_collection
+                            .find_one(reward_asset_filter, None)
+                            .await?;
+
+                        if reward_asset.is_some() {
+                            let reward_asset_price = reward_asset.clone().unwrap().price;
+                            println!("reward_asset_price: {:?}", reward_asset_price);
+
+                            // if pid == 38 && p.3.clone() == "solarbeam".to_string() {
+                            //     let solar_filter = doc! { "address": "0x6bD193Ee6D2104F14F94E2cA6efefae561A4334B", "protocol": "solarbeam", "chain": "moonriver" };
+                            //     let solar = assets_collection
+                            //         .find_one(solar_filter, None)
+                            //         .await?;
+                            //     if solar.is_some() {
+                            //         asset_price = solar.unwrap().price;
+                            //     }
+                            // } else {
+                            asset_price = asset.clone().unwrap().price;
+                            // }
+
+                            println!("asset_price: {:?}", asset_price);
+
+                            let rpb = reward_per_block[i].as_u128();
+                            let rewards_per_sec: f64 =
+                                rpb as f64 / constants::utils::ASTAR_BLOCK_TIME;
+                            // let rewards_per_day: f64 = rewards_per_sec * 60.0 * 60.0 * 24.0;
+                            let rewards_per_day: u128 = rewards_per_sec as u128 * 60 * 60 * 24;
+                            println!(
+                                "rpb {:?} rewards_per_sec {:?} rewards_per_day {:?}",
+                                rpb, rewards_per_sec, rewards_per_day
+                            );
+
+                            // // zlk token
+                            // if asset.clone().unwrap().address
+                            //     == "0x3Fd9b6C9A24E09F67b7b706d72864aEbb439100C".to_string()
+                            // {
+                            //     asset_tvl = amount.as_u128();
+                            // } else {
+                            // asset_tvl = asset.clone().unwrap().liquidity as u128;
+                            asset_tvl = amount.as_u128();
+                            // }
+
+                            let ten: i128 = 10;
+
+                            if rewards_per_day != 0 {
+                                rewards.push(bson!({
+                                    "amount": rewards_per_day as f64 / ten.pow(reward_asset.clone().unwrap().decimals) as f64,
+                                    "asset":  reward_asset.clone().unwrap().symbol,
+                                    "valueUSD": (rewards_per_day as f64 / ten.pow(reward_asset.clone().unwrap().decimals) as f64) * reward_asset_price,
+                                    "freq": models::Freq::Daily.to_string(),
+                                }));
+
+                                // reward_apr/farm_apr/pool_apr
+                                println!(
+                                    "rewards/sec: {} rewards/day: {} asset_tvl: {}",
+                                    rewards_per_sec, rewards_per_day, asset_tvl
+                                );
+                                let mut reward_apr = 0.0;
+                                // // zlk token
+                                // if asset.clone().unwrap().address
+                                //     == "0x3Fd9b6C9A24E09F67b7b706d72864aEbb439100C".to_string()
+                                // {
+                                //     reward_apr = ((rewards_per_day as f64
+                                //         / ten.pow(reward_asset.clone().unwrap().decimals) as f64
+                                //         * reward_asset_price)
+                                //         / (asset_tvl as f64 * asset_price / ten.pow(18) as f64))
+                                //         * 365.0
+                                //         * 100.0;
+                                // } else {
+                                reward_apr = ((rewards_per_day as f64
+                                    / ten.pow(reward_asset.clone().unwrap().decimals) as f64
+                                    * reward_asset_price)
+                                    / (asset_tvl as f64 * asset_price / ten.pow(18) as f64))
+                                    * 365.0
+                                    * 100.0;
+                                // }
+
+                                println!("reward_apr: {}", reward_apr);
+                                if asset_tvl != 0 && asset_price != 0.0 {
+                                    total_reward_apr += reward_apr;
+                                }
+                            } else {
+                                // yes = false;
+                            }
+                        }
+                    }
+
+                    let ten: f64 = 10.0;
+
+                    let mut atvl = 0.0;
+                    // zlk token
+                    // if asset.clone().unwrap().address
+                    //     == "0x3Fd9b6C9A24E09F67b7b706d72864aEbb439100C".to_string()
+                    // {
+                    atvl = asset_tvl as f64 * asset_price / ten.powf(18.0);
+                    // } else {
+                    // atvl = asset_tvl as f64 * asset_price;
+                    // }
+
+                    println!(
+                        "rewards {:?} total_reward_apr {:?} tvl {:?}",
+                        rewards.clone(),
+                        total_reward_apr,
+                        atvl
+                    );
+                    println!("--------------------\n");
+
+                    if rewards.len() > 0 {
+                        // base_apr/trading_apr
+                        let mut base_apr = 0.0;
+                        #[derive(Serialize)]
+                        pub struct Vars {
+                            addr: String,
+                        }
+                        let vars = Vars {
+                            addr: asset.clone().unwrap().address.to_lowercase(),
+                        };
+                        let pair_day_datas =
+                            p.6.query_with_vars_unwrap::<subsquid::ZenlinkPairDayDatas, Vars>(
+                                &constants::subsquid::PAIR_DAY_DATAS_QUERY.clone(),
+                                vars,
+                            )
+                            .await;
+                        if pair_day_datas.is_ok() {
+                            let mut daily_volume_lw: f64 = 0.0;
+                            for pdd in pair_day_datas.clone().unwrap().pair_day_data {
+                                let dv: f64 = pdd.daily_volume_usd.parse().unwrap_or_default();
+                                daily_volume_lw += dv;
+                            }
+                            println!("dvsum {:?}", daily_volume_lw);
+
+                            daily_volume_lw /= pair_day_datas.unwrap().pair_day_data.len() as f64;
+
+                            println!("dvlwavg {:?}", daily_volume_lw);
+
+                            if asset.clone().unwrap_or_default().total_supply == 0.0
+                                || asset.clone().unwrap_or_default().price == 0.0
+                            {
+                                base_apr = 0.0;
+                                println!("c1");
+                            } else {
+                                base_apr = daily_volume_lw * 0.0025 * 365.0 * 100.0
+                                    / (asset.clone().unwrap_or_default().total_supply
+                                        * asset.clone().unwrap_or_default().price);
+                                println!(
+                                    "c2 {:?}",
+                                    (asset.clone().unwrap_or_default().total_supply
+                                        * asset.clone().unwrap_or_default().price)
+                                );
+                            }
+                        } else {
+                            println!("pddnok");
+                        }
+
+                        if base_apr.is_nan() {
+                            base_apr = 0.0;
+                        }
+
+                        let timestamp = Utc::now().to_string();
+
+                        println!(
+                            "zenlink chef v3 farm lastUpdatedAtUTC {}",
+                            timestamp.clone()
+                        );
+
+                        let ff = doc! {
+                            "id": pid as i32,
+                            "chef": "0x460ee9DBc82B2Be84ADE50629dDB09f6A1746545".to_string(),
+                            "chain": "astar".to_string(),
+                            "protocol": "zenlink".to_string(),
+                        };
+                        let ten: f64 = 10.0;
+                        let fu = doc! {
+                            "$set" : {
+                                "id": pid,
+                                "chef": "0x460ee9DBc82B2Be84ADE50629dDB09f6A1746545".to_string(),
+                                "chain": "astar".to_string(),
+                                "protocol": "zenlink".to_string(),
+                                "farmType": farm_type.to_string(),
+                                "farmImpl": models::FarmImplementation::Solidity.to_string(),
+                                "asset": {
+                                    "symbol": asset.clone().unwrap().symbol,
+                                    "address": asset.clone().unwrap().address,
+                                    "price": asset.clone().unwrap().price,
+                                    "logos": asset.clone().unwrap().logos,
+                                    // "underlying_assets": farm_assets,
+                                },
+                                "tvl": atvl,
+                                "apr.reward": total_reward_apr,
+                                "apr.base": base_apr,
+                                "rewards": rewards,
+                                "allocPoint": 1,
+                                "lastUpdatedAtUTC": timestamp.clone(),
+                            }
+                        };
+                        let options = FindOneAndUpdateOptions::builder()
+                            .upsert(Some(true))
+                            .build();
+                        farms_collection
+                            .find_one_and_update(ff, fu, Some(options))
+                            .await?;
+                    }
+                }
+            } else if p.4.clone() == "v0".to_string() {
                 let sushi_mini_chef_address =
                     "0x3dB01570D97631f69bbb0ba39796865456Cf89A5".parse::<Address>()?;
                 let sushi_mini_chef =
@@ -1771,6 +2212,108 @@ async fn subgraph_jobs(
                     tokens_data.err()
                 );
             }
+        } else if p.0.clone() == "zenlink" {
+            let tokens_data = client
+                // p.2.clone()
+                .query_unwrap::<subsquid::TokensData>(constants::subsquid::TOKENS_QUERY.clone())
+                .await;
+
+            if tokens_data.is_ok() {
+                // println!("{} tokens_data {:?}", p.0.clone(), tokens_data.clone());
+                for t in tokens_data.clone().unwrap().tokens.clone() {
+                    let mut price_usd: f64 = 0.0;
+                    if t.token_day_data.len() >= 1 {
+                        price_usd = t.token_day_data[0].price_usd.parse().unwrap_or_default();
+                    }
+                    if tokens_data.clone().unwrap().bundles.clone().len() >= 1 {
+                        let derived_eth: f64 = t.derived_eth.parse().unwrap_or_default();
+                        let eth_price: f64 = tokens_data.clone().unwrap().bundles.clone()[0]
+                            .eth_price
+                            .parse()
+                            .unwrap_or_default();
+                        price_usd = derived_eth * eth_price;
+                    }
+
+                    let ta = Address::from_str(t.id.as_str()).unwrap();
+                    let token_addr = to_checksum(&ta, None);
+
+                    if token_addr.clone() == "0x733ebcC6DF85f8266349DEFD0980f8Ced9B45f35" {
+                        // BAI
+                        price_usd = 1.0;
+                    }
+                    if token_addr.clone() == "0x6De33698e9e9b787e09d3Bd7771ef63557E148bb" {
+                        // DAI
+                        price_usd = 1.0;
+                    }
+
+                    // println!("token_addr {:?}", token_addr.clone());
+
+                    let decimals: u32 = t.decimals as u32;
+
+                    let logo = format!(
+                        "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+                        t.symbol
+                    );
+
+                    // println!("logo {}", logo.clone());
+
+                    let liquidity: f64 = t.total_liquidity.parse().unwrap_or_default();
+
+                    // stKSM or wstKSM
+                    if p.0.clone() == "solarbeam"
+                        && (token_addr.clone() == "0xFfc7780C34B450d917d557E728f033033CB4fA8C"
+                            || token_addr.clone() == "0x3bfd113ad0329a7994a681236323fb16E16790e3")
+                    {
+                        let xcksm = assets_collection.find_one(doc! {"chain":"moonriver", "protocol":"solarbeam", "address":"0xFfFFfFff1FcaCBd218EDc0EbA20Fc2308C778080"}, None).await?;
+                        price_usd = xcksm.clone().unwrap().price;
+                    }
+
+                    let f = doc! {
+                        "address": token_addr.clone(),
+                        "chain": p.1.clone(),
+                        "protocol": p.0.clone(),
+                    };
+
+                    let timestamp = Utc::now().to_string();
+
+                    // println!("token lastUpdatedAtUTC {}", timestamp.clone());
+
+                    let u = doc! {
+                        "$set" : {
+                            "address": token_addr.clone(),
+                            "chain": p.1.clone(),
+                            "protocol": p.0.clone(),
+                            "name": t.name,
+                            "symbol": t.symbol,
+                            "decimals": decimals,
+                            "logos": [
+                                logo.clone(),
+                            ],
+                            "price": price_usd,
+                            "liquidity": liquidity,
+                            "totalSupply": 0.0,
+                            "isLP": false,
+                            "feesAPR": 0.0,
+                            "underlyingAssets": [],
+                            "underlyingAssetsAlloc": [],
+                            "lastUpdatedAtUTC": timestamp.clone(),
+                        }
+                    };
+
+                    let options = FindOneAndUpdateOptions::builder()
+                        .upsert(Some(true))
+                        .build();
+                    assets_collection
+                        .find_one_and_update(f, u, Some(options))
+                        .await?;
+                }
+            } else {
+                println!(
+                    "couldn't fetch tokens_data for {} {:?}",
+                    p.0.clone(),
+                    tokens_data.err()
+                );
+            }
         } else {
             let tokens_data = client
                 // p.2.clone()
@@ -1997,6 +2540,135 @@ async fn subgraph_jobs(
                     }
 
                     let liquidity: f64 = pair.reserve_usd.parse().unwrap_or_default();
+                    let total_supply: f64 = pair.total_supply.parse().unwrap_or_default();
+
+                    let mut price_usd: f64 = 0.0;
+
+                    if total_supply != 0.0 {
+                        price_usd = liquidity / total_supply;
+                    }
+
+                    // println!("price_usd {}", price_usd);
+
+                    let mut fees_apr = 0.0;
+                    let odv = one_day_volume_usd.get(&pair_addr.clone());
+                    if odv.is_some() {
+                        fees_apr = odv.unwrap() * 0.0025 * 365.0 * 100.0 / liquidity;
+                    }
+
+                    let f = doc! {
+                        "address": pair_addr.clone(),
+                        "chain": p.1.clone(),
+                        "protocol": p.0.clone(),
+                    };
+
+                    let timestamp = Utc::now().to_string();
+
+                    // println!("pair lastUpdatedAtUTC {}", timestamp.clone());
+
+                    let u = doc! {
+                        "$set" : {
+                            "address": pair_addr.clone(),
+                            "chain": p.1.clone(),
+                            "protocol": p.0.clone(),
+                            "name": format!("{}-{} LP", pair.token0.name, pair.token1.name),
+                            "symbol": format!("{}-{} LP", pair.token0.symbol, pair.token1.symbol),
+                            "decimals": decimals,
+                            "logos": [
+                                token0logo.clone(),
+                                token1logo.clone(),
+                            ],
+                            "price": price_usd,
+                            "liquidity": liquidity,
+                            "totalSupply": total_supply,
+                            "isLP": true,
+                            "feesAPR": fees_apr,
+                            "underlyingAssets": [token0_addr.clone(), token1_addr.clone()],
+                            "underlyingAssetsAlloc": [token0alloc, token1alloc],
+                            "lastUpdatedAtUTC": timestamp.clone(),
+                        }
+                    };
+
+                    let options = FindOneAndUpdateOptions::builder()
+                        .upsert(Some(true))
+                        .build();
+                    assets_collection
+                        .find_one_and_update(f, u, Some(options))
+                        .await?;
+                }
+            } else {
+                println!(
+                    "couldn't fetch pairs_data for {} {:?}",
+                    p.0.clone(),
+                    pairs_data.err()
+                );
+            }
+        } else if p.0.clone() == "zenlink" {
+            let pairs_data = client
+                // p.2.clone()
+                .query_unwrap::<subsquid::PairsData>(constants::subsquid::PAIRS_QUERY.clone())
+                .await;
+
+            if pairs_data.is_ok() {
+                // println!("{} pairs_data {:?}", p.0.clone(), pairs_data);
+
+                for pair in pairs_data.clone().unwrap().pairs.clone() {
+                    let token0price: f64 = pair.token0price.parse().unwrap_or_default();
+                    let token1price: f64 = pair.token1price.parse().unwrap_or_default();
+
+                    let mut token0alloc = 0.0;
+                    let mut token1alloc = 0.0;
+
+                    if token0price > 0.0 && token1price > 0.0 {
+                        if token0price > token1price {
+                            token0alloc = (1.0 / token0price) * 100.0;
+                            token1alloc = 100.0 - token0alloc;
+                        } else {
+                            token1alloc = (1.0 / token1price) * 100.0;
+                            token0alloc = 100.0 - token1alloc;
+                        }
+                    }
+
+                    let pa = Address::from_str(pair.id.as_str()).unwrap();
+                    let pair_addr = to_checksum(&pa, None);
+                    // println!("pair_addr {:?}", pair_addr.clone());
+
+                    let t0a = Address::from_str(pair.token0.id.as_str()).unwrap();
+                    let token0_addr = to_checksum(&t0a, None);
+                    // println!("token0_addr {:?}", token0_addr.clone());
+
+                    let t1a = Address::from_str(pair.token1.id.as_str()).unwrap();
+                    let token1_addr = to_checksum(&t1a, None);
+                    // println!("token1_addr {:?}", token1_addr.clone());
+
+                    let token0logo = format!(
+                        "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+                        pair.token0.symbol
+                    );
+                    let token1logo = format!(
+                        "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+                        pair.token1.symbol
+                    );
+
+                    println!(
+                        "token0logo {:?} token1logo {:?}",
+                        token0logo.clone(),
+                        token1logo.clone()
+                    );
+
+                    let token0decimals: u32 = pair.token0.decimals as u32;
+                    let token1decimals: u32 = pair.token1.decimals as u32;
+
+                    let mut decimals = token0decimals;
+                    if token1decimals > token0decimals {
+                        decimals = token1decimals;
+                    }
+
+                    let mut liquidity: f64 = pair.reserve_usd.parse().unwrap_or_default();
+                    // wstKSM-xcKSM LP
+                    if pair_addr.clone() == "0x5568872bc43Bae3757F697c0e1b241b62Eddcc17" {
+                        liquidity *= 2.0;
+                    }
                     let total_supply: f64 = pair.total_supply.parse().unwrap_or_default();
 
                     let mut price_usd: f64 = 0.0;
