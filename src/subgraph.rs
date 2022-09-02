@@ -2,6 +2,12 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ZenlinkPairDayDatas {
+    pub pair_day_data: Vec<PairDayData>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PairDayDatas {
     pub pair_day_datas: Vec<PairDayData>,
 }
