@@ -563,6 +563,9 @@ async fn chef_contract_jobs(
                 let mut asset_tvl: u128 = 0;
 
                 let mut rewards = vec![];
+                // <symbol, (exists, amount, valueUSD, freq)>
+                let mut reward_asset_map: HashMap<String, (bool, f64, f64, String)> =
+                    HashMap::new();
                 let mut total_reward_apr = 0.0;
 
                 if asset.is_some() {
@@ -622,12 +625,54 @@ async fn chef_contract_jobs(
                             let ten: i128 = 10;
 
                             if rewards_per_day != 0 {
-                                rewards.push(bson!({
-                                    "amount": rewards_per_day as f64 / ten.pow(reward_asset.clone().unwrap().decimals) as f64,
-                                    "asset":  reward_asset.clone().unwrap().symbol,
-                                    "valueUSD": (rewards_per_day as f64 / ten.pow(reward_asset.clone().unwrap().decimals) as f64) * reward_asset_price,
-                                    "freq": models::Freq::Daily.to_string(),
-                                }));
+                                if !reward_asset_map
+                                    .contains_key(&reward_asset.clone().unwrap().symbol)
+                                {
+                                    // }
+                                    // if !reward_asset_map
+                                    //     .get(&reward_asset.clone().unwrap().symbol)
+                                    //     .unwrap()
+                                    //     .0
+                                    // {
+                                    // rewards.push(bson!({
+                                    //     "amount": rewards_per_day as f64 / ten.pow(reward_asset.clone().unwrap().decimals) as f64,
+                                    //     "asset":  reward_asset.clone().unwrap().symbol,
+                                    //     "valueUSD": (rewards_per_day as f64 / ten.pow(reward_asset.clone().unwrap().decimals) as f64) * reward_asset_price,
+                                    //     "freq": models::Freq::Daily.to_string(),
+                                    // }));
+                                    reward_asset_map.insert(
+                                        reward_asset.clone().unwrap().symbol,
+                                        (
+                                            true,
+                                            rewards_per_day as f64
+                                                / ten.pow(reward_asset.clone().unwrap().decimals)
+                                                    as f64,
+                                            (rewards_per_day as f64
+                                                / ten.pow(reward_asset.clone().unwrap().decimals)
+                                                    as f64)
+                                                * reward_asset_price,
+                                            models::Freq::Daily.to_string(),
+                                        ),
+                                    );
+                                } else {
+                                    let er = reward_asset_map
+                                        .get(&reward_asset.clone().unwrap().symbol)
+                                        .unwrap();
+                                    reward_asset_map.insert(
+                                        reward_asset.clone().unwrap().symbol,
+                                        (
+                                            true,
+                                            er.1 + rewards_per_day as f64
+                                                / ten.pow(reward_asset.clone().unwrap().decimals)
+                                                    as f64,
+                                            er.2 + (rewards_per_day as f64
+                                                / ten.pow(reward_asset.clone().unwrap().decimals)
+                                                    as f64)
+                                                * reward_asset_price,
+                                            models::Freq::Daily.to_string(),
+                                        ),
+                                    );
+                                }
 
                                 // reward_apr/farm_apr/pool_apr
                                 println!(
@@ -662,6 +707,15 @@ async fn chef_contract_jobs(
                                 // yes = false;
                             }
                         }
+                    }
+
+                    for r in reward_asset_map.iter() {
+                        rewards.push(bson!({
+                            "amount": r.1.1,
+                            "asset":  r.0,
+                            "valueUSD": r.1.2,
+                            "freq": models::Freq::Daily.to_string(),
+                        }));
                     }
 
                     let ten: f64 = 10.0;
@@ -825,6 +879,9 @@ async fn chef_contract_jobs(
                     let mut asset_tvl: f64 = 0.0;
 
                     let mut rewards = vec![];
+                    // <symbol, (exists, amount, valueUSD, freq)>
+                    let mut reward_asset_map: HashMap<String, (bool, f64, f64, String)> =
+                        HashMap::new();
                     let mut total_reward_apr = 0.0;
 
                     if asset.is_some() {
@@ -854,27 +911,31 @@ async fn chef_contract_jobs(
                                 asset_tvl = asset.clone().unwrap().liquidity;
 
                                 let ten: i128 = 10;
-                                rewards.push(bson!({
-                                    "amount": rewards_per_day as f64 / ten.pow(sushi.clone().unwrap().decimals) as f64,
-                                    "asset":  sushi.clone().unwrap().symbol,
-                                    "valueUSD": (rewards_per_day as f64 / ten.pow(sushi.clone().unwrap().decimals) as f64) * reward_asset_price,
-                                    "freq": models::Freq::Daily.to_string(),
-                                }));
 
-                                // reward_apr/farm_apr/pool_apr
-                                println!(
-                                    "rewards/sec: {} rewards/day: {} asset_tvl: {}",
-                                    rewards_per_sec, rewards_per_day, asset_tvl
-                                );
+                                if rewards_per_day != 0.0 {
+                                    rewards.push(bson!({
+                                        "amount": rewards_per_day as f64 / ten.pow(sushi.clone().unwrap().decimals) as f64,
+                                        "asset":  sushi.clone().unwrap().symbol,
+                                        "valueUSD": (rewards_per_day as f64 / ten.pow(sushi.clone().unwrap().decimals) as f64) * reward_asset_price,
+                                        "freq": models::Freq::Daily.to_string(),
+                                    }));
 
-                                let reward_apr = ((rewards_per_day as f64 * reward_asset_price)
-                                    / (asset_tvl as f64
-                                        * ten.pow(sushi.clone().unwrap().decimals) as f64))
-                                    * 365.0
-                                    * 100.0;
-                                println!("reward_apr: {}", reward_apr);
-                                if asset_tvl != 0.0 && asset_price != 0.0 {
-                                    total_reward_apr += reward_apr;
+                                    // reward_apr/farm_apr/pool_apr
+                                    println!(
+                                        "rewards/sec: {} rewards/day: {} asset_tvl: {}",
+                                        rewards_per_sec, rewards_per_day, asset_tvl
+                                    );
+
+                                    let reward_apr = ((rewards_per_day as f64
+                                        * reward_asset_price)
+                                        / (asset_tvl as f64
+                                            * ten.pow(sushi.clone().unwrap().decimals) as f64))
+                                        * 365.0
+                                        * 100.0;
+                                    println!("reward_apr: {}", reward_apr);
+                                    if asset_tvl != 0.0 && asset_price != 0.0 {
+                                        total_reward_apr += reward_apr;
+                                    }
                                 }
                             }
 
@@ -903,27 +964,30 @@ async fn chef_contract_jobs(
                                 asset_tvl = asset.clone().unwrap().liquidity;
 
                                 let ten: i128 = 10;
-                                rewards.push(bson!({
-                                    "amount": rewards_per_day as f64 / ten.pow(movr.clone().unwrap().decimals) as f64,
-                                    "asset":  movr.clone().unwrap().symbol,
-                                    "valueUSD": (rewards_per_day as f64 / ten.pow(movr.clone().unwrap().decimals) as f64) * reward_asset_price,
-                                    "freq": models::Freq::Daily.to_string(),
-                                }));
+                                if rewards_per_day != 0.0 {
+                                    rewards.push(bson!({
+                                        "amount": rewards_per_day as f64 / ten.pow(movr.clone().unwrap().decimals) as f64,
+                                        "asset":  movr.clone().unwrap().symbol,
+                                        "valueUSD": (rewards_per_day as f64 / ten.pow(movr.clone().unwrap().decimals) as f64) * reward_asset_price,
+                                        "freq": models::Freq::Daily.to_string(),
+                                    }));
 
-                                // reward_apr/farm_apr/pool_apr
-                                println!(
-                                    "rewards/sec: {} rewards/day: {} asset_tvl: {}",
-                                    rewards_per_sec, rewards_per_day, asset_tvl
-                                );
+                                    // reward_apr/farm_apr/pool_apr
+                                    println!(
+                                        "rewards/sec: {} rewards/day: {} asset_tvl: {}",
+                                        rewards_per_sec, rewards_per_day, asset_tvl
+                                    );
 
-                                let reward_apr = ((rewards_per_day as f64 * reward_asset_price)
-                                    / (asset_tvl as f64
-                                        * ten.pow(movr.clone().unwrap().decimals) as f64))
-                                    * 365.0
-                                    * 100.0;
-                                println!("reward_apr: {}", reward_apr);
-                                if asset_tvl != 0.0 && asset_price != 0.0 {
-                                    total_reward_apr += reward_apr;
+                                    let reward_apr = ((rewards_per_day as f64
+                                        * reward_asset_price)
+                                        / (asset_tvl as f64
+                                            * ten.pow(movr.clone().unwrap().decimals) as f64))
+                                        * 365.0
+                                        * 100.0;
+                                    println!("reward_apr: {}", reward_apr);
+                                    if asset_tvl != 0.0 && asset_price != 0.0 {
+                                        total_reward_apr += reward_apr;
+                                    }
                                 }
                             }
 
@@ -1101,6 +1165,9 @@ async fn chef_contract_jobs(
                         let asset_tvl: u128;
 
                         let mut rewards = vec![];
+                        // <symbol, (exists, amount, valueUSD, freq)>
+                        let mut reward_asset_map: HashMap<String, (bool, f64, f64, String)> =
+                            HashMap::new();
 
                         if asset.is_some() {
                             println!("asset: {:?}", asset.clone().unwrap().symbol);
@@ -1126,12 +1193,14 @@ async fn chef_contract_jobs(
                                 asset_tvl = total_lp.as_u128();
 
                                 let ten: i128 = 10;
-                                rewards.push(bson!({
-                                    "amount": rewards_per_day as f64 / ten.pow(stella.clone().unwrap().decimals) as f64,
-                                    "asset":  stella.clone().unwrap().symbol,
-                                    "valueUSD": (rewards_per_day as f64 / ten.pow(stella.clone().unwrap().decimals) as f64) * reward_asset_price,
-                                    "freq": models::Freq::Daily.to_string(),
-                                }));
+                                if rewards_per_day != 0.0 {
+                                    rewards.push(bson!({
+                                        "amount": rewards_per_day as f64 / ten.pow(stella.clone().unwrap().decimals) as f64,
+                                        "asset":  stella.clone().unwrap().symbol,
+                                        "valueUSD": (rewards_per_day as f64 / ten.pow(stella.clone().unwrap().decimals) as f64) * reward_asset_price,
+                                        "freq": models::Freq::Daily.to_string(),
+                                    }));
+                                }
 
                                 // reward_apr/farm_apr/pool_apr
                                 println!(
@@ -1871,6 +1940,9 @@ async fn chef_contract_jobs(
                             let mut asset_tvl: u128 = 0;
 
                             let mut rewards = vec![];
+                            // <symbol, (exists, amount, valueUSD, freq)>
+                            let mut reward_asset_map: HashMap<String, (bool, f64, f64, String)> =
+                                HashMap::new();
 
                             if asset.is_some() {
                                 for i in 0..symbols.len() {
@@ -1931,34 +2003,113 @@ async fn chef_contract_jobs(
                                                 as u128;
                                         }
 
-                                        rewards.push(bson!({
-                                            "amount": rewards_per_day as f64 / ten.pow(decimals[i].as_u32().try_into().unwrap()) as f64,
-                                            "asset":  reward_asset.clone().unwrap().symbol,
-                                            "valueUSD": (rewards_per_day as f64 / ten.pow(decimals[i].as_u32().try_into().unwrap()) as f64) * reward_asset_price,
-                                            "freq": models::Freq::Daily.to_string(),
-                                        }));
+                                        if rewards_per_day != 0 {
+                                            if !reward_asset_map
+                                                .contains_key(&reward_asset.clone().unwrap().symbol)
+                                            {
+                                                // }
+                                                // if !reward_asset_map
+                                                //     .get(&reward_asset.clone().unwrap().symbol)
+                                                //     .unwrap()
+                                                //     .0
+                                                // {
+                                                // rewards.push(bson!({
+                                                //     "amount": rewards_per_day as f64 / ten.pow(reward_asset.clone().unwrap().decimals) as f64,
+                                                //     "asset":  reward_asset.clone().unwrap().symbol,
+                                                //     "valueUSD": (rewards_per_day as f64 / ten.pow(reward_asset.clone().unwrap().decimals) as f64) * reward_asset_price,
+                                                //     "freq": models::Freq::Daily.to_string(),
+                                                // }));
+                                                reward_asset_map.insert(
+                                                    reward_asset.clone().unwrap().symbol,
+                                                    (
+                                                        true,
+                                                        rewards_per_day as f64
+                                                            / ten.pow(
+                                                                reward_asset
+                                                                    .clone()
+                                                                    .unwrap()
+                                                                    .decimals,
+                                                            )
+                                                                as f64,
+                                                        (rewards_per_day as f64
+                                                            / ten.pow(
+                                                                reward_asset
+                                                                    .clone()
+                                                                    .unwrap()
+                                                                    .decimals,
+                                                            )
+                                                                as f64)
+                                                            * reward_asset_price,
+                                                        models::Freq::Daily.to_string(),
+                                                    ),
+                                                );
+                                            } else {
+                                                let er = reward_asset_map
+                                                    .get(&reward_asset.clone().unwrap().symbol)
+                                                    .unwrap();
+                                                reward_asset_map.insert(
+                                                    reward_asset.clone().unwrap().symbol,
+                                                    (
+                                                        true,
+                                                        er.1 + rewards_per_day as f64
+                                                            / ten.pow(
+                                                                reward_asset
+                                                                    .clone()
+                                                                    .unwrap()
+                                                                    .decimals,
+                                                            )
+                                                                as f64,
+                                                        er.2 + (rewards_per_day as f64
+                                                            / ten.pow(
+                                                                reward_asset
+                                                                    .clone()
+                                                                    .unwrap()
+                                                                    .decimals,
+                                                            )
+                                                                as f64)
+                                                            * reward_asset_price,
+                                                        models::Freq::Daily.to_string(),
+                                                    ),
+                                                );
+                                            }
+                                            // rewards.push(bson!({
+                                            //     "amount": rewards_per_day as f64 / ten.pow(decimals[i].as_u32().try_into().unwrap()) as f64,
+                                            //     "asset":  reward_asset.clone().unwrap().symbol,
+                                            //     "valueUSD": (rewards_per_day as f64 / ten.pow(decimals[i].as_u32().try_into().unwrap()) as f64) * reward_asset_price,
+                                            //     "freq": models::Freq::Daily.to_string(),
+                                            // }));
 
-                                        // reward_apr/farm_apr/pool_apr
-                                        println!(
-                                            "rewards/sec: {} rewards/day: {} asset_tvl: {}",
-                                            rewards_per_sec[i].as_u128(),
-                                            rewards_per_day,
-                                            asset_tvl
-                                        );
+                                            // reward_apr/farm_apr/pool_apr
+                                            println!(
+                                                "rewards/sec: {} rewards/day: {} asset_tvl: {}",
+                                                rewards_per_sec[i].as_u128(),
+                                                rewards_per_day,
+                                                asset_tvl
+                                            );
 
-                                        let reward_apr = ((rewards_per_day as f64
-                                            / ten.pow(decimals[i].as_u128().try_into().unwrap())
-                                                as f64
-                                            * reward_asset_price)
-                                            / (asset_tvl as f64 * asset_price
-                                                / ten.pow(18) as f64))
-                                            * 365.0
-                                            * 100.0;
-                                        println!("reward_apr: {}", reward_apr);
-                                        if asset_tvl != 0 && asset_price != 0.0 {
-                                            total_reward_apr += reward_apr;
+                                            let reward_apr = ((rewards_per_day as f64
+                                                / ten.pow(decimals[i].as_u128().try_into().unwrap())
+                                                    as f64
+                                                * reward_asset_price)
+                                                / (asset_tvl as f64 * asset_price
+                                                    / ten.pow(18) as f64))
+                                                * 365.0
+                                                * 100.0;
+                                            println!("reward_apr: {}", reward_apr);
+                                            if asset_tvl != 0 && asset_price != 0.0 {
+                                                total_reward_apr += reward_apr;
+                                            }
                                         }
                                     }
+                                }
+
+                                for r in reward_asset_map.iter() {
+                                    rewards.push(bson!({
+                                        "amount": r.1.1,
+                                        "asset":  r.0,
+                                        "valueUSD": r.1.2,
+                                        "freq": models::Freq::Daily.to_string(),
+                                    }));
                                 }
 
                                 // base_apr/trading_apr
@@ -2923,6 +3074,10 @@ async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>>
                             let mut total_apy = 0.0;
 
                             let mut rewards = vec![];
+                            // <symbol, (exists, amount, valueUSD, freq)>
+                            let mut reward_asset_map: HashMap<String, (bool, f64, f64, String)> =
+                                HashMap::new();
+                            // TODO: check if we need to handle zero case
                             for er in g.extra_rewards {
                                 rewards.push(bson!({
                                     "amount": er.meta_data.rate.parse::<f64>().unwrap_or_default() as f64 / ten.powf(er.decimals.parse::<f64>().unwrap_or_default()) as f64,
