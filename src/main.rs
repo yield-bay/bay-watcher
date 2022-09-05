@@ -165,31 +165,38 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
 
     let solarbeam_subgraph_client = Client::new_with_headers(
         constants::subgraph_urls::SOLARBEAM_SUBGRAPH.clone(),
+        60,
         headers.clone(),
     );
     let stellaswap_subgraph_client = Client::new_with_headers(
         constants::subgraph_urls::STELLASWAP_SUBGRAPH.clone(),
+        60,
         headers.clone(),
     );
     let beamswap_subgraph_client = Client::new_with_headers(
         constants::subgraph_urls::BEAMSWAP_SUBGRAPH.clone(),
+        60,
         headers.clone(),
     );
     let sushi_subgraph_client = Client::new_with_headers(
         constants::subgraph_urls::SUSHI_SUBGRAPH.clone(),
+        60,
         headers.clone(),
     );
     let zenlink_astar_subsquid_client = Client::new_with_headers(
         constants::subgraph_urls::ZENLINK_ASTAR_SUBSQUID.clone(),
+        60,
         headers.clone(),
     );
 
     let _moonriver_blocklytics_client = Client::new_with_headers(
         constants::subgraph_urls::SOLARBEAM_BLOCKLYTICS_SUBGRAPH.clone(),
+        60,
         headers.clone(),
     );
     let _moonbeam_blocklytics_client = Client::new_with_headers(
         constants::subgraph_urls::SOLARFLARE_BLOCKLYTICS_SUBGRAPH.clone(),
+        60,
         headers.clone(),
     );
 
@@ -261,7 +268,8 @@ async fn chef_contract_jobs(
     let mut client_options = ClientOptions::parse(mongo_uri).await?;
     client_options.app_name = Some("Bay Watcher".to_string());
     let client = MongoClient::with_options(client_options)?;
-    let db = client.database("bayCave");
+    let db_name = dotenv::var("DB_NAME").unwrap();
+    let db = client.database(&db_name);
 
     let assets_collection = db.collection::<models::Asset>("assets");
     let farms_collection = db.collection::<models::Farm>("farms");
@@ -2269,14 +2277,15 @@ async fn subgraph_jobs(
     let mut client_options = ClientOptions::parse(mongo_uri).await?;
     client_options.app_name = Some("Bay Watcher".to_string());
     let client = MongoClient::with_options(client_options)?;
-    let db = client.database("bayCave");
+    let db_name = dotenv::var("DB_NAME").unwrap();
+    let db = client.database(&db_name);
 
     let assets_collection = db.collection::<models::Asset>("assets");
 
     for p in protocols {
         println!("subgraph data for {} on {}", p.0.clone(), p.1.clone());
 
-        let client = Client::new_with_headers(p.3.clone(), headers.clone());
+        let client = Client::new_with_headers(p.3.clone(), 60, headers.clone());
 
         if p.0.clone() == "sushiswap" {
             let tokens_data = client
@@ -3022,7 +3031,8 @@ async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>>
     let mut client_options = ClientOptions::parse(mongo_uri).await?;
     client_options.app_name = Some("Bay Watcher".to_string());
     let client = MongoClient::with_options(client_options)?;
-    let db = client.database("bayCave");
+    let db_name = dotenv::var("DB_NAME").unwrap();
+    let db = client.database(&db_name);
 
     let farms_collection = db.collection::<models::Farm>("farms");
 
@@ -3143,7 +3153,8 @@ async fn taiga_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>>
     let mut client_options = ClientOptions::parse(mongo_uri).await?;
     client_options.app_name = Some("Bay Watcher".to_string());
     let client = MongoClient::with_options(client_options)?;
-    let db = client.database("bayCave");
+    let db_name = dotenv::var("DB_NAME").unwrap();
+    let db = client.database(&db_name);
 
     let farms_collection = db.collection::<models::Farm>("farms");
 
@@ -3270,7 +3281,7 @@ async fn get_one_day_block(subgraph_url: String, query_str: String) -> u64 {
     let start = date / 1000;
     let end = date / 1000 + 600;
 
-    let subgraph_client = Client::new(subgraph_url.clone());
+    let subgraph_client = Client::new(subgraph_url.clone(), 60);
     #[derive(Serialize)]
     pub struct Vars {
         start: i64,
@@ -3302,7 +3313,7 @@ async fn get_one_day_pools(
     query_str: String,
     block_number: u64,
 ) -> Vec<subgraph::Pair> {
-    let subgraph_client = Client::new(subgraph_url.clone());
+    let subgraph_client = Client::new(subgraph_url.clone(), 60);
     #[derive(Serialize)]
     pub struct Vars {
         number: u64,
@@ -3324,8 +3335,10 @@ async fn fetch_3usd(
     taiga_query_str: String,
     karura_dex_query_str: String,
 ) -> (f64, Vec<(i32, String, f64, String)>, (f64, f64)) {
-    let subql_client =
-        Client::new("https://api.subquery.network/sq/nutsfinance/taiga-protocol".to_string());
+    let subql_client = Client::new(
+        "https://api.subquery.network/sq/nutsfinance/taiga-protocol".to_string(),
+        60,
+    );
     #[derive(Serialize)]
     pub struct Vars {
         days: i64,
@@ -3404,8 +3417,10 @@ async fn fetch_tai_ksm(
     taiga_query_str: String,
     karura_dex_query_str: String,
 ) -> (f64, Vec<(i32, String, f64, String)>, (f64, f64)) {
-    let subql_client =
-        Client::new("https://api.subquery.network/sq/nutsfinance/taiga-protocol".to_string());
+    let subql_client = Client::new(
+        "https://api.subquery.network/sq/nutsfinance/taiga-protocol".to_string(),
+        60,
+    );
     #[derive(Serialize)]
     pub struct Vars {
         days: i64,
@@ -3569,8 +3584,10 @@ async fn get_token_price_history(
     asset: String,
     days: i64,
 ) -> Vec<(f64, String)> {
-    let subql_client =
-        Client::new("https://api.subquery.network/sq/AcalaNetwork/karura-dex".to_string());
+    let subql_client = Client::new(
+        "https://api.subquery.network/sq/AcalaNetwork/karura-dex".to_string(),
+        60,
+    );
     #[derive(Serialize)]
     pub struct Vars {
         days: i64,

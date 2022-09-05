@@ -15,7 +15,7 @@ ethers = "0.13"
 ethers-providers = "0.13.0"
 eyre = "0.6.8"
 futures = "0.3"
-gql_client = { git = "https://github.com/yield-bay/gql-client-rs", rev = "ab80db6b2239eee072870b4bf4ea2975ed900be7" }
+gql_client = { git = "https://github.com/yield-bay/gql-client-rs" }
 json-decode = "0.6.0"
 log = "^0.4"
 mongodb = "2.2.0"
