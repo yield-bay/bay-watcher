@@ -9,8 +9,8 @@ use serde_json::Value;
 #[serde(rename_all = "camelCase")]
 pub struct GetFactoGaugesRoot {
     pub success: bool,
-    pub data: GetFactoGaugesData,
-    pub generated_time_ms: i64,
+    pub data: Option<GetFactoGaugesData>,
+    pub generated_time_ms: Option<i64>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -90,8 +90,8 @@ pub struct MetaData {
 #[serde(rename_all = "camelCase")]
 pub struct GetFactoryAPYsRoot {
     pub success: bool,
-    pub data: GetFactoryAPYsData,
-    pub generated_time_ms: i64,
+    pub data: Option<GetFactoryAPYsData>,
+    pub generated_time_ms: Option<i64>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -120,8 +120,8 @@ pub struct PoolDetail {
 #[serde(rename_all = "camelCase")]
 pub struct GetFactoryV2PoolsRoot {
     pub success: bool,
-    pub data: GetFactoryV2PoolsData,
-    pub generated_time_ms: i64,
+    pub data: Option<GetFactoryV2PoolsData>,
+    pub generated_time_ms: Option<i64>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
