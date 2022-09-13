@@ -223,12 +223,12 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
             solarbeam_subgraph_client.clone(),
             constants::subgraph_urls::SOLARBEAM_SUBGRAPH.clone(),
         ),
-        (
-            "beamswap",
-            "moonbeam",
-            beamswap_subgraph_client.clone(),
-            constants::subgraph_urls::BEAMSWAP_SUBGRAPH.clone(),
-        ),
+        // (
+        //     "beamswap",
+        //     "moonbeam",
+        //     beamswap_subgraph_client.clone(),
+        //     constants::subgraph_urls::BEAMSWAP_SUBGRAPH.clone(),
+        // ),
         (
             "zenlink",
             "astar",
