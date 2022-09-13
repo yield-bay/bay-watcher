@@ -135,6 +135,8 @@ abigen!(
         function balanceOf(address) external view returns (uint256)
         function token0() external view returns (address)
         function token1() external view returns (address)
+        function getReserves() external view returns (uint112, uint112, uint32)
+        function totalSupply() external view returns (uint256)
     ]"#,
 );
 
@@ -320,6 +322,279 @@ async fn chef_contract_jobs(
     let zenlink_astar_chef_address =
         "0x460ee9DBc82B2Be84ADE50629dDB09f6A1746545".parse::<Address>()?;
     let zenlink_astar_chef = IChefV2::new(zenlink_astar_chef_address, Arc::clone(&astar_client));
+
+    let wglmr_poop_stellaswap_resp = reqwest::get("https://app.geckoterminal.com/api/p1/glmr/pools/0x4efb208eeeb5a8c85af70e8fbc43d6806b422bec")
+        .await?
+        .json::<apis::geckoterminal::Root>()
+        .await?;
+
+    let stella_poop_price: f64 = wglmr_poop_stellaswap_resp
+        .clone()
+        .data
+        .attributes
+        .price_in_usd
+        .parse()
+        .unwrap_or_default();
+
+    let wglmr_poop_beamswap_resp = reqwest::get("https://app.geckoterminal.com/api/p1/glmr/pools/0xa049a6260921B5ee3183cFB943133d36d7FdB668")
+        .await?
+        .json::<apis::geckoterminal::Root>()
+        .await?;
+
+    let beam_poop_price: f64 = wglmr_poop_beamswap_resp
+        .clone()
+        .data
+        .attributes
+        .price_in_usd
+        .parse()
+        .unwrap_or_default();
+
+    let f = doc! {
+        "address": "0xFFfffFFecB45aFD30a637967995394Cc88C0c194",
+        "chain": "moonbeam",
+        "protocol": "stellaswap",
+    };
+
+    let timestamp = Utc::now().to_string();
+
+    let poop_logo = format!(
+        "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+        "POOP"
+    );
+    let u = doc! {
+        "$set" : {
+            "address": "0xFFfffFFecB45aFD30a637967995394Cc88C0c194",
+            "chain": "moonbeam",
+            "protocol": "stellaswap",
+            "name": "Raresama POOP",
+            "symbol": "POOP",
+            "decimals": 18,
+            "logos": [
+                poop_logo.clone(),
+            ],
+            "price": stella_poop_price,
+            "liquidity": 1.0,
+            "totalSupply": 1.0,
+            "isLP": false,
+            "feesAPR": 0.0,
+            "underlyingAssets": [],
+            "underlyingAssetsAlloc": [],
+            "lastUpdatedAtUTC": timestamp.clone(),
+        }
+    };
+
+    let options = FindOneAndUpdateOptions::builder()
+        .upsert(Some(true))
+        .build();
+    assets_collection
+        .find_one_and_update(f, u, Some(options))
+        .await?;
+
+    let f = doc! {
+        "address": "0xFFfffFFecB45aFD30a637967995394Cc88C0c194",
+        "chain": "moonbeam",
+        "protocol": "beamswap",
+    };
+
+    let timestamp = Utc::now().to_string();
+
+    let poop_logo = format!(
+        "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+        "POOP"
+    );
+    let u = doc! {
+        "$set" : {
+            "address": "0xFFfffFFecB45aFD30a637967995394Cc88C0c194",
+            "chain": "moonbeam",
+            "protocol": "beamswap",
+            "name": "Raresama POOP",
+            "symbol": "POOP",
+            "decimals": 18,
+            "logos": [
+                poop_logo.clone(),
+            ],
+            "price": beam_poop_price,
+            "liquidity": 1.0,
+            "totalSupply": 1.0,
+            "isLP": false,
+            "feesAPR": 0.0,
+            "underlyingAssets": [],
+            "underlyingAssetsAlloc": [],
+            "lastUpdatedAtUTC": timestamp.clone(),
+        }
+    };
+
+    let options = FindOneAndUpdateOptions::builder()
+        .upsert(Some(true))
+        .build();
+    assets_collection
+        .find_one_and_update(f, u, Some(options))
+        .await?;
+
+    let wglmr_poop_stellaswap_address =
+        "0x4EfB208eeEb5A8C85af70e8FBC43D6806b422bec".parse::<Address>()?;
+    let wglmr_poop_stellaswap_lp =
+        ILpToken::new(wglmr_poop_stellaswap_address, Arc::clone(&moonbeam_client));
+
+    let wglmr_poop_beamswap_address =
+        "0xa049a6260921B5ee3183cFB943133d36d7FdB668".parse::<Address>()?;
+    let wglmr_poop_beamswap_lp =
+        ILpToken::new(wglmr_poop_beamswap_address, Arc::clone(&moonbeam_client));
+
+    let (stellaswap_r0, stellaswap_r1, _): (u128, u128, u32) =
+        wglmr_poop_stellaswap_lp.get_reserves().call().await?;
+    let (beamswap_r0, beamswap_r1, _): (u128, u128, u32) =
+        wglmr_poop_beamswap_lp.get_reserves().call().await?;
+
+    let wglmr_poop_stellaswap_lp_ts: U256 = wglmr_poop_stellaswap_lp.total_supply().call().await?;
+    let wglmr_poop_beamswap_lp_ts: U256 = wglmr_poop_beamswap_lp.total_supply().call().await?;
+
+    // let poop_price = 0.059;
+
+    let poop_addr = "0xFFfffFFecB45aFD30a637967995394Cc88C0c194";
+    let wglmr_addr = "0xAcc15dC74880C9944775448304B263D191c6077F";
+
+    let wglmr_stellaswap_filter =
+        doc! {"chain":"moonbeam", "protocol":"stellaswap", "address": wglmr_addr};
+    let wglmr_stellaswap_asset = assets_collection
+        .find_one(wglmr_stellaswap_filter, None)
+        .await?;
+    let poop_stellaswap_filter =
+        doc! {"chain":"moonbeam", "protocol":"stellaswap", "address": poop_addr};
+    let poop_stellaswap_asset = assets_collection
+        .find_one(poop_stellaswap_filter, None)
+        .await?;
+
+    let wglmr_beamswap_filter =
+        doc! {"chain":"moonbeam", "protocol":"beamswap", "address": wglmr_addr};
+    let wglmr_beamswap_asset = assets_collection
+        .find_one(wglmr_beamswap_filter, None)
+        .await?;
+    let poop_beamswap_filter =
+        doc! {"chain":"moonbeam", "protocol":"beamswap", "address": poop_addr};
+    let poop_beamswap_asset = assets_collection
+        .find_one(poop_beamswap_filter, None)
+        .await?;
+
+    let ten: f64 = 10.0;
+
+    let stellaswap_wglmr_poop_liq = wglmr_stellaswap_asset.clone().unwrap().price
+        * stellaswap_r0 as f64
+        + poop_stellaswap_asset.clone().unwrap().price * stellaswap_r1 as f64;
+    let beamswap_wglmr_poop_liq = wglmr_beamswap_asset.clone().unwrap().price * beamswap_r0 as f64
+        + poop_beamswap_asset.clone().unwrap().price * beamswap_r1 as f64;
+
+    println!(
+        "stellaswap_wglmr_poop_liq {:?} wglmr_poop_stellaswap_lp_ts {:?} lpprice {:}",
+        stellaswap_wglmr_poop_liq / ten.powf(18.0),
+        wglmr_poop_stellaswap_lp_ts.as_u128() as f64 / ten.powf(18.0),
+        stellaswap_wglmr_poop_liq / wglmr_poop_stellaswap_lp_ts.as_u128() as f64
+    );
+
+    println!(
+        "beamswap_wglmr_poop_liq {:?} wglmr_poop_beamswap_lp_ts {:?} lpprice {:}",
+        beamswap_wglmr_poop_liq / ten.powf(18.0),
+        wglmr_poop_beamswap_lp_ts.as_u128() as f64 / ten.powf(18.0),
+        beamswap_wglmr_poop_liq / wglmr_poop_beamswap_lp_ts.as_u128() as f64
+    );
+
+    let f = doc! {
+        "address": "0x4EfB208eeEb5A8C85af70e8FBC43D6806b422bec",
+        "chain": "moonbeam",
+        "protocol": "stellaswap",
+    };
+
+    let timestamp = Utc::now().to_string();
+
+    let wglmr_logo = format!(
+        "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+        "WGLMR"
+    );
+    let poop_logo = format!(
+        "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+        "POOP"
+    );
+    let u = doc! {
+        "$set" : {
+            "address": "0x4EfB208eeEb5A8C85af70e8FBC43D6806b422bec",
+            "chain": "moonbeam",
+            "protocol": "stellaswap",
+            "name": "WGLMR-POOP LP",
+            "symbol": "WGLMR-POOP LP",
+            "decimals": 18,
+            "logos": [
+                wglmr_logo.clone(),
+                poop_logo.clone(),
+            ],
+            "price": stellaswap_wglmr_poop_liq / wglmr_poop_stellaswap_lp_ts.as_u128() as f64,
+            "liquidity": stellaswap_wglmr_poop_liq / ten.powf(18.0),
+            "totalSupply": wglmr_poop_stellaswap_lp_ts.as_u128() as f64 / ten.powf(18.0),
+            "isLP": true,
+            "feesAPR": 0.0,
+            "underlyingAssets": [
+                wglmr_stellaswap_asset.clone().unwrap().address,
+                poop_stellaswap_asset.clone().unwrap().address,
+            ],
+            "underlyingAssetsAlloc": [0.5, 0.5],
+            "lastUpdatedAtUTC": timestamp.clone(),
+        }
+    };
+
+    let options = FindOneAndUpdateOptions::builder()
+        .upsert(Some(true))
+        .build();
+    assets_collection
+        .find_one_and_update(f, u, Some(options))
+        .await?;
+
+    let f = doc! {
+        "address": "0xa049a6260921B5ee3183cFB943133d36d7FdB668",
+        "chain": "moonbeam",
+        "protocol": "beamswap",
+    };
+
+    let timestamp = Utc::now().to_string();
+
+    let wglmr_logo = format!(
+        "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+        "WGLMR"
+    );
+    let poop_logo = format!(
+        "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+        "POOP"
+    );
+    let u = doc! {
+        "$set" : {
+            "address": "0xa049a6260921B5ee3183cFB943133d36d7FdB668",
+            "chain": "moonbeam",
+            "protocol": "beamswap",
+            "name": "WGLMR-POOP LP",
+            "symbol": "WGLMR-POOP LP",
+            "decimals": 18,
+            "logos": [
+                wglmr_logo.clone(),
+                poop_logo.clone(),
+            ],
+            "price": beamswap_wglmr_poop_liq / wglmr_poop_beamswap_lp_ts.as_u128() as f64,
+            "liquidity": beamswap_wglmr_poop_liq / ten.powf(18.0),
+            "totalSupply": wglmr_poop_beamswap_lp_ts.as_u128() as f64 / ten.powf(18.0),
+            "isLP": true,
+            "feesAPR": 0.0,
+            "underlyingAssets": [
+                wglmr_beamswap_asset.clone().unwrap().address,
+                poop_beamswap_asset.clone().unwrap().address,
+            ],
+            "underlyingAssetsAlloc": [0.5, 0.5],
+            "lastUpdatedAtUTC": timestamp.clone(),
+        }
+    };
+
+    let options = FindOneAndUpdateOptions::builder()
+        .upsert(Some(true))
+        .build();
+    assets_collection
+        .find_one_and_update(f, u, Some(options))
+        .await?;
 
     let protocols = vec![
         (
@@ -2281,6 +2556,36 @@ async fn subgraph_jobs(
     let db = client.database(&db_name);
 
     let assets_collection = db.collection::<models::Asset>("assets");
+
+    // let wglmr_poop_stellaswap="https://www.dextools.io/chain-moonbeam/api/pair/search?p=0x4efb208eeeb5a8c85af70e8fbc43d6806b422bec";
+    // let wglmr_poop_beamswap="https://www.dextools.io/chain-moonbeam/api/pair/search?p=0xa049a6260921b5ee3183cfb943133d36d7fdb668";
+
+    // // let wglmr_poop_stellaswap_client =
+    // //     Client::new_with_headers(&wglmr_poop_stellaswap, 60, headers.clone());
+    // // let wglmr_poop_beamswap_client =
+    // //     Client::new_with_headers(&wglmr_poop_beamswap, 60, headers.clone());
+
+    // let wglmr_poop_stellaswap_resp = reqwest::get(wglmr_poop_stellaswap)
+    //     .await?
+    //     .json()
+    //     // .json::<apis::dextools::Root>()
+    //     .await?;
+
+    // println!(
+    //     "wglmr_poop_stellaswap_resp {:?}",
+    //     wglmr_poop_stellaswap_resp
+    // );
+
+    // let wglmr_poop_beamswap_resp = reqwest::get(wglmr_poop_beamswap)
+    //     .await?
+    //     .json()
+    //     // .json::<apis::dextools::Root>()
+    //     .await?;
+
+    // println!("wglmr_poop_beamswap_resp {:?}", wglmr_poop_beamswap_resp);
+
+    // let delay = time::Duration::from_secs(60 * 5);
+    // thread::sleep(delay);
 
     for p in protocols {
         println!("subgraph data for {} on {}", p.0.clone(), p.1.clone());
