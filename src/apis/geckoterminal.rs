@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -10,9 +9,9 @@ pub struct Root {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Data {
-    pub id: String,
+    pub id: Option<String>,
     #[serde(rename = "type")]
-    pub type_field: String,
+    pub type_field: Option<String>,
     pub attributes: Attributes,
     pub relationships: Relationships,
 }
@@ -20,32 +19,32 @@ pub struct Data {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Attributes {
-    pub address: String,
-    pub name: String,
+    pub address: Option<String>,
+    pub name: Option<String>,
     #[serde(rename = "fully_diluted_valuation")]
-    pub fully_diluted_valuation: String,
+    pub fully_diluted_valuation: Option<String>,
     #[serde(rename = "from_volume_in_usd")]
-    pub from_volume_in_usd: String,
+    pub from_volume_in_usd: Option<String>,
     #[serde(rename = "to_volume_in_usd")]
-    pub to_volume_in_usd: String,
+    pub to_volume_in_usd: Option<String>,
     #[serde(rename = "swap_count_24h")]
     pub swap_count_24h: i64,
     #[serde(rename = "reserve_threshold_met")]
     pub reserve_threshold_met: bool,
     #[serde(rename = "price_in_usd")]
-    pub price_in_usd: String,
+    pub price_in_usd: Option<String>,
     #[serde(rename = "base_token_id")]
-    pub base_token_id: String,
+    pub base_token_id: Option<String>,
     #[serde(rename = "reserve_in_usd")]
-    pub reserve_in_usd: String,
+    pub reserve_in_usd: Option<String>,
     #[serde(rename = "pool_fee")]
-    pub pool_fee: Value,
+    pub pool_fee: Option<String>,
     #[serde(rename = "swap_url")]
-    pub swap_url: String,
+    pub swap_url: Option<String>,
     #[serde(rename = "historical_data")]
     pub historical_data: HistoricalData,
     #[serde(rename = "price_percent_change")]
-    pub price_percent_change: String,
+    pub price_percent_change: Option<String>,
     #[serde(rename = "price_percent_changes")]
     pub price_percent_changes: PricePercentChanges,
     #[serde(rename = "sentiment_votes")]
@@ -75,9 +74,9 @@ pub struct Last5m {
     #[serde(rename = "swaps_count")]
     pub swaps_count: i64,
     #[serde(rename = "price_in_usd")]
-    pub price_in_usd: String,
+    pub price_in_usd: Option<String>,
     #[serde(rename = "volume_in_usd")]
-    pub volume_in_usd: String,
+    pub volume_in_usd: Option<String>,
     #[serde(rename = "buy_swaps_count")]
     pub buy_swaps_count: i64,
     #[serde(rename = "sell_swaps_count")]
@@ -90,9 +89,9 @@ pub struct Last15m {
     #[serde(rename = "swaps_count")]
     pub swaps_count: i64,
     #[serde(rename = "price_in_usd")]
-    pub price_in_usd: String,
+    pub price_in_usd: Option<String>,
     #[serde(rename = "volume_in_usd")]
-    pub volume_in_usd: String,
+    pub volume_in_usd: Option<String>,
     #[serde(rename = "buy_swaps_count")]
     pub buy_swaps_count: i64,
     #[serde(rename = "sell_swaps_count")]
@@ -105,9 +104,9 @@ pub struct Last30m {
     #[serde(rename = "swaps_count")]
     pub swaps_count: i64,
     #[serde(rename = "price_in_usd")]
-    pub price_in_usd: String,
+    pub price_in_usd: Option<String>,
     #[serde(rename = "volume_in_usd")]
-    pub volume_in_usd: String,
+    pub volume_in_usd: Option<String>,
     #[serde(rename = "buy_swaps_count")]
     pub buy_swaps_count: i64,
     #[serde(rename = "sell_swaps_count")]
@@ -120,9 +119,9 @@ pub struct Last1h {
     #[serde(rename = "swaps_count")]
     pub swaps_count: i64,
     #[serde(rename = "price_in_usd")]
-    pub price_in_usd: String,
+    pub price_in_usd: Option<String>,
     #[serde(rename = "volume_in_usd")]
-    pub volume_in_usd: String,
+    pub volume_in_usd: Option<String>,
     #[serde(rename = "buy_swaps_count")]
     pub buy_swaps_count: i64,
     #[serde(rename = "sell_swaps_count")]
@@ -135,9 +134,9 @@ pub struct Last6h {
     #[serde(rename = "swaps_count")]
     pub swaps_count: i64,
     #[serde(rename = "price_in_usd")]
-    pub price_in_usd: String,
+    pub price_in_usd: Option<String>,
     #[serde(rename = "volume_in_usd")]
-    pub volume_in_usd: String,
+    pub volume_in_usd: Option<String>,
     #[serde(rename = "buy_swaps_count")]
     pub buy_swaps_count: i64,
     #[serde(rename = "sell_swaps_count")]
@@ -150,9 +149,9 @@ pub struct Last24h {
     #[serde(rename = "swaps_count")]
     pub swaps_count: i64,
     #[serde(rename = "price_in_usd")]
-    pub price_in_usd: String,
+    pub price_in_usd: Option<String>,
     #[serde(rename = "volume_in_usd")]
-    pub volume_in_usd: String,
+    pub volume_in_usd: Option<String>,
     #[serde(rename = "buy_swaps_count")]
     pub buy_swaps_count: i64,
     #[serde(rename = "sell_swaps_count")]
@@ -163,17 +162,17 @@ pub struct Last24h {
 #[serde(rename_all = "camelCase")]
 pub struct PricePercentChanges {
     #[serde(rename = "last_5m")]
-    pub last_5m: String,
+    pub last_5m: Option<String>,
     #[serde(rename = "last_15m")]
-    pub last_15m: String,
+    pub last_15m: Option<String>,
     #[serde(rename = "last_30m")]
-    pub last_30m: String,
+    pub last_30m: Option<String>,
     #[serde(rename = "last_1h")]
-    pub last_1h: String,
+    pub last_1h: Option<String>,
     #[serde(rename = "last_6h")]
-    pub last_6h: String,
+    pub last_6h: Option<String>,
     #[serde(rename = "last_24h")]
-    pub last_24h: String,
+    pub last_24h: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -181,9 +180,9 @@ pub struct PricePercentChanges {
 pub struct SentimentVotes {
     pub total: f64,
     #[serde(rename = "up_percentage")]
-    pub up_percentage: f64,
+    pub up_percentage: i64,
     #[serde(rename = "down_percentage")]
-    pub down_percentage: f64,
+    pub down_percentage: i64,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -204,9 +203,9 @@ pub struct Dex {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Data2 {
-    pub id: String,
+    pub id: Option<String>,
     #[serde(rename = "type")]
-    pub type_field: String,
+    pub type_field: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -218,9 +217,9 @@ pub struct Tokens {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Daum {
-    pub id: String,
+    pub id: Option<String>,
     #[serde(rename = "type")]
-    pub type_field: String,
+    pub type_field: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -232,7 +231,7 @@ pub struct PoolMetric {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Data3 {
-    pub id: String,
+    pub id: Option<String>,
     #[serde(rename = "type")]
-    pub type_field: String,
+    pub type_field: Option<String>,
 }

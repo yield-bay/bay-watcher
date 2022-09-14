@@ -333,6 +333,7 @@ async fn chef_contract_jobs(
         .data
         .attributes
         .price_in_usd
+        .unwrap_or_default()
         .parse()
         .unwrap_or_default();
 
@@ -346,6 +347,7 @@ async fn chef_contract_jobs(
         .data
         .attributes
         .price_in_usd
+        .unwrap_or_default()
         .parse()
         .unwrap_or_default();
 
