@@ -142,7 +142,7 @@ abigen!(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let delay = time::Duration::from_secs(60 * 2);
+    let delay = time::Duration::from_secs(60 * 3);
     loop {
         run_jobs().await.unwrap();
         thread::sleep(delay);
@@ -223,12 +223,12 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
             solarbeam_subgraph_client.clone(),
             constants::subgraph_urls::SOLARBEAM_SUBGRAPH.clone(),
         ),
-        // (
-        //     "beamswap",
-        //     "moonbeam",
-        //     beamswap_subgraph_client.clone(),
-        //     constants::subgraph_urls::BEAMSWAP_SUBGRAPH.clone(),
-        // ),
+        (
+            "beamswap",
+            "moonbeam",
+            beamswap_subgraph_client.clone(),
+            constants::subgraph_urls::BEAMSWAP_SUBGRAPH.clone(),
+        ),
         (
             "zenlink",
             "astar",
