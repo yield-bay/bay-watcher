@@ -178,11 +178,11 @@ pub struct PricePercentChanges {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SentimentVotes {
-    pub total: f64,
+    pub total: Option<f64>,
     #[serde(rename = "up_percentage")]
-    pub up_percentage: i64,
+    pub up_percentage: Option<f64>,
     #[serde(rename = "down_percentage")]
-    pub down_percentage: i64,
+    pub down_percentage: Option<f64>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
