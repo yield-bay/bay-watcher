@@ -136,7 +136,7 @@ pub struct PoolDaum {
     pub address: String,
     pub coins_addresses: Vec<String>,
     pub decimals: Vec<String>,
-    pub underlying_decimals: Vec<String>,
+    pub underlying_decimals: Option<Vec<String>>,
     pub asset_type: String,
     pub total_supply: String,
     pub implementation_address: String,
