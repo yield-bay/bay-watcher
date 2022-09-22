@@ -170,6 +170,11 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
         60,
         headers.clone(),
     );
+    let solarflare_subgraph_client = Client::new_with_headers(
+        constants::subgraph_urls::SOLARFLARE_SUBGRAPH.clone(),
+        60,
+        headers.clone(),
+    );
     let stellaswap_subgraph_client = Client::new_with_headers(
         constants::subgraph_urls::STELLASWAP_SUBGRAPH.clone(),
         60,
@@ -210,6 +215,12 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
     // subgraph fetching jobs
 
     let protocols = vec![
+        (
+            "solarflare",
+            "moonbeam",
+            solarflare_subgraph_client.clone(),
+            constants::subgraph_urls::SOLARFLARE_SUBGRAPH.clone(),
+        ),
         (
             "zenlink",
             "moonriver",
@@ -264,6 +275,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
         solarbeam_subgraph_client.clone(),
         zenlink_astar_subsquid_client.clone(),
         zenlink_moonriver_subsquid_client.clone(),
+        solarflare_subgraph_client.clone(),
     )
     .await
     .unwrap();
@@ -279,6 +291,7 @@ async fn chef_contract_jobs(
     solarbeam_subgraph_client: Client,
     zenlink_astar_subsquid_client: Client,
     zenlink_moonriver_subsquid_client: Client,
+    solarflare_subgraph_client: Client,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut client_options = ClientOptions::parse(mongo_uri).await?;
     client_options.app_name = Some("Bay Watcher".to_string());
@@ -318,6 +331,10 @@ async fn chef_contract_jobs(
 
     let solarbeam_chef_address = "0x0329867a8c457e9F75e25b0685011291CD30904F".parse::<Address>()?;
     let solarbeam_chef = IChefV2::new(solarbeam_chef_address, Arc::clone(&moonriver_client));
+
+    let solarflare_chef_address =
+        "0x995da7dfB96B4dd1e2bd954bE384A1e66cBB4b8c".parse::<Address>()?;
+    let solarflare_chef = IChefV2::new(solarflare_chef_address, Arc::clone(&moonbeam_client));
 
     let stella_chef_v1_address = "0xEDFB330F5FA216C9D2039B99C8cE9dA85Ea91c1E".parse::<Address>()?;
     let stella_chef_v1 = IChefV2::new(stella_chef_v1_address, Arc::clone(&moonbeam_client));
@@ -619,6 +636,17 @@ async fn chef_contract_jobs(
         .await?;
 
     let protocols = vec![
+        (
+            solarflare_chef_address,
+            solarflare_chef,
+            "moonbeam".to_string(),
+            "solarflare".to_string(),
+            "v2".to_string(),
+            "0x995da7dfB96B4dd1e2bd954bE384A1e66cBB4b8c".to_string(),
+            solarflare_subgraph_client.clone(),
+            constants::subgraph_urls::SOLARFLARE_SUBGRAPH.clone(),
+            moonbeam_client.clone(),
+        ),
         (
             zenlink_moonriver_chef_address,
             zenlink_moonriver_chef,
@@ -2576,6 +2604,17 @@ async fn chef_contract_jobs(
                                         vars,
                                     )
                                     .await;
+
+                                let usdc_nomad_solarflare_filter = doc! { "address": "0x818ec0A7Fe18Ff94269904fCED6AE3DaE6d6dC0b", "protocol": "solarflare", "chain": "moonbeam" };
+                                let usdc_nomad_solarflare = assets_collection
+                                    .find_one(usdc_nomad_solarflare_filter, None)
+                                    .await?;
+
+                                println!(
+                                    "usdc_nomad_solarflare {:?}",
+                                    usdc_nomad_solarflare.clone().unwrap()
+                                );
+
                                 if pair_day_datas.is_ok() {
                                     let mut daily_volume_lw: f64 = 0.0;
                                     for pdd in pair_day_datas.clone().unwrap().pair_day_datas {
@@ -2594,6 +2633,13 @@ async fn chef_contract_jobs(
                                         base_apr = daily_volume_lw * 0.002 * 365.0 * 100.0
                                             / (asset.clone().unwrap_or_default().total_supply
                                                 * asset.clone().unwrap_or_default().price);
+                                        if p.3.clone() == "solarflare" {
+                                            println!(
+                                                "thisisdway {:?}",
+                                                usdc_nomad_solarflare.clone().unwrap().price
+                                            );
+                                            base_apr /= usdc_nomad_solarflare.unwrap().price;
+                                        }
                                     }
                                 }
 
@@ -2757,6 +2803,8 @@ async fn subgraph_jobs(
         println!("subgraph data for {} on {}", p.0.clone(), p.1.clone());
 
         let client = Client::new_with_headers(p.3.clone(), 60, headers.clone());
+
+        let mut nomad_usdc_price = 1.0;
 
         if p.0.clone() == "sushiswap" {
             let tokens_data = client
@@ -2994,6 +3042,20 @@ async fn subgraph_jobs(
                     {
                         let xcksm = assets_collection.find_one(doc! {"chain":"moonriver", "protocol":"solarbeam", "address":"0xFfFFfFff1FcaCBd218EDc0EbA20Fc2308C778080"}, None).await?;
                         price_usd = xcksm.clone().unwrap().price;
+                    }
+
+                    if p.0.clone() == "solarflare" {
+                        // let mut nomad_usdc_price = 1.0;
+                        for ft in tokens_data.clone().unwrap().tokens.clone() {
+                            if ft.id == "0x818ec0a7fe18ff94269904fced6ae3dae6d6dc0b" {
+                                nomad_usdc_price =
+                                    ft.token_day_data[0].price_usd.parse().unwrap_or_default();
+                                println!("found moonbeam nomadusdc {:?}", nomad_usdc_price);
+                            }
+                        }
+                        if t.id != "0x818ec0a7fe18ff94269904fced6ae3dae6d6dc0b" {
+                            price_usd = price_usd / nomad_usdc_price;
+                        }
                     }
 
                     let f = doc! {
@@ -3433,6 +3495,11 @@ async fn subgraph_jobs(
                     if pair_addr.clone() == "0x5568872bc43Bae3757F697c0e1b241b62Eddcc17" {
                         liquidity *= 2.0;
                     }
+
+                    if p.0.clone() == "solarflare" {
+                        liquidity = liquidity / nomad_usdc_price;
+                    }
+
                     let total_supply: f64 = pair.total_supply.parse().unwrap_or_default();
 
                     let mut price_usd: f64 = 0.0;
@@ -3447,6 +3514,10 @@ async fn subgraph_jobs(
                     let odv = one_day_volume_usd.get(&pair_addr.clone());
                     if odv.is_some() {
                         fees_apr = odv.unwrap() * 0.0025 * 365.0 * 100.0 / liquidity;
+                        if p.0.clone() == "solarflare" {
+                            fees_apr = (odv.unwrap() / nomad_usdc_price) * 0.0025 * 365.0 * 100.0
+                                / liquidity;
+                        }
                     }
 
                     let f = doc! {

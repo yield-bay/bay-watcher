@@ -297,6 +297,8 @@ pub mod subsquid {
 pub mod subgraph_urls {
     pub const SOLARBEAM_SUBGRAPH: &str =
         "https://api.thegraph.com/subgraphs/name/solar-ape/solarbeam";
+    pub const SOLARFLARE_SUBGRAPH: &str =
+        "https://api.thegraph.com/subgraphs/name/solarbeamio/solarflare-subgraph";
     pub const STELLASWAP_SUBGRAPH: &str =
         "https://api.thegraph.com/subgraphs/name/stellaswap/stella-swap";
     pub const BEAMSWAP_SUBGRAPH: &str =
