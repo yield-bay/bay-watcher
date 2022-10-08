@@ -3725,6 +3725,28 @@ async fn taiga_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>>
 
     let farms_collection = db.collection::<models::Farm>("farms");
 
+    // https://api.taigaprotocol.io/rewards
+
+    let taiga_rewards_resp = reqwest::get("https://api.taigaprotocol.io/rewards")
+        .await?
+        .json::<apis::taiga::Root>()
+        .await?;
+
+    println!("taiga_rewards_resp {:?}", taiga_rewards_resp);
+
+    let tai_ksm_base_apr = taiga_rewards_resp.clone().taiksm.unwrap().taiksm_fee.apr * 100.0;
+    let tai_ksm_reward_apr = (taiga_rewards_resp.clone().taiksm.unwrap().kar_reward.apr as f64
+        + taiga_rewards_resp.clone().taiksm.unwrap().tai_reward.apr
+        + taiga_rewards_resp.clone().taiksm.unwrap().taiksm_yield.apr)
+        * 100.0;
+
+    let _3usd_base_apr = taiga_rewards_resp.clone().n3usd.unwrap().n3usd_fee.apr * 100.0;
+    let _3usd_reward_apr = (taiga_rewards_resp.clone().n3usd.unwrap().kar_reward.apr
+        + taiga_rewards_resp.clone().n3usd.unwrap().lksm_reward.apr
+        + taiga_rewards_resp.clone().n3usd.unwrap().tai_reward.apr
+        + taiga_rewards_resp.clone().n3usd.unwrap().taiksm_reward.apr)
+        * 100.0;
+
     let _tai_ksm = fetch_tai_ksm(
         constants::taiga::DAILY_DATA_TAI_KSM_QUERY.to_owned(),
         constants::taiga::TOKEN_PRICE_HISTORY_QUERY.to_owned(),
@@ -3774,8 +3796,8 @@ async fn taiga_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>>
                     "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/list/taiKSM.png".to_string()],
                 },
                 "tvl": _tai_ksm.0 as f64,
-                "apr.reward": _tai_ksm.2.1 as f64 * 100.0,
-                "apr.base": _tai_ksm.2.0 as f64 * 100.0,
+                "apr.reward": tai_ksm_reward_apr, // _tai_ksm.2.1 as f64 * 100.0,
+                "apr.base": tai_ksm_base_apr, // _tai_ksm.2.0 as f64 * 100.0,
                 "rewards": tai_ksm_rewards,
                 "allocPoint": 1,
                 "lastUpdatedAtUTC": timestamp.clone(),
@@ -3825,8 +3847,8 @@ async fn taiga_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>>
                     "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/list/3USD.png".to_string()],
                 },
                 "tvl": _3usd.0 as f64,
-                "apr.reward": _3usd.2.1 as f64 * 100.0,
-                "apr.base": _3usd.2.0 as f64 * 100.0,
+                "apr.reward": _3usd_reward_apr, // _3usd.2.1 as f64 * 100.0,
+                "apr.base": _3usd_base_apr, // _3usd.2.0 as f64 * 100.0,
                 "rewards": _3usd_rewards,
                 "allocPoint": 1,
                 "lastUpdatedAtUTC": timestamp.clone(),
