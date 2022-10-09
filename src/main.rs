@@ -3760,7 +3760,8 @@ async fn taiga_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>>
 
     println!("_tai_ksm:\n{:?}\n_3usd:\n{:?}", _tai_ksm.0, _3usd.0);
 
-    if _tai_ksm.0 != 0.0 && _tai_ksm.1.len() > 0 {
+    // if _tai_ksm.0 != 0.0 && _tai_ksm.1.len() > 0 {
+    if _tai_ksm.0 != 0.0 {
         let mut tai_ksm_rewards = vec![];
         for r in _tai_ksm.1.clone() {
             tai_ksm_rewards.push(bson!({
@@ -3809,9 +3810,12 @@ async fn taiga_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>>
         farms_collection
             .find_one_and_update(tai_ksm_ff, tai_ksm_fu, Some(options))
             .await?;
+    } else {
+        println!("tksmf");
     }
 
-    if _3usd.0 != 0.0 && _3usd.1.len() > 0 {
+    // if _3usd.0 != 0.0 && _3usd.1.len() > 0 {
+    if _3usd.0 != 0.0 {
         let mut _3usd_rewards = vec![];
         for r in _3usd.1.clone() {
             _3usd_rewards.push(bson!({
@@ -3860,6 +3864,8 @@ async fn taiga_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>>
         farms_collection
             .find_one_and_update(_3usd_ff, _3usd_fu, Some(options))
             .await?;
+    } else {
+        println!("3usdf");
     }
 
     Ok(())
@@ -4174,7 +4180,8 @@ async fn get_token_price_history(
     days: i64,
 ) -> Vec<(f64, String)> {
     let subql_client = Client::new(
-        "https://api.subquery.network/sq/AcalaNetwork/karura-dex".to_string(),
+        // "https://api.subquery.network/sq/AcalaNetwork/karura-dex".to_string(),
+        "https://dashboard.nuts.finance/api/datasources/proxy/7".to_string(),
         60,
     );
     #[derive(Serialize)]
