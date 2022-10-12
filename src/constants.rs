@@ -309,6 +309,8 @@ pub mod subgraph_urls {
         "https://squid.subsquid.io/zlk-astar-subsquid/v/1/graphql";
     pub const ZENLINK_MOONRIVER_SUBSQUID: &str =
         "https://squid.subsquid.io/zlk-moonriver-subsquid/v/1/graphql";
+    pub const ZENLINK_MOONBEAM_SUBSQUID: &str =
+        "https://squid.subsquid.io/zlk-moonbeam-squid/v/23/graphql";
 
     pub const SOLARBEAM_BLOCKLYTICS_SUBGRAPH: &str =
         "https://api.thegraph.com/subgraphs/name/solarbeamio/blocklytics";

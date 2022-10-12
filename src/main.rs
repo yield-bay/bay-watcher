@@ -200,6 +200,11 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
         60,
         headers.clone(),
     );
+    let zenlink_moonbeam_subsquid_client = Client::new_with_headers(
+        constants::subgraph_urls::ZENLINK_MOONBEAM_SUBSQUID.clone(),
+        60,
+        headers.clone(),
+    );
 
     let _moonriver_blocklytics_client = Client::new_with_headers(
         constants::subgraph_urls::SOLARBEAM_BLOCKLYTICS_SUBGRAPH.clone(),
@@ -215,6 +220,12 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
     // subgraph fetching jobs
 
     let protocols = vec![
+        (
+            "zenlink",
+            "moonbeam",
+            zenlink_moonbeam_subsquid_client.clone(),
+            constants::subgraph_urls::ZENLINK_MOONBEAM_SUBSQUID.clone(),
+        ),
         (
             "solarflare",
             "moonbeam",
@@ -275,6 +286,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
         solarbeam_subgraph_client.clone(),
         zenlink_astar_subsquid_client.clone(),
         zenlink_moonriver_subsquid_client.clone(),
+        zenlink_moonbeam_subsquid_client.clone(),
         solarflare_subgraph_client.clone(),
     )
     .await
@@ -291,6 +303,7 @@ async fn chef_contract_jobs(
     solarbeam_subgraph_client: Client,
     zenlink_astar_subsquid_client: Client,
     zenlink_moonriver_subsquid_client: Client,
+    zenlink_moonbeam_subsquid_client: Client,
     solarflare_subgraph_client: Client,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut client_options = ClientOptions::parse(mongo_uri).await?;
@@ -359,6 +372,11 @@ async fn chef_contract_jobs(
         zenlink_moonriver_chef_address,
         Arc::clone(&moonriver_client),
     );
+
+    let zenlink_moonbeam_chef_address =
+        "0xD6708344553cd975189cf45AAe2AB3cd749661f4".parse::<Address>()?;
+    let zenlink_moonbeam_chef =
+        IChefV2::new(zenlink_moonbeam_chef_address, Arc::clone(&moonbeam_client));
 
     let wglmr_poop_stellaswap_resp = reqwest::get("https://app.geckoterminal.com/api/p1/glmr/pools/0x4efb208eeeb5a8c85af70e8fbc43d6806b422bec")
         .await?
@@ -637,6 +655,17 @@ async fn chef_contract_jobs(
 
     let protocols = vec![
         (
+            zenlink_moonbeam_chef_address,
+            zenlink_moonbeam_chef,
+            "moonbeam".to_string(),
+            "zenlink".to_string(),
+            "v3".to_string(),
+            "0xD6708344553cd975189cf45AAe2AB3cd749661f4".to_string(),
+            zenlink_moonbeam_subsquid_client.clone(),
+            constants::subgraph_urls::ZENLINK_MOONBEAM_SUBSQUID.clone(),
+            moonbeam_client.clone(),
+        ),
+        (
             solarflare_chef_address,
             solarflare_chef,
             "moonbeam".to_string(),
@@ -746,6 +775,9 @@ async fn chef_contract_jobs(
                 if p.2.clone() == "moonriver".to_string() {
                     zenlink_chef =
                         IFarming::new(zenlink_chef_address, Arc::clone(&moonriver_client));
+                } else if p.2.clone() == "moonbeam".to_string() {
+                    zenlink_chef =
+                        IFarming::new(zenlink_chef_address, Arc::clone(&moonbeam_client));
                 }
 
                 let (
@@ -1024,6 +1056,9 @@ async fn chef_contract_jobs(
                 } else if pid == 1 && p.2.clone() == "moonriver".to_string() {
                     // zlk on moonriver
                     farm_type = models::FarmType::SingleStaking;
+                } else if pid == 1 && p.2.clone() == "moonbeam".to_string() {
+                    // zlk on moonbeam
+                    farm_type = models::FarmType::SingleStaking;
                 }
 
                 let mut asset_filter = doc! { "address": ft_addr.clone(), "chain": p.2.clone(), "protocol": "zenlink" };
@@ -1078,6 +1113,8 @@ async fn chef_contract_jobs(
                             let mut block_time = constants::utils::ASTAR_BLOCK_TIME;
                             if p.2.clone() == "moonriver".to_string() {
                                 block_time = constants::utils::MOONRIVER_BLOCK_TIME;
+                            } else if p.2.clone() == "moonbeam".to_string() {
+                                block_time = constants::utils::MOONBEAM_BLOCK_TIME;
                             }
 
                             let rpb = reward_per_block[i].as_u128();
