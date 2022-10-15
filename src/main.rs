@@ -11,7 +11,7 @@ use ethers::{
 };
 use gql_client::Client;
 use mongodb::{
-    bson::{bson, doc},
+    bson::{bson, doc, Bson},
     options::{ClientOptions, FindOneAndUpdateOptions},
     Client as MongoClient,
 };
@@ -3762,6 +3762,13 @@ async fn taiga_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>>
 
     let farms_collection = db.collection::<models::Farm>("farms");
 
+    let tapio_rewards_resp = reqwest::get("https://api.taigaprotocol.io/rewards?network=acala")
+        .await?
+        .json::<apis::tapio::Root>()
+        .await?;
+
+    println!("tapio_rewards_resp {:?}", tapio_rewards_resp);
+
     // https://api.taigaprotocol.io/rewards
 
     let taiga_rewards_resp = reqwest::get("https://api.taigaprotocol.io/rewards")
@@ -3795,7 +3802,62 @@ async fn taiga_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>>
     )
     .await;
 
-    println!("_tai_ksm:\n{:?}\n_3usd:\n{:?}", _tai_ksm.0, _3usd.0);
+    let _t_dot = fetch_t_dot(
+        constants::taiga::DAILY_DATA_TAI_KSM_QUERY.to_owned(),
+        constants::taiga::TOKEN_PRICE_HISTORY_QUERY.to_owned(),
+    )
+    .await
+    .unwrap();
+
+    println!(
+        "_tai_ksm:\n{:?}\n_3usd:\n{:?}\n_t_dot:{:?}",
+        _tai_ksm.0, _3usd.0, _t_dot.0
+    );
+
+    // tDOT (DOT-LDOT)
+    let t_dot_base_apr = tapio_rewards_resp.clone().tdot.tdot_fee.apr * 100.0;
+    let t_dot_reward_apr = tapio_rewards_resp.clone().tdot.tdot_yield.apr * 100.0;
+
+    let t_dot_rewards: Vec<Bson> = vec![];
+
+    let timestamp = Utc::now().to_string();
+
+    println!("tDOT farm lastUpdatedAtUTC {}", timestamp.clone());
+
+    let t_dot_ff = doc! {
+        "id": 1,
+        "chef": "tDOT".to_string(),
+        "chain": "acala".to_string(),
+        "protocol": "tapio".to_string(),
+    };
+    let t_dot_fu = doc! {
+        "$set" : {
+            "id": 0,
+            "chef": "tDOT".to_string(),
+            "chain": "acala".to_string(),
+            "protocol": "tapio".to_string(),
+            "farmType": models::FarmType::StableAmm.to_string(),
+            "farmImpl": models::FarmImplementation::Pallet.to_string(),
+            "asset": {
+                "symbol": "tDOT".to_string(),
+                "address": "tDOT".to_string(),
+                "price": 0 as f64,
+                "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/list/tDOT.png".to_string()],
+            },
+            "tvl": _t_dot.0 as f64,
+            "apr.reward": t_dot_reward_apr, // _3usd.2.1 as f64 * 100.0,
+            "apr.base": t_dot_base_apr, // _3usd.2.0 as f64 * 100.0,
+            "rewards": t_dot_rewards,
+            "allocPoint": 1,
+            "lastUpdatedAtUTC": timestamp.clone(),
+        }
+    };
+    let options = FindOneAndUpdateOptions::builder()
+        .upsert(Some(true))
+        .build();
+    farms_collection
+        .find_one_and_update(t_dot_ff, t_dot_fu, Some(options))
+        .await?;
 
     // if _tai_ksm.0 != 0.0 && _tai_ksm.1.len() > 0 {
     if _tai_ksm.0 != 0.0 {
@@ -3997,14 +4059,34 @@ async fn fetch_3usd(
         apr = fetch_3usd_apr(pool_data.clone().unwrap(), karura_dex_query_str.clone()).await;
     }
 
-    let tai_price_history =
-        get_token_price_history(karura_dex_query_str.clone(), "TAI".to_string(), 1).await;
-    let tai_ksm_price_history =
-        get_token_price_history(karura_dex_query_str.clone(), "sa://0".to_string(), 1).await;
-    let lksm_price_history =
-        get_token_price_history(karura_dex_query_str.clone(), "LKSM".to_string(), 1).await;
-    let kar_price_history =
-        get_token_price_history(karura_dex_query_str.clone(), "KAR".to_string(), 1).await;
+    let tai_price_history = get_token_price_history(
+        karura_dex_query_str.clone(),
+        "taiga".to_string(),
+        "TAI".to_string(),
+        1,
+    )
+    .await;
+    let tai_ksm_price_history = get_token_price_history(
+        karura_dex_query_str.clone(),
+        "taiga".to_string(),
+        "sa://0".to_string(),
+        1,
+    )
+    .await;
+    let lksm_price_history = get_token_price_history(
+        karura_dex_query_str.clone(),
+        "taiga".to_string(),
+        "LKSM".to_string(),
+        1,
+    )
+    .await;
+    let kar_price_history = get_token_price_history(
+        karura_dex_query_str.clone(),
+        "taiga".to_string(),
+        "KAR".to_string(),
+        1,
+    )
+    .await;
 
     if tai_price_history.len() < 1
         || tai_ksm_price_history.len() < 1
@@ -4045,6 +4127,85 @@ async fn fetch_3usd(
     (tvl, rewards, apr)
 }
 
+async fn fetch_t_dot(
+    tapio_query_str: String,
+    acala_dex_query_str: String,
+) -> Result<((f64, Vec<(i32, String, f64, String)>, (f64, f64))), Box<dyn std::error::Error>> {
+    let subql_client = Client::new(
+        "https://api.subquery.network/sq/nutsfinance/tapio-protocol".to_string(),
+        60,
+    );
+    #[derive(Serialize)]
+    pub struct Vars {
+        days: i64,
+    }
+    let vars = Vars { days: 30 };
+    let pool_data = subql_client
+        .query_with_vars_unwrap::<subgraph::TapioDD, Vars>(&tapio_query_str, vars)
+        .await;
+
+    let mut current_supply = 0.0;
+    let mut tvl = 0.0;
+    let mut apr = (0.0, 0.0);
+    let mut rewards: Vec<(i32, String, f64, String)> = vec![];
+
+    if pool_data.is_ok() {
+        println!(
+            "tapio pool_datau {:?}",
+            pool_data.clone().unwrap().daily_data.nodes.len()
+        );
+
+        // let t_dot_price_history = get_token_price_history(
+        //     acala_dex_query_str.clone(),
+        //     "tapio".to_string(),
+        //     "tDOT".to_string(),
+        //     1,
+        // )
+        // .await;
+
+        // println!("t_dot_price_history {:?}", t_dot_price_history);
+
+        // let mut t_dot_price = 0.0;
+        // if t_dot_price_history.len() > 0 {
+        //     t_dot_price = t_dot_price_history[0].0;
+        // }
+        let dot_price = reqwest::get(
+            "https://api.coingecko.com/api/v3/simple/price?ids=polkadot&vs_currencies=usd",
+        )
+        .await?
+        .json::<apis::coingecko::Root>()
+        .await?;
+        println!("DPPP {:?}", dot_price.polkadot.usd);
+
+        let t_dot_price = dot_price.polkadot.usd;
+
+        if pool_data.clone().unwrap().daily_data.nodes.len() > 0 {
+            current_supply = pool_data
+                .clone()
+                .unwrap()
+                .daily_data
+                .nodes
+                .get(0)
+                .unwrap()
+                .total_supply;
+        }
+        println!(
+            "current_supply {:?}, pdau {:?}, t_dot_price {:?}",
+            current_supply,
+            pool_data.clone().unwrap(),
+            t_dot_price
+        );
+
+        tvl = current_supply * t_dot_price;
+
+        // apr = fetch_tai_ksm_apr(pool_data.clone().unwrap(), acala_dex_query_str.clone()).await;
+    } else {
+        println!("pooldatau notok");
+    }
+
+    Ok((tvl, rewards, apr))
+}
+
 async fn fetch_tai_ksm(
     taiga_query_str: String,
     karura_dex_query_str: String,
@@ -4073,10 +4234,20 @@ async fn fetch_tai_ksm(
             pool_data.clone().unwrap().daily_data.nodes.len()
         );
 
-        let tai_price_history =
-            get_token_price_history(karura_dex_query_str.clone(), "TAI".to_string(), 1).await;
-        let tai_ksm_price_history =
-            get_token_price_history(karura_dex_query_str.clone(), "sa://0".to_string(), 1).await;
+        let tai_price_history = get_token_price_history(
+            karura_dex_query_str.clone(),
+            "taiga".to_string(),
+            "TAI".to_string(),
+            1,
+        )
+        .await;
+        let tai_ksm_price_history = get_token_price_history(
+            karura_dex_query_str.clone(),
+            "taiga".to_string(),
+            "sa://0".to_string(),
+            1,
+        )
+        .await;
 
         let mut tai_price = 0.0;
         if tai_price_history.len() > 0 && tai_ksm_price_history.len() > 0 {
@@ -4123,14 +4294,34 @@ async fn fetch_3usd_apr(pool_data: subgraph::TapioDD, karura_dex_query_str: Stri
 
     let daily_data = pool_data.clone().daily_data.nodes;
 
-    let tai_price_history =
-        get_token_price_history(karura_dex_query_str.clone(), "TAI".to_string(), days).await;
-    let tai_ksm_price_history =
-        get_token_price_history(karura_dex_query_str.clone(), "sa://0".to_string(), days).await;
-    let lksm_price_history =
-        get_token_price_history(karura_dex_query_str.clone(), "LKSM".to_string(), days).await;
-    let kar_price_history =
-        get_token_price_history(karura_dex_query_str.clone(), "KAR".to_string(), days).await;
+    let tai_price_history = get_token_price_history(
+        karura_dex_query_str.clone(),
+        "taiga".to_string(),
+        "TAI".to_string(),
+        days,
+    )
+    .await;
+    let tai_ksm_price_history = get_token_price_history(
+        karura_dex_query_str.clone(),
+        "taiga".to_string(),
+        "sa://0".to_string(),
+        days,
+    )
+    .await;
+    let lksm_price_history = get_token_price_history(
+        karura_dex_query_str.clone(),
+        "taiga".to_string(),
+        "LKSM".to_string(),
+        days,
+    )
+    .await;
+    let kar_price_history = get_token_price_history(
+        karura_dex_query_str.clone(),
+        "taiga".to_string(),
+        "KAR".to_string(),
+        days,
+    )
+    .await;
 
     let mut total = 0.0;
     let daily_total_supply = daily_data.clone().into_iter().map(|node| node.total_supply);
@@ -4169,10 +4360,20 @@ async fn fetch_tai_ksm_apr(
 
     let daily_data = pool_data.clone().daily_data.nodes;
 
-    let tai_price_history =
-        get_token_price_history(karura_dex_query_str.clone(), "TAI".to_string(), days).await;
-    let tai_ksm_price_history =
-        get_token_price_history(karura_dex_query_str.clone(), "sa://0".to_string(), days).await;
+    let tai_price_history = get_token_price_history(
+        karura_dex_query_str.clone(),
+        "taiga".to_string(),
+        "TAI".to_string(),
+        days,
+    )
+    .await;
+    let tai_ksm_price_history = get_token_price_history(
+        karura_dex_query_str.clone(),
+        "taiga".to_string(),
+        "sa://0".to_string(),
+        days,
+    )
+    .await;
 
     let mut total = 0.0;
     let daily_total_supply = daily_data.clone().into_iter().map(|node| node.total_supply);
@@ -4213,13 +4414,18 @@ fn calculate_base_apr(daily_data: Vec<subgraph::TapioDailyDataNode>) -> f64 {
 
 async fn get_token_price_history(
     query_str: String,
+    protocol: String,
     asset: String,
     days: i64,
 ) -> Vec<(f64, String)> {
+    let mut subql = "https://dashboard.nuts.finance/api/datasources/proxy/7".to_string();
+    if protocol == "tapio".to_string() {
+        subql = "https://grafana.acbtc.fi/api/datasources/proxy/11".to_string();
+    }
     let subql_client = Client::new(
         // "https://api.subquery.network/sq/AcalaNetwork/karura-dex".to_string(),
-        "https://dashboard.nuts.finance/api/datasources/proxy/7".to_string(),
-        60,
+        // "https://dashboard.nuts.finance/api/datasources/proxy/7".to_string(),
+        subql, 60,
     );
     #[derive(Serialize)]
     pub struct Vars {
@@ -4234,7 +4440,10 @@ async fn get_token_price_history(
         .query_with_vars_unwrap::<subgraph::KaruraTokenPriceHistoryData, Vars>(&query_str, vars)
         .await;
 
-    // println!("price_history_data {:?}", price_history_data);
+    println!(
+        "protocol {:?} price_history_data {:?}",
+        protocol, price_history_data
+    );
 
     let ph = price_history_data
         .unwrap_or_default()
