@@ -3825,7 +3825,7 @@ async fn taiga_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>>
     println!("tDOT farm lastUpdatedAtUTC {}", timestamp.clone());
 
     let t_dot_ff = doc! {
-        "id": 1,
+        "id": 0,
         "chef": "tDOT".to_string(),
         "chain": "acala".to_string(),
         "protocol": "tapio".to_string(),
