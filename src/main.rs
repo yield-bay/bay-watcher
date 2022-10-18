@@ -3769,203 +3769,202 @@ async fn taiga_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>>
 
     println!("tapio_rewards_resp {:?}", tapio_rewards_resp);
 
-    // https://api.taigaprotocol.io/rewards
+    let taiga_rewards_resp = reqwest::get("https://api.taigaprotocol.io/rewards")
+        .await?
+        .json::<apis::taiga::Root>()
+        .await?;
 
-    // let taiga_rewards_resp = reqwest::get("https://api.taigaprotocol.io/rewards")
-    //     .await?
-    //     .json::<apis::taiga::Root>()
-    //     .await?;
+    println!("taiga_rewards_resp {:?}", taiga_rewards_resp);
 
-    // println!("taiga_rewards_resp {:?}", taiga_rewards_resp);
+    if taiga_rewards_resp.clone().taiksm.is_some() {
+        let tai_ksm_base_apr = taiga_rewards_resp.clone().taiksm.unwrap().taiksm_fee.apr * 100.0;
+        let tai_ksm_reward_apr = (taiga_rewards_resp.clone().taiksm.unwrap().kar_reward.apr as f64
+            + taiga_rewards_resp.clone().taiksm.unwrap().tai_reward.apr
+            + taiga_rewards_resp.clone().taiksm.unwrap().taiksm_yield.apr)
+            * 100.0;
 
-    // let tai_ksm_base_apr = taiga_rewards_resp.clone().taiksm.unwrap().taiksm_fee.apr * 100.0;
-    // let tai_ksm_reward_apr = (taiga_rewards_resp.clone().taiksm.unwrap().kar_reward.apr as f64
-    //     + taiga_rewards_resp.clone().taiksm.unwrap().tai_reward.apr
-    //     + taiga_rewards_resp.clone().taiksm.unwrap().taiksm_yield.apr)
-    //     * 100.0;
+        let _tai_ksm = fetch_tai_ksm(
+            constants::taiga::DAILY_DATA_TAI_KSM_QUERY.to_owned(),
+            constants::taiga::TOKEN_PRICE_HISTORY_QUERY.to_owned(),
+        )
+        .await;
 
-    // let _3usd_base_apr = taiga_rewards_resp.clone().n3usd.unwrap().n3usd_fee.apr * 100.0;
-    // let _3usd_reward_apr = (taiga_rewards_resp.clone().n3usd.unwrap().kar_reward.apr
-    //     + taiga_rewards_resp.clone().n3usd.unwrap().lksm_reward.apr
-    //     + taiga_rewards_resp.clone().n3usd.unwrap().tai_reward.apr
-    //     + taiga_rewards_resp.clone().n3usd.unwrap().taiksm_reward.apr)
-    //     * 100.0;
+        // if _tai_ksm.0 != 0.0 && _tai_ksm.1.len() > 0 {
+        if _tai_ksm.0 != 0.0 {
+            let mut tai_ksm_rewards = vec![];
+            for r in _tai_ksm.1.clone() {
+                tai_ksm_rewards.push(bson!({
+                    "amount": r.0 as f64,
+                    "asset":  r.1.clone(),
+                    "valueUSD": r.2 as f64,
+                    "freq": r.3.clone(),
+                }));
+            }
 
-    // let _tai_ksm = fetch_tai_ksm(
-    //     constants::taiga::DAILY_DATA_TAI_KSM_QUERY.to_owned(),
-    //     constants::taiga::TOKEN_PRICE_HISTORY_QUERY.to_owned(),
-    // )
-    // .await;
-    // let _3usd = fetch_3usd(
-    //     constants::taiga::DAILY_DATA_3_USD_QUERY.to_owned(),
-    //     constants::taiga::TOKEN_PRICE_HISTORY_QUERY.to_owned(),
-    // )
-    // .await;
+            let timestamp = Utc::now().to_string();
 
-    let _t_dot = fetch_t_dot(
-        constants::taiga::DAILY_DATA_TAI_KSM_QUERY.to_owned(),
-        constants::taiga::TOKEN_PRICE_HISTORY_QUERY.to_owned(),
-    )
-    .await
-    .unwrap();
+            println!("taiKSM farm lastUpdatedAtUTC {}", timestamp.clone());
 
-    // println!(
-    //     "_tai_ksm:\n{:?}\n_3usd:\n{:?}\n_t_dot:{:?}",
-    //     _tai_ksm.0, _3usd.0, _t_dot.0
-    // );
+            let tai_ksm_ff = doc! {
+                "id": 0,
+                "chef": "taiKSM".to_string(),
+                "chain": "karura".to_string(),
+                "protocol": "taiga".to_string(),
+            };
+            let tai_ksm_fu = doc! {
+                "$set" : {
+                    "id": 0,
+                    "chef": "taiKSM".to_string(),
+                    "chain": "karura".to_string(),
+                    "protocol": "taiga".to_string(),
+                    "farmType": models::FarmType::StableAmm.to_string(),
+                    "farmImpl": models::FarmImplementation::Pallet.to_string(),
+                    "asset": {
+                        "symbol": "taiKSM".to_string(),
+                        "address": "taiKSM".to_string(),
+                        "price": 0 as f64,
+                        "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/list/taiKSM.png".to_string()],
+                    },
+                    "tvl": _tai_ksm.0 as f64,
+                    "apr.reward": tai_ksm_reward_apr, // _tai_ksm.2.1 as f64 * 100.0,
+                    "apr.base": tai_ksm_base_apr, // _tai_ksm.2.0 as f64 * 100.0,
+                    "rewards": tai_ksm_rewards,
+                    "allocPoint": 1,
+                    "lastUpdatedAtUTC": timestamp.clone(),
+                }
+            };
+            let options = FindOneAndUpdateOptions::builder()
+                .upsert(Some(true))
+                .build();
+            farms_collection
+                .find_one_and_update(tai_ksm_ff, tai_ksm_fu, Some(options))
+                .await?;
+        } else {
+            println!("tksmf");
+        }
+    }
 
-    // tDOT (DOT-LDOT)
-    let t_dot_base_apr = tapio_rewards_resp.clone().tdot.tdot_fee.apr * 100.0;
-    let t_dot_reward_apr = tapio_rewards_resp.clone().tdot.tdot_yield.apr * 100.0;
+    if taiga_rewards_resp.clone().n3usd.is_some() {
+        let _3usd_base_apr = taiga_rewards_resp.clone().n3usd.unwrap().n3usd_fee.apr * 100.0;
+        let _3usd_reward_apr = (taiga_rewards_resp.clone().n3usd.unwrap().kar_reward.apr
+            + taiga_rewards_resp.clone().n3usd.unwrap().lksm_reward.apr
+            + taiga_rewards_resp.clone().n3usd.unwrap().tai_reward.apr
+            + taiga_rewards_resp.clone().n3usd.unwrap().taiksm_reward.apr)
+            * 100.0;
 
-    let t_dot_rewards: Vec<Bson> = vec![];
+        let _3usd = fetch_3usd(
+            constants::taiga::DAILY_DATA_3_USD_QUERY.to_owned(),
+            constants::taiga::TOKEN_PRICE_HISTORY_QUERY.to_owned(),
+        )
+        .await;
 
-    let timestamp = Utc::now().to_string();
+        // if _3usd.0 != 0.0 && _3usd.1.len() > 0 {
+        if _3usd.0 != 0.0 {
+            let mut _3usd_rewards = vec![];
+            for r in _3usd.1.clone() {
+                _3usd_rewards.push(bson!({
+                    "amount": r.0 as f64,
+                    "asset":  r.1.clone(),
+                    "valueUSD": r.2 as f64,
+                    "freq": r.3.clone(),
+                }));
+            }
 
-    println!("tDOT farm lastUpdatedAtUTC {}", timestamp.clone());
+            let timestamp = Utc::now().to_string();
 
-    let t_dot_ff = doc! {
-        "id": 0,
-        "chef": "tDOT".to_string(),
-        "chain": "acala".to_string(),
-        "protocol": "tapio".to_string(),
-    };
-    let t_dot_fu = doc! {
-        "$set" : {
+            println!("3USD farm lastUpdatedAtUTC {}", timestamp.clone());
+
+            let _3usd_ff = doc! {
+                "id": 1,
+                "chef": "3USD".to_string(),
+                "chain": "karura".to_string(),
+                "protocol": "taiga".to_string(),
+            };
+            let _3usd_fu = doc! {
+                "$set" : {
+                    "id": 1,
+                    "chef": "3USD".to_string(),
+                    "chain": "karura".to_string(),
+                    "protocol": "taiga".to_string(),
+                    "farmType": models::FarmType::StableAmm.to_string(),
+                    "farmImpl": models::FarmImplementation::Pallet.to_string(),
+                    "asset": {
+                        "symbol": "3USD".to_string(),
+                        "address": "3USD".to_string(),
+                        "price": 0 as f64,
+                        "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/list/3USD.png".to_string()],
+                    },
+                    "tvl": _3usd.0 as f64,
+                    "apr.reward": _3usd_reward_apr, // _3usd.2.1 as f64 * 100.0,
+                    "apr.base": _3usd_base_apr, // _3usd.2.0 as f64 * 100.0,
+                    "rewards": _3usd_rewards,
+                    "allocPoint": 1,
+                    "lastUpdatedAtUTC": timestamp.clone(),
+                }
+            };
+            let options = FindOneAndUpdateOptions::builder()
+                .upsert(Some(true))
+                .build();
+            farms_collection
+                .find_one_and_update(_3usd_ff, _3usd_fu, Some(options))
+                .await?;
+        } else {
+            println!("3usdf");
+        }
+    }
+
+    if tapio_rewards_resp.clone().tdot.is_some() {
+        let t_dot_base_apr = tapio_rewards_resp.clone().tdot.unwrap().tdot_fee.apr * 100.0;
+        let t_dot_reward_apr = tapio_rewards_resp.clone().tdot.unwrap().tdot_yield.apr * 100.0;
+
+        let _t_dot = fetch_t_dot(
+            constants::taiga::DAILY_DATA_TAI_KSM_QUERY.to_owned(),
+            constants::taiga::TOKEN_PRICE_HISTORY_QUERY.to_owned(),
+        )
+        .await
+        .unwrap();
+
+        let t_dot_rewards: Vec<Bson> = vec![];
+
+        let timestamp = Utc::now().to_string();
+
+        println!("tDOT farm lastUpdatedAtUTC {}", timestamp.clone());
+
+        let t_dot_ff = doc! {
             "id": 0,
             "chef": "tDOT".to_string(),
             "chain": "acala".to_string(),
             "protocol": "tapio".to_string(),
-            "farmType": models::FarmType::StableAmm.to_string(),
-            "farmImpl": models::FarmImplementation::Pallet.to_string(),
-            "asset": {
-                "symbol": "tDOT".to_string(),
-                "address": "tDOT".to_string(),
-                "price": 0 as f64,
-                "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/list/tDOT.png".to_string()],
-            },
-            "tvl": _t_dot.0 as f64,
-            "apr.reward": t_dot_reward_apr, // _3usd.2.1 as f64 * 100.0,
-            "apr.base": t_dot_base_apr, // _3usd.2.0 as f64 * 100.0,
-            "rewards": t_dot_rewards,
-            "allocPoint": 1,
-            "lastUpdatedAtUTC": timestamp.clone(),
-        }
-    };
-    let options = FindOneAndUpdateOptions::builder()
-        .upsert(Some(true))
-        .build();
-    farms_collection
-        .find_one_and_update(t_dot_ff, t_dot_fu, Some(options))
-        .await?;
-
-    // // if _tai_ksm.0 != 0.0 && _tai_ksm.1.len() > 0 {
-    // if _tai_ksm.0 != 0.0 {
-    //     let mut tai_ksm_rewards = vec![];
-    //     for r in _tai_ksm.1.clone() {
-    //         tai_ksm_rewards.push(bson!({
-    //             "amount": r.0 as f64,
-    //             "asset":  r.1.clone(),
-    //             "valueUSD": r.2 as f64,
-    //             "freq": r.3.clone(),
-    //         }));
-    //     }
-
-    //     let timestamp = Utc::now().to_string();
-
-    //     println!("taiKSM farm lastUpdatedAtUTC {}", timestamp.clone());
-
-    //     let tai_ksm_ff = doc! {
-    //         "id": 0,
-    //         "chef": "taiKSM".to_string(),
-    //         "chain": "karura".to_string(),
-    //         "protocol": "taiga".to_string(),
-    //     };
-    //     let tai_ksm_fu = doc! {
-    //         "$set" : {
-    //             "id": 0,
-    //             "chef": "taiKSM".to_string(),
-    //             "chain": "karura".to_string(),
-    //             "protocol": "taiga".to_string(),
-    //             "farmType": models::FarmType::StableAmm.to_string(),
-    //             "farmImpl": models::FarmImplementation::Pallet.to_string(),
-    //             "asset": {
-    //                 "symbol": "taiKSM".to_string(),
-    //                 "address": "taiKSM".to_string(),
-    //                 "price": 0 as f64,
-    //                 "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/list/taiKSM.png".to_string()],
-    //             },
-    //             "tvl": _tai_ksm.0 as f64,
-    //             "apr.reward": tai_ksm_reward_apr, // _tai_ksm.2.1 as f64 * 100.0,
-    //             "apr.base": tai_ksm_base_apr, // _tai_ksm.2.0 as f64 * 100.0,
-    //             "rewards": tai_ksm_rewards,
-    //             "allocPoint": 1,
-    //             "lastUpdatedAtUTC": timestamp.clone(),
-    //         }
-    //     };
-    //     let options = FindOneAndUpdateOptions::builder()
-    //         .upsert(Some(true))
-    //         .build();
-    //     farms_collection
-    //         .find_one_and_update(tai_ksm_ff, tai_ksm_fu, Some(options))
-    //         .await?;
-    // } else {
-    //     println!("tksmf");
-    // }
-
-    // // if _3usd.0 != 0.0 && _3usd.1.len() > 0 {
-    // if _3usd.0 != 0.0 {
-    //     let mut _3usd_rewards = vec![];
-    //     for r in _3usd.1.clone() {
-    //         _3usd_rewards.push(bson!({
-    //             "amount": r.0 as f64,
-    //             "asset":  r.1.clone(),
-    //             "valueUSD": r.2 as f64,
-    //             "freq": r.3.clone(),
-    //         }));
-    //     }
-
-    //     let timestamp = Utc::now().to_string();
-
-    //     println!("3USD farm lastUpdatedAtUTC {}", timestamp.clone());
-
-    //     let _3usd_ff = doc! {
-    //         "id": 1,
-    //         "chef": "3USD".to_string(),
-    //         "chain": "karura".to_string(),
-    //         "protocol": "taiga".to_string(),
-    //     };
-    //     let _3usd_fu = doc! {
-    //         "$set" : {
-    //             "id": 1,
-    //             "chef": "3USD".to_string(),
-    //             "chain": "karura".to_string(),
-    //             "protocol": "taiga".to_string(),
-    //             "farmType": models::FarmType::StableAmm.to_string(),
-    //             "farmImpl": models::FarmImplementation::Pallet.to_string(),
-    //             "asset": {
-    //                 "symbol": "3USD".to_string(),
-    //                 "address": "3USD".to_string(),
-    //                 "price": 0 as f64,
-    //                 "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/list/3USD.png".to_string()],
-    //             },
-    //             "tvl": _3usd.0 as f64,
-    //             "apr.reward": _3usd_reward_apr, // _3usd.2.1 as f64 * 100.0,
-    //             "apr.base": _3usd_base_apr, // _3usd.2.0 as f64 * 100.0,
-    //             "rewards": _3usd_rewards,
-    //             "allocPoint": 1,
-    //             "lastUpdatedAtUTC": timestamp.clone(),
-    //         }
-    //     };
-    //     let options = FindOneAndUpdateOptions::builder()
-    //         .upsert(Some(true))
-    //         .build();
-    //     farms_collection
-    //         .find_one_and_update(_3usd_ff, _3usd_fu, Some(options))
-    //         .await?;
-    // } else {
-    //     println!("3usdf");
-    // }
+        };
+        let t_dot_fu = doc! {
+            "$set" : {
+                "id": 0,
+                "chef": "tDOT".to_string(),
+                "chain": "acala".to_string(),
+                "protocol": "tapio".to_string(),
+                "farmType": models::FarmType::StableAmm.to_string(),
+                "farmImpl": models::FarmImplementation::Pallet.to_string(),
+                "asset": {
+                    "symbol": "tDOT".to_string(),
+                    "address": "tDOT".to_string(),
+                    "price": 0 as f64,
+                    "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/list/tDOT.png".to_string()],
+                },
+                "tvl": _t_dot.0 as f64,
+                "apr.reward": t_dot_reward_apr, // _3usd.2.1 as f64 * 100.0,
+                "apr.base": t_dot_base_apr, // _3usd.2.0 as f64 * 100.0,
+                "rewards": t_dot_rewards,
+                "allocPoint": 1,
+                "lastUpdatedAtUTC": timestamp.clone(),
+            }
+        };
+        let options = FindOneAndUpdateOptions::builder()
+            .upsert(Some(true))
+            .build();
+        farms_collection
+            .find_one_and_update(t_dot_ff, t_dot_fu, Some(options))
+            .await?;
+    }
 
     Ok(())
 }
