@@ -7,6 +7,7 @@ use ethers::{
     prelude::{abigen, Address, U256},
     providers::{Http, Provider},
     signers::LocalWallet,
+    types::H160,
     utils::to_checksum,
 };
 use gql_client::Client;
@@ -33,6 +34,18 @@ abigen!(
         function poolRewardsPerSec(uint256) external view returns (address[], string[], uint256[], uint256[])
         function stellaPerSec() external view returns (uint256)
         function totalAllocPoint() external view returns (uint256)
+    ]"#,
+);
+
+abigen!(
+    IArthswapChef,
+    r#"[
+        function poolLength() external view returns (uint256)
+        function poolInfos(uint256) external view returns (uint128, uint64, uint64)
+        function ARSWPerBlock(uint256) external view returns (uint256)
+        function totalAllocPoint() external view returns (uint256)
+        function lpTokens(uint256) external view returns (address)
+        function getPeriod(uint256) external view returns (uint256)
     ]"#,
 );
 
@@ -378,6 +391,10 @@ async fn chef_contract_jobs(
     let zenlink_moonbeam_chef =
         IChefV2::new(zenlink_moonbeam_chef_address, Arc::clone(&moonbeam_client));
 
+    let arthswap_astar_chef_address =
+        "0xc5b016c5597D298Fe9eD22922CE290A048aA5B75".parse::<Address>()?;
+    let arthswap_astar_chef = IChefV2::new(arthswap_astar_chef_address, Arc::clone(&astar_client));
+
     let wglmr_poop_stellaswap_resp = reqwest::get("https://app.geckoterminal.com/api/p1/glmr/pools/0x4efb208eeeb5a8c85af70e8fbc43d6806b422bec")
         .await?
         .json::<apis::geckoterminal::Root>()
@@ -655,6 +672,17 @@ async fn chef_contract_jobs(
 
     let protocols = vec![
         (
+            arthswap_astar_chef_address,
+            arthswap_astar_chef,
+            "astar".to_string(),
+            "arthswap".to_string(),
+            "v4".to_string(),
+            "0xc5b016c5597D298Fe9eD22922CE290A048aA5B75".to_string(),
+            zenlink_astar_subsquid_client.clone(),
+            constants::subgraph_urls::ZENLINK_ASTAR_SUBSQUID.clone(),
+            astar_client.clone(),
+        ),
+        (
             zenlink_moonbeam_chef_address,
             zenlink_moonbeam_chef,
             "moonbeam".to_string(),
@@ -767,7 +795,194 @@ async fn chef_contract_jobs(
                 pid
             );
 
-            if p.3.clone() == "zenlink".to_string() {
+            if p.3.clone() == "arthswap".to_string() {
+                if pid != 31 {
+                    // IArthswapChef
+                    let arthswap_chef_address = p.5.parse::<Address>()?;
+                    let mut arthswap_chef =
+                        IArthswapChef::new(arthswap_chef_address, Arc::clone(&astar_client));
+
+                    let (acc_arsw_per_share, last_reward_block, alloc_point): (u128, u64, u64) =
+                        arthswap_chef
+                            .pool_infos(ethers::prelude::U256::from(pid))
+                            .call()
+                            .await?;
+
+                    println!(
+                        "acc_arsw_per_share {:?} last_reward_block {:?} alloc_point {:?}",
+                        acc_arsw_per_share, last_reward_block, alloc_point
+                    );
+
+                    let lp_tokens = arthswap_chef
+                        .lp_tokens(ethers::prelude::U256::from(pid))
+                        .call()
+                        .await?;
+
+                    println!("lp_tokens {:?}", lp_tokens);
+
+                    let asset_addr = ethers::utils::to_checksum(&lp_tokens.to_owned(), None);
+                    println!("asset_addr {:?}", asset_addr.clone());
+                    let asset_filter = doc! { "address": asset_addr.clone(), "protocol": p.3.clone(), "chain": p.2.clone() };
+                    let asset = assets_collection.find_one(asset_filter, None).await?;
+
+                    let ap = alloc_point;
+
+                    println!("asset {:?} alloc_point {:?}", asset, ap);
+
+                    let mut farm_type = models::FarmType::StandardAmm;
+                    let farm_implementation = models::FarmImplementation::Solidity;
+
+                    let ten: i128 = 10;
+
+                    let mut rewards = vec![];
+                    let mut total_reward_apr = 0.0;
+
+                    let arsw_price = reqwest::get(
+                    "https://api.coingecko.com/api/v3/simple/price?ids=arthswap&vs_currencies=usd",
+                )
+                .await?
+                .json::<apis::coingecko::ASRoot>()
+                .await?;
+                    println!("arsw_price {:?}", arsw_price.arthswap.usd);
+
+                    let f = doc! {
+                        "address": "0xDe2578Edec4669BA7F41c5d5D2386300bcEA4678",
+                        "chain": "astar",
+                        "protocol": "arthswap",
+                    };
+
+                    let timestamp = Utc::now().to_string();
+
+                    let u = doc! {
+                        "$set" : {
+                            "address": "0xDe2578Edec4669BA7F41c5d5D2386300bcEA4678",
+                            "chain": "astar",
+                            "protocol": "arthswap",
+                            "name": "ArthSwap Token",
+                            "symbol": "ARSW",
+                            "decimals": 18,
+                            "logos": [
+                                "https://raw.githubusercontent.com/yield-bay/assets/main/list/ARSW.png",
+                            ],
+                            "price": arsw_price.arthswap.usd,
+                            "liquidity": 1.0,
+                            "totalSupply": 1.0,
+                            "isLP": false,
+                            "feesAPR": 0.0,
+                            "underlyingAssets": [],
+                            "underlyingAssetsAlloc": [],
+                            "lastUpdatedAtUTC": timestamp.clone(),
+                        }
+                    };
+
+                    let options = FindOneAndUpdateOptions::builder()
+                        .upsert(Some(true))
+                        .build();
+                    assets_collection
+                        .find_one_and_update(f, u, Some(options))
+                        .await?;
+
+                    let arsw_filter = doc! { "address": "0xDe2578Edec4669BA7F41c5d5D2386300bcEA4678", "protocol": p.3.clone(), "chain": p.2.clone() };
+                    let arsw = assets_collection.find_one(arsw_filter, None).await?;
+                    let arsw_price = arsw.clone().unwrap().price;
+                    let asset_price = asset.clone().unwrap().price;
+                    let asset_tvl = asset.clone().unwrap().liquidity;
+
+                    println!("arsw {:?} asset {:?}", arsw.clone(), asset.clone());
+
+                    if ap > 0 {
+                        let mut block_time = constants::utils::ASTAR_BLOCK_TIME;
+
+                        let tap: U256 = arthswap_chef.total_alloc_point().call().await?;
+
+                        // TODO: move below 2 calls outside (before) for loop
+                        // get current block (astar)
+                        let block_number =
+                            ethers_providers::Middleware::get_block_number(&p.8.clone()).await?;
+                        println!("block_number {:?}", block_number);
+                        // get period (call arthswap_chef.get_period)
+                        let period: U256 = arthswap_chef
+                            .get_period(ethers::prelude::U256::from(block_number.as_u64()))
+                            .call()
+                            .await?;
+                        println!("period {:?}", period);
+                        let arsw_per_block: U256 = arthswap_chef
+                            .arsw_per_block(ethers::prelude::U256::from(period.as_u64()))
+                            .call()
+                            .await?;
+                        let arsw_per_sec = arsw_per_block.as_u128() as f64 / block_time;
+
+                        let rewards_per_sec: f64 =
+                            arsw_per_sec * (ap as f64 / tap.as_u128() as f64);
+                        let rewards_per_day: f64 = rewards_per_sec * 60.0 * 60.0 * 24.0;
+
+                        if rewards_per_day != 0.0 {
+                            rewards.push(bson!({
+                            "amount": rewards_per_day as f64 / ten.pow(arsw.clone().unwrap().decimals) as f64,
+                            "asset":  arsw.clone().unwrap().symbol,
+                            "valueUSD": (rewards_per_day as f64 / ten.pow(arsw.clone().unwrap().decimals) as f64) * arsw_price,
+                            "freq": models::Freq::Daily.to_string(),
+                        }));
+
+                            // reward_apr/farm_apr/pool_apr
+                            println!(
+                                "rewards/sec: {} rewards/day: {} asset_tvl: {}",
+                                rewards_per_sec, rewards_per_day, asset_tvl
+                            );
+
+                            let reward_apr = ((rewards_per_day as f64 * arsw_price)
+                                / (asset_tvl as f64
+                                    * ten.pow(arsw.clone().unwrap().decimals) as f64))
+                                * 365.0
+                                * 100.0;
+                            println!("reward_apr: {}", reward_apr);
+                            if asset_tvl != 0.0 && asset_price != 0.0 {
+                                total_reward_apr += reward_apr;
+                            }
+                        }
+                    }
+
+                    let timestamp = Utc::now().to_string();
+
+                    println!("chef v4 farm lastUpdatedAtUTC {}", timestamp.clone());
+
+                    let ff = doc! {
+                        "id": pid as i32,
+                        "chef": p.5.clone(),
+                        "chain": p.2.clone(),
+                        "protocol": p.3.clone(),
+                    };
+                    let ten: f64 = 10.0;
+                    let fu = doc! {
+                        "$set" : {
+                            "id": pid,
+                            "chef": p.5.clone(),
+                            "chain": p.2.clone(),
+                            "protocol": p.3.clone(),
+                            "farmType": farm_type.to_string(),
+                            "farmImpl": farm_implementation.to_string(),
+                            "asset": {
+                                "symbol": asset.clone().unwrap().symbol,
+                                "address": asset_addr.clone(),
+                                "price": asset.clone().unwrap().price,
+                                "logos": asset.clone().unwrap().logos,
+                            },
+                            "tvl": asset_tvl,
+                            "apr.reward": total_reward_apr,
+                            "apr.base": asset.clone().unwrap().fees_apr,
+                            "rewards": rewards,
+                            "allocPoint": ap as u32,
+                            "lastUpdatedAtUTC": timestamp.clone(),
+                        }
+                    };
+                    let options = FindOneAndUpdateOptions::builder()
+                        .upsert(Some(true))
+                        .build();
+                    farms_collection
+                        .find_one_and_update(ff, fu, Some(options))
+                        .await?;
+                }
+            } else if p.3.clone() == "zenlink".to_string() {
                 let zenlink_chef_address = p.5.parse::<Address>()?;
                 let mut zenlink_chef =
                     IFarming::new(zenlink_chef_address, Arc::clone(&astar_client));
@@ -2805,6 +3020,157 @@ async fn subgraph_jobs(
     let db = client.database(&db_name);
 
     let assets_collection = db.collection::<models::Asset>("assets");
+
+    let dexscreener_pairs_arthswap_url = "https://api.dexscreener.com/latest/dex/pairs/astar/0xD72A602C714ae36D990dc835eA5F96Ef87657D5e,0xeee106Aa8a0DE519E8Eb21C66A5c2275b46b3F4d,0xBB1290c1829007F440C771b37718FAbf309cd527,0x50497E7181eB9e8CcD70a9c44FB997742149482a,0x806f746a7c4293092ac7aa604347BE123322dF1e,0x996D73aC8F97cf15BD476b77CB92ce47cA0E71Fe,0x87988EbDE7E661F44eB3a586C5E0cEAB533a2d9C,0xF4119c3d9e65602bb34f2455644e45c98d29bB4b,0x73EEa1180c2D1772eA2118FdA888A81943bAc3C8,0xde2EDAa0cD4aFd59d9618c31A060EAb93Ce45e01,0x61a49ba86e168cd25ca795b07b0a93236bb25127,0x92127ec0ebef8b30378d757bbe8dce18210b848b,0xca59df939290421047876c917789afdb68d5d6f1,0xccefddff4808f3e1e0340e19e43f1e9fd088b3f2,0xF041a8e6e27341F5f865a22f01Fa37e065c32156,0xac4b7043da7152726d54b0fb1628a2fff73f874e,0xef8b14e08c292cc552494ec428a75c8a3cd417b6,0x3d78a6cca5c717c0e8702896892f3522d0b07010,0x7644Bf8086d40eD430D5096305830aA97Be77268,0xcf83a3d83c1265780d9374e8a7c838fe22bd3dc6,0x78d5c2adeb11be00033cc4edb2c2889cf945415e,0xaa1fa6a811d82fa4383b522b4af4de3a5041063e,0xb60a1827db219729f837f2d0982b4cdb5a9ba4b1,0x40E938688a121370092A06745704c112C5ee5791,0xbd13fd873d36f7d2a349b35e6854e3183ede18ab,0x7843ecd6f3234d72d0b7034dd9894b77c416c6ef,0x8897d79334c2d517b83e7846da4b922e68fda61b,0x49d1db92a8a1511a6eeb867221d801bc974a3073,0x9c728cb130ed60eebaf84e6b260d369fa6415f5e,0x3f61a095cc21f99e0bf82966579595f2fc0d4d59";
+    let dexscreener_pairs_arthswap_url_2="https://api.dexscreener.com/latest/dex/pairs/astar/0x2Cd341F19387D15E8FcD6C9D10Ac08353AB2e2F3,0x3FFCb129Cf2392685d49f7C7B336359528C0958a,0x4d0c348742d5f60baacfebffd2d80a3adfa3f0fe,0x900e71a3745cb660aae9e351ff665c081f1a1ea4";
+
+    let mut arthswap_pairs = reqwest::get(dexscreener_pairs_arthswap_url)
+        .await?
+        .json::<apis::dexscreener::Root>()
+        .await?;
+
+    let mut arthswap_pairs_2 = reqwest::get(dexscreener_pairs_arthswap_url_2)
+        .await?
+        .json::<apis::dexscreener::Root>()
+        .await?;
+
+    println!("{:?}", arthswap_pairs.pairs.len());
+
+    arthswap_pairs.pairs.append(&mut arthswap_pairs_2.pairs);
+
+    println!("apl {:?}\n{:?}", arthswap_pairs.pairs.len(), arthswap_pairs);
+
+    if arthswap_pairs.pairs.len() > 0 {
+        // println!("{} pairs_data {:?}", p.0.clone(), pairs_data);
+
+        for pair in arthswap_pairs.clone().pairs.clone() {
+            // let token0price: f64 = pair.token0price.parse().unwrap_or_default();
+            // let token1price: f64 = pair.token1price.parse().unwrap_or_default();
+
+            // let mut token0alloc = 0.0;
+            // let mut token1alloc = 0.0;
+
+            // if token0price > 0.0 && token1price > 0.0 {
+            //     if token0price > token1price {
+            //         token0alloc = (1.0 / token0price) * 100.0;
+            //         token1alloc = 100.0 - token0alloc;
+            //     } else {
+            //         token1alloc = (1.0 / token1price) * 100.0;
+            //         token0alloc = 100.0 - token1alloc;
+            //     }
+            // }
+
+            let pa = Address::from_str(pair.pair_address.as_str()).unwrap();
+            let pair_addr = to_checksum(&pa, None);
+            // println!("pair_addr {:?}", pair_addr.clone());
+
+            let t0a = Address::from_str(pair.base_token.address.as_str()).unwrap();
+            let token0_addr = to_checksum(&t0a, None);
+            // println!("token0_addr {:?}", token0_addr.clone());
+
+            let t1a = Address::from_str(pair.quote_token.address.as_str()).unwrap();
+            let token1_addr = to_checksum(&t1a, None);
+            // println!("token1_addr {:?}", token1_addr.clone());
+
+            let token0logo = format!(
+                "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+                pair.base_token.symbol
+            );
+            let token1logo = format!(
+                "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+                pair.quote_token.symbol
+            );
+
+            println!(
+                "token0logo {:?} token1logo {:?}",
+                token0logo.clone(),
+                token1logo.clone()
+            );
+
+            let token0decimals = 18; //: u32 = pair.base_token.decimals.parse().unwrap_or_default();
+            let token1decimals = 18; //: u32 = pair.quote_token.decimals.parse().unwrap_or_default();
+
+            let mut decimals = token0decimals;
+            if token1decimals > token0decimals {
+                decimals = token1decimals;
+            }
+
+            let mut liquidity: f64 = pair.liquidity.usd as f64; //.parse().unwrap_or_default();
+                                                                // // wstKSM-xcKSM LP
+                                                                // if pair_addr.clone() == "0x5568872bc43Bae3757F697c0e1b241b62Eddcc17" {
+                                                                //     liquidity *= 2.0;
+                                                                // }
+
+            // if p.0.clone() == "solarflare" {
+            //     liquidity = liquidity / nomad_usdc_price;
+            // }
+
+            // let total_supply: f64 = pair.total_supply.parse().unwrap_or_default();
+
+            let mut price_usd: f64 = 0.0;
+
+            // if total_supply != 0.0 {
+            //     price_usd = liquidity / total_supply;
+            // }
+
+            price_usd = pair.price_usd.parse().unwrap_or_default();
+
+            let total_supply: f64 = liquidity / price_usd;
+
+            // println!("price_usd {}", price_usd);
+
+            // let mut fees_apr = 0.0;
+            // let odv = one_day_volume_usd.get(&pair_addr.clone());
+            let odv = pair.volume.h24;
+            // if odv.is_some() {
+            let fees_apr = odv * 0.0025 * 365.0 * 100.0 / liquidity;
+            // if p.0.clone() == "solarflare" {
+            //     fees_apr =
+            //         (odv.unwrap() / nomad_usdc_price) * 0.0025 * 365.0 * 100.0 / liquidity;
+            // }
+            // }
+
+            let f = doc! {
+                "address": pair_addr.clone(),
+                "chain": "astar",
+                "protocol": "arthswap",
+            };
+
+            let timestamp = Utc::now().to_string();
+
+            // println!("pair lastUpdatedAtUTC {}", timestamp.clone());
+
+            let u = doc! {
+                "$set" : {
+                    "address": pair_addr.clone(),
+                    "chain": "astar",
+                    "protocol": "arthswap",
+                    "name": format!("{}-{} LP", pair.base_token.name, pair.quote_token .name),
+                    "symbol": format!("{}-{} LP", pair.base_token.symbol, pair.quote_token.symbol),
+                    "decimals": decimals,
+                    "logos": [
+                        token0logo.clone(),
+                        token1logo.clone(),
+                    ],
+                    "price": price_usd,
+                    "liquidity": liquidity,
+                    "totalSupply": total_supply,
+                    "isLP": true,
+                    "feesAPR": fees_apr,
+                    "underlyingAssets": [token0_addr.clone(), token1_addr.clone()],
+                    "underlyingAssetsAlloc": [],
+                    "lastUpdatedAtUTC": timestamp.clone(),
+                }
+            };
+
+            let options = FindOneAndUpdateOptions::builder()
+                .upsert(Some(true))
+                .build();
+            assets_collection
+                .find_one_and_update(f, u, Some(options))
+                .await?;
+        }
+    }
 
     // let wglmr_poop_stellaswap="https://www.dextools.io/chain-moonbeam/api/pair/search?p=0x4efb208eeeb5a8c85af70e8fbc43d6806b422bec";
     // let wglmr_poop_beamswap="https://www.dextools.io/chain-moonbeam/api/pair/search?p=0xa049a6260921b5ee3183cfb943133d36d7fdb668";
