@@ -837,51 +837,6 @@ async fn chef_contract_jobs(
                     let mut rewards = vec![];
                     let mut total_reward_apr = 0.0;
 
-                    let arsw_price = reqwest::get(
-                    "https://api.coingecko.com/api/v3/simple/price?ids=arthswap&vs_currencies=usd",
-                )
-                .await?
-                .json::<apis::coingecko::ASRoot>()
-                .await?;
-                    println!("arsw_price {:?}", arsw_price.arthswap.usd);
-
-                    let f = doc! {
-                        "address": "0xDe2578Edec4669BA7F41c5d5D2386300bcEA4678",
-                        "chain": "astar",
-                        "protocol": "arthswap",
-                    };
-
-                    let timestamp = Utc::now().to_string();
-
-                    let u = doc! {
-                        "$set" : {
-                            "address": "0xDe2578Edec4669BA7F41c5d5D2386300bcEA4678",
-                            "chain": "astar",
-                            "protocol": "arthswap",
-                            "name": "ArthSwap Token",
-                            "symbol": "ARSW",
-                            "decimals": 18,
-                            "logos": [
-                                "https://raw.githubusercontent.com/yield-bay/assets/main/list/ARSW.png",
-                            ],
-                            "price": arsw_price.arthswap.usd,
-                            "liquidity": 1.0,
-                            "totalSupply": 1.0,
-                            "isLP": false,
-                            "feesAPR": 0.0,
-                            "underlyingAssets": [],
-                            "underlyingAssetsAlloc": [],
-                            "lastUpdatedAtUTC": timestamp.clone(),
-                        }
-                    };
-
-                    let options = FindOneAndUpdateOptions::builder()
-                        .upsert(Some(true))
-                        .build();
-                    assets_collection
-                        .find_one_and_update(f, u, Some(options))
-                        .await?;
-
                     let arsw_filter = doc! { "address": "0xDe2578Edec4669BA7F41c5d5D2386300bcEA4678", "protocol": p.3.clone(), "chain": p.2.clone() };
                     let arsw = assets_collection.find_one(arsw_filter, None).await?;
                     let arsw_price = arsw.clone().unwrap().price;
@@ -3020,6 +2975,53 @@ async fn subgraph_jobs(
     let db = client.database(&db_name);
 
     let assets_collection = db.collection::<models::Asset>("assets");
+
+    let arsw_price = reqwest::get(
+        "https://api.coingecko.com/api/v3/simple/price?ids=arthswap&vs_currencies=usd",
+    )
+    .await?
+    .json::<apis::coingecko::ASRoot>()
+    .await?;
+
+    let arsw_p = arsw_price.arthswap.usd;
+    println!("arsw_price {:?}", arsw_p);
+
+    let f = doc! {
+        "address": "0xDe2578Edec4669BA7F41c5d5D2386300bcEA4678",
+        "chain": "astar",
+        "protocol": "arthswap",
+    };
+
+    let timestamp = Utc::now().to_string();
+
+    let u = doc! {
+        "$set" : {
+            "address": "0xDe2578Edec4669BA7F41c5d5D2386300bcEA4678",
+            "chain": "astar",
+            "protocol": "arthswap",
+            "name": "ArthSwap Token",
+            "symbol": "ARSW",
+            "decimals": 18,
+            "logos": [
+                "https://raw.githubusercontent.com/yield-bay/assets/main/list/ARSW.png",
+            ],
+            "price": arsw_p,
+            "liquidity": 1.0,
+            "totalSupply": 1.0,
+            "isLP": false,
+            "feesAPR": 0.0,
+            "underlyingAssets": [],
+            "underlyingAssetsAlloc": [],
+            "lastUpdatedAtUTC": timestamp.clone(),
+        }
+    };
+
+    let options = FindOneAndUpdateOptions::builder()
+        .upsert(Some(true))
+        .build();
+    assets_collection
+        .find_one_and_update(f, u, Some(options))
+        .await?;
 
     let dexscreener_pairs_arthswap_url = "https://api.dexscreener.com/latest/dex/pairs/astar/0xD72A602C714ae36D990dc835eA5F96Ef87657D5e,0xeee106Aa8a0DE519E8Eb21C66A5c2275b46b3F4d,0xBB1290c1829007F440C771b37718FAbf309cd527,0x50497E7181eB9e8CcD70a9c44FB997742149482a,0x806f746a7c4293092ac7aa604347BE123322dF1e,0x996D73aC8F97cf15BD476b77CB92ce47cA0E71Fe,0x87988EbDE7E661F44eB3a586C5E0cEAB533a2d9C,0xF4119c3d9e65602bb34f2455644e45c98d29bB4b,0x73EEa1180c2D1772eA2118FdA888A81943bAc3C8,0xde2EDAa0cD4aFd59d9618c31A060EAb93Ce45e01,0x61a49ba86e168cd25ca795b07b0a93236bb25127,0x92127ec0ebef8b30378d757bbe8dce18210b848b,0xca59df939290421047876c917789afdb68d5d6f1,0xccefddff4808f3e1e0340e19e43f1e9fd088b3f2,0xF041a8e6e27341F5f865a22f01Fa37e065c32156,0xac4b7043da7152726d54b0fb1628a2fff73f874e,0xef8b14e08c292cc552494ec428a75c8a3cd417b6,0x3d78a6cca5c717c0e8702896892f3522d0b07010,0x7644Bf8086d40eD430D5096305830aA97Be77268,0xcf83a3d83c1265780d9374e8a7c838fe22bd3dc6,0x78d5c2adeb11be00033cc4edb2c2889cf945415e,0xaa1fa6a811d82fa4383b522b4af4de3a5041063e,0xb60a1827db219729f837f2d0982b4cdb5a9ba4b1,0x40E938688a121370092A06745704c112C5ee5791,0xbd13fd873d36f7d2a349b35e6854e3183ede18ab,0x7843ecd6f3234d72d0b7034dd9894b77c416c6ef,0x8897d79334c2d517b83e7846da4b922e68fda61b,0x49d1db92a8a1511a6eeb867221d801bc974a3073,0x9c728cb130ed60eebaf84e6b260d369fa6415f5e,0x3f61a095cc21f99e0bf82966579595f2fc0d4d59";
     let dexscreener_pairs_arthswap_url_2="https://api.dexscreener.com/latest/dex/pairs/astar/0x2Cd341F19387D15E8FcD6C9D10Ac08353AB2e2F3,0x3FFCb129Cf2392685d49f7C7B336359528C0958a,0x4d0c348742d5f60baacfebffd2d80a3adfa3f0fe,0x900e71a3745cb660aae9e351ff665c081f1a1ea4";
