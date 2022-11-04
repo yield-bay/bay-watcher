@@ -2611,10 +2611,10 @@ async fn chef_contract_jobs(
                             }
                         }
 
-                        // stellaswap base4pool
+                        // stellaswap stable
                         if p.3.clone() == "stellaswap".to_string()
                             && p.4.clone() == "v2"
-                            && (pid == 31)
+                            && (pid == 31 || pid == 33)
                         {
                             farm_type = models::FarmType::StableAmm;
 
@@ -2643,6 +2643,7 @@ async fn chef_contract_jobs(
                             // busd: "0x692C57641fc054c2Ad6551Ccc6566EbA599de1BA"
                             // usdc: "0x931715FEE2d06333043d11F658C8CE934aC61D0c"
                             // usdt: "0xFFFFFFfFea09FB06d082fd1275CD48b191cbCD1d"
+                            // mai: "0xdFA46478F9e5EA86d57387849598dbFB2e964b02"
 
                             let frax = IAnyswapV5ERC20::new(
                                 "0x322E86852e492a7Ee17f28a78c663da38FB33bfb".parse::<Address>()?,
@@ -2660,6 +2661,10 @@ async fn chef_contract_jobs(
                                 "0xFFFFFFfFea09FB06d082fd1275CD48b191cbCD1d".parse::<Address>()?,
                                 p.8.clone(),
                             );
+                            let mai = IAnyswapV5ERC20::new(
+                                "0xdFA46478F9e5EA86d57387849598dbFB2e964b02".parse::<Address>()?,
+                                p.8.clone(),
+                            );
 
                             let busd_filter = doc! {"chain":"moonbeam", "protocol":"stellaswap", "address":"0x692C57641fc054c2Ad6551Ccc6566EbA599de1BA"};
                             let busd_asset = assets_collection.find_one(busd_filter, None).await?;
@@ -2669,18 +2674,21 @@ async fn chef_contract_jobs(
                             let usdt_asset = assets_collection.find_one(usdt_filter, None).await?;
                             let frax_filter = doc! {"chain":"moonbeam", "protocol":"stellaswap", "address":"0x322E86852e492a7Ee17f28a78c663da38FB33bfb"};
                             let frax_asset = assets_collection.find_one(frax_filter, None).await?;
+                            let mai_filter = doc! {"chain":"moonbeam", "protocol":"stellaswap", "address":"0xdFA46478F9e5EA86d57387849598dbFB2e964b02"};
+                            let mai_asset = assets_collection.find_one(mai_filter, None).await?;
 
                             let ten: f64 = 10.0;
                             let busd_bal: U256 = busd.balance_of(owner_addr).call().await?;
                             let usdc_bal: U256 = usdc.balance_of(owner_addr).call().await?;
                             let usdt_bal: U256 = usdt.balance_of(owner_addr).call().await?;
                             let frax_bal: U256 = frax.balance_of(owner_addr).call().await?;
+                            let mai_bal: U256 = mai.balance_of(owner_addr).call().await?;
 
                             let _4pool = IStableLpToken::new(
                                 "0xB326b5189AA42Acaa3C649B120f084Ed8F4dCaA6".parse::<Address>()?,
                                 Arc::clone(&p.8.clone()),
                             );
-                            // let _4pool_bal: U256 = _4pool.balance_of(owner_addr).call().await?;
+                            let _4pool_bal: U256 = _4pool.balance_of(owner_addr).call().await?;
 
                             if symbol == "stella4pool".to_string() {
                                 let usd_pool_liq = busd_bal.as_u128() as f64
@@ -2729,6 +2737,67 @@ async fn chef_contract_jobs(
                                         "isLP": true,
                                         "feesAPR": 0.0,
                                         "underlyingAssets": [
+                                            frax_asset.clone().unwrap().address,
+                                            busd_asset.clone().unwrap().address,
+                                            usdc_asset.clone().unwrap().address,
+                                            usdt_asset.clone().unwrap().address,
+                                        ],
+                                        "underlyingAssetsAlloc": [0.25, 0.25, 0.25, 0.25],
+                                        "lastUpdatedAtUTC": timestamp.clone(),
+                                    }
+                                };
+
+                                let options = FindOneAndUpdateOptions::builder()
+                                    .upsert(Some(true))
+                                    .build();
+                                assets_collection
+                                    .find_one_and_update(f, u, Some(options))
+                                    .await?;
+                            } else if symbol == "stellaMAI-4pool" {
+                                let usd_pool_liq = mai_bal.as_u128() as f64
+                                    * mai_asset.clone().unwrap().price
+                                    / ten.powf(18.0)
+                                    + _4pool_bal.as_u128() as f64 / ten.powf(18.0);
+
+                                println!("stellaMAI-4pool usd_pool_liq {}", usd_pool_liq);
+                                let total_supply: U256 = stable_asset.total_supply().call().await?;
+                                let ts = total_supply.as_u128() as f64 / ten.powf(18.0);
+
+                                let usd_pool_price = usd_pool_liq / ts;
+                                println!("usd_pool_price {}", usd_pool_price);
+
+                                let f = doc! {
+                                    "address": "0xEceab9F0FcF15Fddbffbd7baE2cEB78CD57b879a".clone(),
+                                    "chain": p.2.clone(),
+                                    "protocol": p.3.clone(),
+                                };
+
+                                let timestamp = Utc::now().to_string();
+
+                                // println!("token lastUpdatedAtUTC {}", timestamp.clone());
+
+                                let u = doc! {
+                                    "$set" : {
+                                        "address": "0xEceab9F0FcF15Fddbffbd7baE2cEB78CD57b879a".to_string(),
+                                        "chain": p.2.clone(),
+                                        "protocol": p.3.clone(),
+                                        "name": "StellaSwap MAI-4pool".to_string(),
+                                        "symbol": "MAI-4pool".to_string(),
+                                        "decimals": 18,
+                                        "logos": [
+                                            mai_asset.clone().unwrap().logos.get(0),
+                                            frax_asset.clone().unwrap().logos.get(0),
+                                            busd_asset.clone().unwrap().logos.get(0),
+                                            usdc_asset.clone().unwrap().logos.get(0),
+                                            usdt_asset.clone().unwrap().logos.get(0),
+                                        ],
+                                        "price": usd_pool_price,
+                                        "liquidity": usd_pool_liq,
+                                        "totalSupply": ts,
+                                        "isLP": true,
+                                        "feesAPR": 0.0,
+                                        "underlyingAssets": [
+                                            mai_asset.clone().unwrap().address,
                                             frax_asset.clone().unwrap().address,
                                             busd_asset.clone().unwrap().address,
                                             usdc_asset.clone().unwrap().address,
