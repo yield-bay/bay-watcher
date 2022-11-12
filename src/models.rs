@@ -41,6 +41,13 @@ pub struct Farm {
     pub alloc_point: u32,
     #[serde(rename = "lastUpdatedAtUTC")]
     pub last_updated_at_utc: String,
+    pub total_score: f64,
+    pub tvl_score: f64,
+    #[serde(rename = "baseAPRScore")]
+    pub base_apr_score: f64,
+    #[serde(rename = "rewardAPRScore")]
+    pub reward_apr_score: f64,
+    pub rewards_score: f64,
 }
 
 // #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
