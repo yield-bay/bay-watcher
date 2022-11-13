@@ -405,7 +405,20 @@ async fn scoring(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>> {
             tvl: farm.tvl,
             base_apr: farm.apr.base,
             reward_apr: farm.apr.reward,
-            rewards_usd: farm.rewards.iter().map(|x| x.value_usd).sum(),
+            rewards_usd: farm
+                .rewards
+                .iter()
+                .map(|x| {
+                    if x.freq == "Weekly" {
+                        return x.value_usd / 7.0;
+                    } else if x.freq == "Monthly" {
+                        return x.value_usd / 30.0;
+                    } else if x.freq == "Annually" {
+                        return x.value_usd / 365.0;
+                    }
+                    return x.value_usd;
+                })
+                .sum(),
         })
     }
 
