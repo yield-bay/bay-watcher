@@ -7,21 +7,21 @@ use ethers::{
     prelude::{abigen, Address, U256},
     providers::{Http, Provider},
     signers::LocalWallet,
-    types::H160,
     utils::to_checksum,
 };
-use futures::TryStreamExt;
 use gql_client::Client;
 use mongodb::{
     bson::{bson, doc, Bson},
-    options::{ClientOptions, FindOneAndUpdateOptions, FindOptions},
+    options::{ClientOptions, FindOneAndUpdateOptions},
     Client as MongoClient,
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 mod apis;
 mod constants;
+mod custom;
 mod models;
+mod scoring;
 mod subgraph;
 mod subsquid;
 
@@ -174,10 +174,12 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
     headers.insert("content-type", "application/json");
 
     println!("------------------------------\ncurve_jobs");
-    curve_jobs(mongo_uri.clone()).await.unwrap();
+    custom::curve::curve_jobs(mongo_uri.clone()).await.unwrap();
 
-    println!("------------------------------\ntaiga_jobs");
-    taiga_jobs(mongo_uri.clone()).await.unwrap();
+    println!("------------------------------\ntapio_taiga_jobs");
+    custom::tapio_taiga::tapio_taiga_jobs(mongo_uri.clone())
+        .await
+        .unwrap();
 
     let solarbeam_subgraph_client = Client::new_with_headers(
         constants::subgraph_urls::SOLARBEAM_SUBGRAPH.clone(),
@@ -306,307 +308,7 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
     .await
     .unwrap();
 
-    scoring(mongo_uri.clone()).await.unwrap();
-
-    Ok(())
-}
-
-async fn scoring(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>> {
-    let mut client_options = ClientOptions::parse(mongo_uri).await?;
-    client_options.app_name = Some("Bay Watcher".to_string());
-    let client = MongoClient::with_options(client_options)?;
-    let db_name = dotenv::var("DB_NAME").unwrap();
-    let db = client.database(&db_name);
-
-    // let assets_collection = db.collection::<models::Asset>("assets");
-    let farms_collection = db.collection::<models::Farm>("farms");
-
-    let f = doc! {
-        "allocPoint" : {
-            "$ne": 0,
-        }
-    };
-
-    let u = doc! {
-        "$set" : {
-            "address": "0xFFfffFFecB45aFD30a637967995394Cc88C0c194",
-        }
-    };
-
-    // let options = FindOneAndUpdateOptions::builder()
-    //     .upsert(Some(true))
-    //     .build();
-    let options = FindOptions::builder().build();
-    // assets_collection
-    //     .find_one_and_update(f, u, Some(options))
-    //     .await?;
-    let mut farms = vec![];
-
-    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-    pub struct Farm {
-        id: i32,
-        asset_addr: String,
-        asset: String,
-        protocol: String,
-        chain: String,
-        chef: String,
-        farm_type: String,
-        tvl: f64,
-        base_apr: f64,
-        reward_apr: f64,
-        rewards_usd: f64,
-    }
-
-    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-    pub struct FarmSafetyScore {
-        // farm: Farm,
-        id: i32,
-        asset_addr: String,
-        asset: String,
-        protocol: String,
-        chain: String,
-        chef: String,
-        farm_type: String,
-        tvl: f64,
-        base_apr: f64,
-        reward_apr: f64,
-        rewards_usd: f64,
-        //
-        total_score: f64,
-        tvl_score: f64,
-        base_apr_score: f64,
-        reward_apr_score: f64,
-        rewards_score: f64,
-    }
-    // WEIGHTAGE = {"TVL": 0.45, "APR": {"BASE": 0.2, "REWARD": 0.15}, "REWARDS_USD": 0.2}
-
-    struct Weightage {
-        tvl: f64,
-        base_apr: f64,
-        reward_apr: f64,
-        rewards_usd: f64,
-    }
-
-    let mut farms_cursor = farms_collection.find(f, Some(options)).await?;
-    while let Some(farm) = farms_cursor.try_next().await? {
-        // println!("{:?}", farms_cursor.current());
-        println!(
-            "farm: {:?} {:?} {:?}",
-            farm.asset.address, farm.protocol, farm.chain
-        );
-        farms.push(Farm {
-            id: farm.id,
-            asset_addr: farm.asset.address,
-            asset: farm.asset.symbol,
-            protocol: farm.protocol,
-            chain: farm.chain,
-            chef: farm.chef,
-            farm_type: farm.farm_type,
-            tvl: farm.tvl,
-            base_apr: farm.apr.base,
-            reward_apr: farm.apr.reward,
-            rewards_usd: farm
-                .rewards
-                .iter()
-                .map(|x| {
-                    if x.freq == "Weekly" {
-                        return x.value_usd / 7.0;
-                    } else if x.freq == "Monthly" {
-                        return x.value_usd / 30.0;
-                    } else if x.freq == "Annually" {
-                        return x.value_usd / 365.0;
-                    }
-                    return x.value_usd;
-                })
-                .sum(),
-        })
-    }
-
-    println!("fl {:?}", farms.len());
-
-    fn reward_scores(farms: Vec<Farm>) -> Vec<f64> {
-        let mut scores = vec![];
-        let rewards: Vec<f64> = farms.iter().map(|x| x.rewards_usd).collect();
-        let mut max_reward = 0.0;
-        for reward in rewards {
-            if reward > max_reward {
-                max_reward = reward;
-            }
-        }
-
-        for farm in farms {
-            scores.push(farm.rewards_usd / max_reward)
-        }
-        scores
-    }
-
-    fn reward_apr_scores(farms: Vec<Farm>) -> Vec<f64> {
-        let mut scores = vec![];
-        let reward_aprs: Vec<f64> = farms.iter().map(|x| x.reward_apr).collect();
-        let mut max_apr = 0.0;
-        for reward_apr in reward_aprs {
-            if reward_apr > max_apr {
-                max_apr = reward_apr;
-            }
-        }
-
-        for farm in farms {
-            scores.push(farm.reward_apr / max_apr)
-        }
-        scores
-    }
-
-    fn base_apr_scores(farms: Vec<Farm>) -> Vec<f64> {
-        let mut scores = vec![];
-        let base_aprs: Vec<f64> = farms.iter().map(|x| x.base_apr).collect();
-        let mut max_apr = 0.0;
-        for base_apr in base_aprs {
-            if base_apr > max_apr {
-                max_apr = base_apr;
-            }
-        }
-
-        for farm in farms {
-            if farm.farm_type == "StableAmm" {
-                scores.push(0.6)
-            } else if farm.farm_type == "SingleStaking" {
-                scores.push(0.3)
-            }
-            // TODO: calculate their base_aprs
-            else if farm.asset == "wstKSM-xcKSM LP" || farm.asset == "wstDOT-xcDOT LP" {
-                scores.push(0.5)
-            } else {
-                scores.push(farm.base_apr / max_apr)
-            }
-        }
-        scores
-    }
-
-    fn tvl_scores(farms: Vec<Farm>) -> Vec<f64> {
-        let mut scores = vec![];
-        for farm in farms {
-            let mut score = 0.0;
-            // > $10M |  1.00
-            if farm.tvl >= 10000000.0 {
-                score = 1.0
-            }
-            // $1M - $10M |  0.85
-            else if farm.tvl >= 1000000.0 && farm.tvl < 10000000.0 {
-                score = 0.85
-            }
-            // $100K - $1M |  0.75
-            else if farm.tvl >= 100000.0 && farm.tvl < 1000000.0 {
-                score = 0.75
-            }
-            // $10K - $100K |  0.6
-            else if farm.tvl >= 10000.0 && farm.tvl < 100000.0 {
-                score = 0.6
-            }
-            // $1K - $10K |  0.5
-            else if farm.tvl >= 1000.0 && farm.tvl < 10000.0 {
-                score = 0.5
-            }
-            // // < $1K |  0.00
-            // else {
-            //     score = 0.0
-            // }
-            scores.push(score)
-        }
-        scores
-    }
-
-    // WEIGHTAGE = {"TVL": 0.45, "APR": {"BASE": 0.2, "REWARD": 0.15}, "REWARDS_USD": 0.2}
-
-    let weightage = Weightage {
-        tvl: 0.45,
-        base_apr: 0.2,
-        reward_apr: 0.15,
-        rewards_usd: 0.2,
-    };
-
-    let tvl = tvl_scores(farms.clone()); // 45%
-    let base_apr = base_apr_scores(farms.clone()); // 20%
-    let reward_apr = reward_apr_scores(farms.clone()); // 15%
-    let rewards = reward_scores(farms.clone()); // 20%
-
-    let mut safety_scores = vec![];
-    let mut min_score = 100.0;
-    let mut max_score = -100.0;
-    for i in 0..farms.len() {
-        let farm = farms[i].clone();
-        let total_score = tvl[i] * weightage.tvl
-            + base_apr[i] * weightage.base_apr
-            + reward_apr[i] * weightage.reward_apr
-            + rewards[i] * weightage.rewards_usd;
-        safety_scores.push(FarmSafetyScore {
-            id: farm.id,
-            asset_addr: farm.asset_addr,
-            asset: farm.asset,
-            protocol: farm.protocol,
-            chain: farm.chain,
-            chef: farm.chef,
-            farm_type: farm.farm_type,
-            tvl: farm.tvl,
-            base_apr: farm.base_apr,
-            reward_apr: farm.reward_apr,
-            rewards_usd: farm.rewards_usd,
-            // farm: farms[i],
-            total_score: total_score,
-            tvl_score: tvl[i],
-            base_apr_score: base_apr[i],
-            reward_apr_score: reward_apr[i],
-            rewards_score: rewards[i],
-        });
-        if total_score > max_score {
-            max_score = total_score;
-        }
-        if total_score < min_score {
-            min_score = total_score;
-        }
-    }
-
-    println!("safety_scores {:?}", safety_scores.clone());
-
-    for i in 0..safety_scores.len() {
-        // (score["total_score"] - _min) / ((_max - _min) * 1.01)
-        safety_scores[i].total_score =
-            (safety_scores[i].total_score - min_score) / ((max_score - min_score) * 1.01);
-
-        let obj = safety_scores[i].clone();
-
-        let ff = doc! {
-            "id": obj.id.clone(),
-            "chef": obj.chef.clone(),
-            "chain": obj.chain.clone(),
-            "protocol": obj.protocol.clone(),
-        };
-        let fu = doc! {
-            "$set" : {
-                "id": obj.id.clone(),
-                "chef": obj.chef.clone(),
-                "chain": obj.chain.clone(),
-                "protocol": obj.protocol.clone(),
-                "totalScore": obj.total_score.clone(),
-                "tvlScore": obj.tvl_score.clone(),
-                "baseAPRScore": obj.base_apr_score.clone(),
-                "rewardAPRScore": obj.reward_apr_score.clone(),
-                "rewardsScore": obj.rewards_score.clone(),
-            }
-        };
-        let options = FindOneAndUpdateOptions::builder()
-            .upsert(Some(true))
-            .build();
-        let scores_update_res = farms_collection
-            .find_one_and_update(ff, fu, Some(options))
-            .await?;
-        // if scores_update_res.is_some() {
-        //     println!("scores_update_res {:?}", scores_update_res.unwrap());
-        // } else {
-        //     println!("scores_update_res fail {:?}", scores_update_res);
-        // }
-    }
-
-    // println!("normalized safety_scores {:?}", safety_scores.clone());
+    scoring::safety_score(mongo_uri.clone()).await.unwrap();
 
     Ok(())
 }
@@ -1365,8 +1067,6 @@ async fn chef_contract_jobs(
 
                     let timestamp = Utc::now().to_string();
 
-                    // println!("token lastUpdatedAtUTC {}", timestamp.clone());
-
                     let u = doc! {
                         "$set" : {
                             "address": ft_addr.to_string(),
@@ -1488,8 +1188,6 @@ async fn chef_contract_jobs(
 
                     let timestamp = Utc::now().to_string();
 
-                    // println!("token lastUpdatedAtUTC {}", timestamp.clone());
-
                     let u = doc! {
                         "$set" : {
                             "address": ft_addr.to_string(),
@@ -1538,8 +1236,6 @@ async fn chef_contract_jobs(
 
                 let asset = assets_collection.find_one(asset_filter, None).await?;
 
-                // println!("asset {:?}", asset.clone().unwrap());
-
                 let mut asset_price: f64 = 0.0;
                 let mut asset_tvl: u128 = 0;
 
@@ -1569,17 +1265,7 @@ async fn chef_contract_jobs(
                             let reward_asset_price = reward_asset.clone().unwrap().price;
                             println!("reward_asset_price: {:?}", reward_asset_price);
 
-                            // if pid == 38 && p.3.clone() == "solarbeam".to_string() {
-                            //     let solar_filter = doc! { "address": "0x6bD193Ee6D2104F14F94E2cA6efefae561A4334B", "protocol": "solarbeam", "chain": "moonriver" };
-                            //     let solar = assets_collection
-                            //         .find_one(solar_filter, None)
-                            //         .await?;
-                            //     if solar.is_some() {
-                            //         asset_price = solar.unwrap().price;
-                            //     }
-                            // } else {
                             asset_price = asset.clone().unwrap().price;
-                            // }
 
                             println!("asset_price: {:?}", asset_price);
 
@@ -1592,22 +1278,13 @@ async fn chef_contract_jobs(
 
                             let rpb = reward_per_block[i].as_u128();
                             let rewards_per_sec: f64 = rpb as f64 / block_time;
-                            // let rewards_per_day: f64 = rewards_per_sec * 60.0 * 60.0 * 24.0;
                             let rewards_per_day: u128 = rewards_per_sec as u128 * 60 * 60 * 24;
                             println!(
                                 "rpb {:?} rewards_per_sec {:?} rewards_per_day {:?}",
                                 rpb, rewards_per_sec, rewards_per_day
                             );
 
-                            // // zlk token
-                            // if asset.clone().unwrap().address
-                            //     == "0x3Fd9b6C9A24E09F67b7b706d72864aEbb439100C".to_string()
-                            // {
-                            //     asset_tvl = amount.as_u128();
-                            // } else {
-                            // asset_tvl = asset.clone().unwrap().liquidity as u128;
                             asset_tvl = amount.as_u128();
-                            // }
 
                             let ten: i128 = 10;
 
@@ -1615,18 +1292,6 @@ async fn chef_contract_jobs(
                                 if !reward_asset_map
                                     .contains_key(&reward_asset.clone().unwrap().symbol)
                                 {
-                                    // }
-                                    // if !reward_asset_map
-                                    //     .get(&reward_asset.clone().unwrap().symbol)
-                                    //     .unwrap()
-                                    //     .0
-                                    // {
-                                    // rewards.push(bson!({
-                                    //     "amount": rewards_per_day as f64 / ten.pow(reward_asset.clone().unwrap().decimals) as f64,
-                                    //     "asset":  reward_asset.clone().unwrap().symbol,
-                                    //     "valueUSD": (rewards_per_day as f64 / ten.pow(reward_asset.clone().unwrap().decimals) as f64) * reward_asset_price,
-                                    //     "freq": models::Freq::Daily.to_string(),
-                                    // }));
                                     reward_asset_map.insert(
                                         reward_asset.clone().unwrap().symbol,
                                         (
@@ -1667,31 +1332,18 @@ async fn chef_contract_jobs(
                                     rewards_per_sec, rewards_per_day, asset_tvl
                                 );
                                 let mut reward_apr = 0.0;
-                                // // zlk token
-                                // if asset.clone().unwrap().address
-                                //     == "0x3Fd9b6C9A24E09F67b7b706d72864aEbb439100C".to_string()
-                                // {
-                                //     reward_apr = ((rewards_per_day as f64
-                                //         / ten.pow(reward_asset.clone().unwrap().decimals) as f64
-                                //         * reward_asset_price)
-                                //         / (asset_tvl as f64 * asset_price / ten.pow(18) as f64))
-                                //         * 365.0
-                                //         * 100.0;
-                                // } else {
+
                                 reward_apr = ((rewards_per_day as f64
                                     / ten.pow(reward_asset.clone().unwrap().decimals) as f64
                                     * reward_asset_price)
                                     / (asset_tvl as f64 * asset_price / ten.pow(18) as f64))
                                     * 365.0
                                     * 100.0;
-                                // }
 
                                 println!("reward_apr: {}", reward_apr);
                                 if asset_tvl != 0 && asset_price != 0.0 {
                                     total_reward_apr += reward_apr;
                                 }
-                            } else {
-                                // yes = false;
                             }
                         }
                     }
@@ -1707,15 +1359,7 @@ async fn chef_contract_jobs(
 
                     let ten: f64 = 10.0;
 
-                    let mut atvl = 0.0;
-                    // zlk token
-                    // if asset.clone().unwrap().address
-                    //     == "0x3Fd9b6C9A24E09F67b7b706d72864aEbb439100C".to_string()
-                    // {
-                    atvl = asset_tvl as f64 * asset_price / ten.powf(18.0);
-                    // } else {
-                    // atvl = asset_tvl as f64 * asset_price;
-                    // }
+                    let atvl: f64 = asset_tvl as f64 * asset_price / ten.powf(18.0);
 
                     println!(
                         "rewards {:?} total_reward_apr {:?} tvl {:?}",
@@ -1789,7 +1433,6 @@ async fn chef_contract_jobs(
                             "chain": p.2.clone(),
                             "protocol": "zenlink".to_string(),
                         };
-                        let ten: f64 = 10.0;
                         let fu = doc! {
                             "$set" : {
                                 "id": pid,
@@ -1803,7 +1446,6 @@ async fn chef_contract_jobs(
                                     "address": asset.clone().unwrap().address,
                                     "price": asset.clone().unwrap().price,
                                     "logos": asset.clone().unwrap().logos,
-                                    // "underlying_assets": farm_assets,
                                 },
                                 "tvl": atvl,
                                 "apr.reward": total_reward_apr,
@@ -1857,7 +1499,6 @@ async fn chef_contract_jobs(
                         .await?;
 
                     let asset_addr = ethers::utils::to_checksum(&lp_token.to_owned(), None);
-                    // println!("asset_addr: {:?}", asset_addr.clone());
 
                     let asset_filter = doc! { "address": asset_addr.clone(), "protocol": p.3.clone(), "chain": p.2.clone() };
                     let asset = assets_collection.find_one(asset_filter, None).await?;
@@ -2042,9 +1683,7 @@ async fn chef_contract_jobs(
                                         "address": asset_addr.clone(),
                                         "price": asset.clone().unwrap().price,
                                         "logos": asset.clone().unwrap().logos,
-                                        // "underlying_assets": farm_assets,
                                     },
-                                    // "tvl": asset_tvl as f64 * asset_price / ten.powf(18.0),
                                     "tvl": asset_tvl as f64,
                                     "apr.reward": total_reward_apr,
                                     "apr.base": base_apr,
@@ -2268,7 +1907,6 @@ async fn chef_contract_jobs(
                                             "address": asset_addr.clone(),
                                             "price": asset.clone().unwrap().price,
                                             "logos": asset.clone().unwrap().logos,
-                                            // "underlying_assets": farm_assets,
                                         },
                                         "tvl": asset_tvl as f64 * asset_price / ten.powf(18.0),
                                         "apr.reward": reward_apr,
@@ -2287,12 +1925,6 @@ async fn chef_contract_jobs(
                             }
                         }
                     } else {
-                        // let rewarders =
-                        //     p.1.pool_rewarders(ethers::prelude::U256::from(pid))
-                        //         .call()
-                        //         .await?;
-                        // println!("rewarders: {:?}", rewarders);
-
                         let (addresses, symbols, decimals, rewards_per_sec) =
                             p.1.pool_rewards_per_sec(ethers::prelude::U256::from(pid))
                                 .call()
@@ -2455,8 +2087,6 @@ async fn chef_contract_jobs(
 
                                 let timestamp = Utc::now().to_string();
 
-                                // println!("token lastUpdatedAtUTC {}", timestamp.clone());
-
                                 let u = doc! {
                                     "$set" : {
                                         "address": "0xfb29918d393AaAa7dD118B51A8b7fCf862F5f336".to_string(),
@@ -2508,8 +2138,6 @@ async fn chef_contract_jobs(
                                 };
 
                                 let timestamp = Utc::now().to_string();
-
-                                // println!("token lastUpdatedAtUTC {}", timestamp.clone());
 
                                 let u = doc! {
                                     "$set" : {
@@ -2565,8 +2193,6 @@ async fn chef_contract_jobs(
 
                                 let timestamp = Utc::now().to_string();
 
-                                // println!("token lastUpdatedAtUTC {}", timestamp.clone());
-
                                 let u = doc! {
                                     "$set" : {
                                         "address": "0x8CDB472731B4f815d67e76885a22269ad7f0e398".to_string(),
@@ -2620,8 +2246,6 @@ async fn chef_contract_jobs(
                                 };
 
                                 let timestamp = Utc::now().to_string();
-
-                                // println!("token lastUpdatedAtUTC {}", timestamp.clone());
 
                                 let u = doc! {
                                     "$set" : {
@@ -2679,8 +2303,6 @@ async fn chef_contract_jobs(
 
                                 let timestamp = Utc::now().to_string();
 
-                                // println!("token lastUpdatedAtUTC {}", timestamp.clone());
-
                                 let u = doc! {
                                     "$set" : {
                                         "address": "0x4F707d051b4b49B63e72Cc671e78E152ec66f2fA".to_string(),
@@ -2733,8 +2355,6 @@ async fn chef_contract_jobs(
                                 };
 
                                 let timestamp = Utc::now().to_string();
-
-                                // println!("token lastUpdatedAtUTC {}", timestamp.clone());
 
                                 let u = doc! {
                                     "$set" : {
@@ -2872,8 +2492,6 @@ async fn chef_contract_jobs(
                                 };
 
                                 let timestamp = Utc::now().to_string();
-
-                                // println!("token lastUpdatedAtUTC {}", timestamp.clone());
 
                                 let u = doc! {
                                     "$set" : {
@@ -3018,8 +2636,6 @@ async fn chef_contract_jobs(
 
                                 let timestamp = Utc::now().to_string();
 
-                                // println!("token lastUpdatedAtUTC {}", timestamp.clone());
-
                                 let u = doc! {
                                     "$set" : {
                                         "address": "0xB326b5189AA42Acaa3C649B120f084Ed8F4dCaA6".to_string(),
@@ -3076,8 +2692,6 @@ async fn chef_contract_jobs(
                                 };
 
                                 let timestamp = Utc::now().to_string();
-
-                                // println!("token lastUpdatedAtUTC {}", timestamp.clone());
 
                                 let u = doc! {
                                     "$set" : {
@@ -3200,18 +2814,6 @@ async fn chef_contract_jobs(
                                             if !reward_asset_map
                                                 .contains_key(&reward_asset.clone().unwrap().symbol)
                                             {
-                                                // }
-                                                // if !reward_asset_map
-                                                //     .get(&reward_asset.clone().unwrap().symbol)
-                                                //     .unwrap()
-                                                //     .0
-                                                // {
-                                                // rewards.push(bson!({
-                                                //     "amount": rewards_per_day as f64 / ten.pow(reward_asset.clone().unwrap().decimals) as f64,
-                                                //     "asset":  reward_asset.clone().unwrap().symbol,
-                                                //     "valueUSD": (rewards_per_day as f64 / ten.pow(reward_asset.clone().unwrap().decimals) as f64) * reward_asset_price,
-                                                //     "freq": models::Freq::Daily.to_string(),
-                                                // }));
                                                 reward_asset_map.insert(
                                                     reward_asset.clone().unwrap().symbol,
                                                     (
@@ -3265,12 +2867,6 @@ async fn chef_contract_jobs(
                                                     ),
                                                 );
                                             }
-                                            // rewards.push(bson!({
-                                            //     "amount": rewards_per_day as f64 / ten.pow(decimals[i].as_u32().try_into().unwrap()) as f64,
-                                            //     "asset":  reward_asset.clone().unwrap().symbol,
-                                            //     "valueUSD": (rewards_per_day as f64 / ten.pow(decimals[i].as_u32().try_into().unwrap()) as f64) * reward_asset_price,
-                                            //     "freq": models::Freq::Daily.to_string(),
-                                            // }));
 
                                             // reward_apr/farm_apr/pool_apr
                                             println!(
@@ -3363,21 +2959,6 @@ async fn chef_contract_jobs(
                                     base_apr = 0.0;
                                 }
 
-                                // let mut farm_assets = vec![];
-                                // for ua in asset.clone().unwrap().underlying_assets {
-                                //     let underlying_asset_filter = doc! { "address": ua.clone() };
-                                //     let underlying_asset = assets_collection
-                                //         .find_one(underlying_asset_filter, None)
-                                //         .await?;
-                                //     if underlying_asset.is_some() {
-                                //         farm_assets.push(bson!({
-                                //             "symbol": underlying_asset.clone().unwrap().symbol,
-                                //             "address": underlying_asset.clone().unwrap().address,
-                                //             "underlyingAssets": underlying_asset.clone().unwrap().underlying_assets,
-                                //         }));
-                                //     }
-                                // }
-
                                 let timestamp = Utc::now().to_string();
 
                                 println!("chef v2 farm lastUpdatedAtUTC {}", timestamp.clone());
@@ -3402,7 +2983,6 @@ async fn chef_contract_jobs(
                                             "address": asset_addr.clone(),
                                             "price": asset.clone().unwrap().price,
                                             "logos": asset.clone().unwrap().logos,
-                                            // "underlying_assets": farm_assets,
                                         },
                                         "tvl": asset_tvl as f64 * asset_price / ten.powf(18.0),
                                         "apr.reward": total_reward_apr,
@@ -3552,36 +3132,15 @@ async fn subgraph_jobs(
     println!("apl {:?}\n{:?}", arthswap_pairs.pairs.len(), arthswap_pairs);
 
     if arthswap_pairs.pairs.len() > 0 {
-        // println!("{} pairs_data {:?}", p.0.clone(), pairs_data);
-
         for pair in arthswap_pairs.clone().pairs.clone() {
-            // let token0price: f64 = pair.token0price.parse().unwrap_or_default();
-            // let token1price: f64 = pair.token1price.parse().unwrap_or_default();
-
-            // let mut token0alloc = 0.0;
-            // let mut token1alloc = 0.0;
-
-            // if token0price > 0.0 && token1price > 0.0 {
-            //     if token0price > token1price {
-            //         token0alloc = (1.0 / token0price) * 100.0;
-            //         token1alloc = 100.0 - token0alloc;
-            //     } else {
-            //         token1alloc = (1.0 / token1price) * 100.0;
-            //         token0alloc = 100.0 - token1alloc;
-            //     }
-            // }
-
             let pa = Address::from_str(pair.pair_address.as_str()).unwrap();
             let pair_addr = to_checksum(&pa, None);
-            // println!("pair_addr {:?}", pair_addr.clone());
 
             let t0a = Address::from_str(pair.base_token.address.as_str()).unwrap();
             let token0_addr = to_checksum(&t0a, None);
-            // println!("token0_addr {:?}", token0_addr.clone());
 
             let t1a = Address::from_str(pair.quote_token.address.as_str()).unwrap();
             let token1_addr = to_checksum(&t1a, None);
-            // println!("token1_addr {:?}", token1_addr.clone());
 
             let token0logo = format!(
                 "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
@@ -3606,40 +3165,14 @@ async fn subgraph_jobs(
                 decimals = token1decimals;
             }
 
-            let mut liquidity: f64 = pair.liquidity.usd as f64; //.parse().unwrap_or_default();
-                                                                // // wstKSM-xcKSM LP
-                                                                // if pair_addr.clone() == "0x5568872bc43Bae3757F697c0e1b241b62Eddcc17" {
-                                                                //     liquidity *= 2.0;
-                                                                // }
+            let liquidity: f64 = pair.liquidity.usd as f64;
 
-            // if p.0.clone() == "solarflare" {
-            //     liquidity = liquidity / nomad_usdc_price;
-            // }
-
-            // let total_supply: f64 = pair.total_supply.parse().unwrap_or_default();
-
-            let mut price_usd: f64 = 0.0;
-
-            // if total_supply != 0.0 {
-            //     price_usd = liquidity / total_supply;
-            // }
-
-            price_usd = pair.price_usd.parse().unwrap_or_default();
+            let price_usd: f64 = pair.price_usd.parse().unwrap_or_default();
 
             let total_supply: f64 = liquidity / price_usd;
 
-            // println!("price_usd {}", price_usd);
-
-            // let mut fees_apr = 0.0;
-            // let odv = one_day_volume_usd.get(&pair_addr.clone());
             let odv = pair.volume.h24;
-            // if odv.is_some() {
             let fees_apr = odv * 0.0025 * 365.0 * 100.0 / liquidity;
-            // if p.0.clone() == "solarflare" {
-            //     fees_apr =
-            //         (odv.unwrap() / nomad_usdc_price) * 0.0025 * 365.0 * 100.0 / liquidity;
-            // }
-            // }
 
             let f = doc! {
                 "address": pair_addr.clone(),
@@ -3648,8 +3181,6 @@ async fn subgraph_jobs(
             };
 
             let timestamp = Utc::now().to_string();
-
-            // println!("pair lastUpdatedAtUTC {}", timestamp.clone());
 
             let u = doc! {
                 "$set" : {
@@ -3683,36 +3214,6 @@ async fn subgraph_jobs(
         }
     }
 
-    // let wglmr_poop_stellaswap="https://www.dextools.io/chain-moonbeam/api/pair/search?p=0x4efb208eeeb5a8c85af70e8fbc43d6806b422bec";
-    // let wglmr_poop_beamswap="https://www.dextools.io/chain-moonbeam/api/pair/search?p=0xa049a6260921b5ee3183cfb943133d36d7fdb668";
-
-    // // let wglmr_poop_stellaswap_client =
-    // //     Client::new_with_headers(&wglmr_poop_stellaswap, 60, headers.clone());
-    // // let wglmr_poop_beamswap_client =
-    // //     Client::new_with_headers(&wglmr_poop_beamswap, 60, headers.clone());
-
-    // let wglmr_poop_stellaswap_resp = reqwest::get(wglmr_poop_stellaswap)
-    //     .await?
-    //     .json()
-    //     // .json::<apis::dextools::Root>()
-    //     .await?;
-
-    // println!(
-    //     "wglmr_poop_stellaswap_resp {:?}",
-    //     wglmr_poop_stellaswap_resp
-    // );
-
-    // let wglmr_poop_beamswap_resp = reqwest::get(wglmr_poop_beamswap)
-    //     .await?
-    //     .json()
-    //     // .json::<apis::dextools::Root>()
-    //     .await?;
-
-    // println!("wglmr_poop_beamswap_resp {:?}", wglmr_poop_beamswap_resp);
-
-    // let delay = time::Duration::from_secs(60 * 5);
-    // thread::sleep(delay);
-
     for p in protocols {
         println!("subgraph data for {} on {}", p.0.clone(), p.1.clone());
 
@@ -3728,7 +3229,6 @@ async fn subgraph_jobs(
                 .await;
 
             if tokens_data.is_ok() {
-                // println!("{} tokens_data {:?}", p.0.clone(), tokens_data.clone());
                 for t in tokens_data.clone().unwrap().tokens.clone() {
                     let mut price_usd: f64 = 0.0;
                     if t.day_data.len() >= 1 {
@@ -3746,16 +3246,12 @@ async fn subgraph_jobs(
                     let ta = Address::from_str(t.id.as_str()).unwrap();
                     let token_addr = to_checksum(&ta, None);
 
-                    // println!("token_addr {:?}", token_addr.clone());
-
                     let decimals: u32 = t.decimals.parse().unwrap_or_default();
 
                     let logo = format!(
                         "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
                         t.symbol
                     );
-
-                    // println!("logo {}", logo.clone());
 
                     let liquidity: f64 = t.liquidity.parse().unwrap_or_default();
 
@@ -3766,8 +3262,6 @@ async fn subgraph_jobs(
                     };
 
                     let timestamp = Utc::now().to_string();
-
-                    // println!("token lastUpdatedAtUTC {}", timestamp.clone());
 
                     let u = doc! {
                         "$set" : {
@@ -3807,12 +3301,10 @@ async fn subgraph_jobs(
             }
         } else if p.0.clone() == "zenlink" {
             let tokens_data = client
-                // p.2.clone()
                 .query_unwrap::<subsquid::TokensData>(constants::subsquid::TOKENS_QUERY.clone())
                 .await;
 
             if tokens_data.is_ok() {
-                // println!("{} tokens_data {:?}", p.0.clone(), tokens_data.clone());
                 for t in tokens_data.clone().unwrap().tokens.clone() {
                     let mut price_usd: f64 = 0.0;
                     if t.token_day_data.len() >= 1 {
@@ -3843,16 +3335,12 @@ async fn subgraph_jobs(
                         price_usd = 1.0;
                     }
 
-                    // println!("token_addr {:?}", token_addr.clone());
-
                     let decimals: u32 = t.decimals as u32;
 
                     let logo = format!(
                         "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
                         t.symbol
                     );
-
-                    // println!("logo {}", logo.clone());
 
                     let liquidity: f64 = t.total_liquidity.parse().unwrap_or_default();
 
@@ -3872,8 +3360,6 @@ async fn subgraph_jobs(
                     };
 
                     let timestamp = Utc::now().to_string();
-
-                    // println!("token lastUpdatedAtUTC {}", timestamp.clone());
 
                     let u = doc! {
                         "$set" : {
@@ -3913,12 +3399,10 @@ async fn subgraph_jobs(
             }
         } else {
             let tokens_data = client
-                // p.2.clone()
                 .query_unwrap::<subgraph::TokensData>(constants::chef::TOKENS_QUERY.clone())
                 .await;
 
             if tokens_data.is_ok() {
-                // println!("{} tokens_data {:?}", p.0.clone(), tokens_data.clone());
                 for t in tokens_data.clone().unwrap().tokens.clone() {
                     let mut price_usd: f64 = 0.0;
                     if t.token_day_data.len() >= 1 {
@@ -3936,16 +3420,12 @@ async fn subgraph_jobs(
                     let ta = Address::from_str(t.id.as_str()).unwrap();
                     let token_addr = to_checksum(&ta, None);
 
-                    // println!("token_addr {:?}", token_addr.clone());
-
                     let decimals: u32 = t.decimals.parse().unwrap_or_default();
 
                     let logo = format!(
                         "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
                         t.symbol
                     );
-
-                    // println!("logo {}", logo.clone());
 
                     let liquidity: f64 = t.total_liquidity.parse().unwrap_or_default();
 
@@ -3979,8 +3459,6 @@ async fn subgraph_jobs(
                     };
 
                     let timestamp = Utc::now().to_string();
-
-                    // println!("token lastUpdatedAtUTC {}", timestamp.clone());
 
                     let u = doc! {
                         "$set" : {
@@ -4089,15 +3567,12 @@ async fn subgraph_jobs(
 
         if p.0.clone() == "sushiswap" {
             let pairs_data = client
-                // p.2.clone()
                 .query_unwrap::<subgraph::SushiPairsData>(
                     constants::chef::SUSHI_PAIRS_QUERY.clone(),
                 )
                 .await;
 
             if pairs_data.is_ok() {
-                // println!("{} pairs_data {:?}", p.0.clone(), pairs_data);
-
                 for pair in pairs_data.clone().unwrap().pairs.clone() {
                     let token0price: f64 = pair.token0price.parse().unwrap_or_default();
                     let token1price: f64 = pair.token1price.parse().unwrap_or_default();
@@ -4117,15 +3592,12 @@ async fn subgraph_jobs(
 
                     let pa = Address::from_str(pair.id.as_str()).unwrap();
                     let pair_addr = to_checksum(&pa, None);
-                    // println!("pair_addr {:?}", pair_addr.clone());
 
                     let t0a = Address::from_str(pair.token0.id.as_str()).unwrap();
                     let token0_addr = to_checksum(&t0a, None);
-                    // println!("token0_addr {:?}", token0_addr.clone());
 
                     let t1a = Address::from_str(pair.token1.id.as_str()).unwrap();
                     let token1_addr = to_checksum(&t1a, None);
-                    // println!("token1_addr {:?}", token1_addr.clone());
 
                     let token0logo = format!(
                         "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
@@ -4159,8 +3631,6 @@ async fn subgraph_jobs(
                         price_usd = liquidity / total_supply;
                     }
 
-                    // println!("price_usd {}", price_usd);
-
                     let mut fees_apr = 0.0;
                     let odv = one_day_volume_usd.get(&pair_addr.clone());
                     if odv.is_some() {
@@ -4174,8 +3644,6 @@ async fn subgraph_jobs(
                     };
 
                     let timestamp = Utc::now().to_string();
-
-                    // println!("pair lastUpdatedAtUTC {}", timestamp.clone());
 
                     let u = doc! {
                         "$set" : {
@@ -4216,13 +3684,10 @@ async fn subgraph_jobs(
             }
         } else if p.0.clone() == "zenlink" {
             let pairs_data = client
-                // p.2.clone()
                 .query_unwrap::<subsquid::PairsData>(constants::subsquid::PAIRS_QUERY.clone())
                 .await;
 
             if pairs_data.is_ok() {
-                // println!("{} pairs_data {:?}", p.0.clone(), pairs_data);
-
                 for pair in pairs_data.clone().unwrap().pairs.clone() {
                     let token0price: f64 = pair.token0price.parse().unwrap_or_default();
                     let token1price: f64 = pair.token1price.parse().unwrap_or_default();
@@ -4242,15 +3707,12 @@ async fn subgraph_jobs(
 
                     let pa = Address::from_str(pair.id.as_str()).unwrap();
                     let pair_addr = to_checksum(&pa, None);
-                    // println!("pair_addr {:?}", pair_addr.clone());
 
                     let t0a = Address::from_str(pair.token0.id.as_str()).unwrap();
                     let token0_addr = to_checksum(&t0a, None);
-                    // println!("token0_addr {:?}", token0_addr.clone());
 
                     let t1a = Address::from_str(pair.token1.id.as_str()).unwrap();
                     let token1_addr = to_checksum(&t1a, None);
-                    // println!("token1_addr {:?}", token1_addr.clone());
 
                     let token0logo = format!(
                         "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
@@ -4288,8 +3750,6 @@ async fn subgraph_jobs(
                         price_usd = liquidity / total_supply;
                     }
 
-                    // println!("price_usd {}", price_usd);
-
                     let mut fees_apr = 0.0;
                     let odv = one_day_volume_usd.get(&pair_addr.clone());
                     if odv.is_some() {
@@ -4303,8 +3763,6 @@ async fn subgraph_jobs(
                     };
 
                     let timestamp = Utc::now().to_string();
-
-                    // println!("pair lastUpdatedAtUTC {}", timestamp.clone());
 
                     let u = doc! {
                         "$set" : {
@@ -4345,13 +3803,10 @@ async fn subgraph_jobs(
             }
         } else {
             let pairs_data = client
-                // p.2.clone()
                 .query_unwrap::<subgraph::PairsData>(constants::chef::PAIRS_QUERY.clone())
                 .await;
 
             if pairs_data.is_ok() {
-                // println!("{} pairs_data {:?}", p.0.clone(), pairs_data);
-
                 for pair in pairs_data.clone().unwrap().pairs.clone() {
                     let token0price: f64 = pair.token0price.parse().unwrap_or_default();
                     let token1price: f64 = pair.token1price.parse().unwrap_or_default();
@@ -4371,15 +3826,12 @@ async fn subgraph_jobs(
 
                     let pa = Address::from_str(pair.id.as_str()).unwrap();
                     let pair_addr = to_checksum(&pa, None);
-                    // println!("pair_addr {:?}", pair_addr.clone());
 
                     let t0a = Address::from_str(pair.token0.id.as_str()).unwrap();
                     let token0_addr = to_checksum(&t0a, None);
-                    // println!("token0_addr {:?}", token0_addr.clone());
 
                     let t1a = Address::from_str(pair.token1.id.as_str()).unwrap();
                     let token1_addr = to_checksum(&t1a, None);
-                    // println!("token1_addr {:?}", token1_addr.clone());
 
                     let token0logo = format!(
                         "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
@@ -4422,8 +3874,6 @@ async fn subgraph_jobs(
                         price_usd = liquidity / total_supply;
                     }
 
-                    // println!("price_usd {}", price_usd);
-
                     let mut fees_apr = 0.0;
                     let odv = one_day_volume_usd.get(&pair_addr.clone());
                     if odv.is_some() {
@@ -4441,8 +3891,6 @@ async fn subgraph_jobs(
                     };
 
                     let timestamp = Utc::now().to_string();
-
-                    // println!("pair lastUpdatedAtUTC {}", timestamp.clone());
 
                     let u = doc! {
                         "$set" : {
@@ -4482,365 +3930,6 @@ async fn subgraph_jobs(
                 );
             }
         }
-    }
-
-    Ok(())
-}
-
-async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>> {
-    let mut client_options = ClientOptions::parse(mongo_uri).await?;
-    client_options.app_name = Some("Bay Watcher".to_string());
-    let client = MongoClient::with_options(client_options)?;
-    let db_name = dotenv::var("DB_NAME").unwrap();
-    let db = client.database(&db_name);
-
-    let farms_collection = db.collection::<models::Farm>("farms");
-
-    let moonbeam_curve_st_dot = "0xc6e37086D09ec2048F151D11CdB9F9BbbdB7d685".to_string();
-
-    let get_factory_apys_resp = reqwest::get("https://api.curve.fi/api/getFactoryAPYs-moonbeam")
-        .await?
-        .json::<apis::curve::GetFactoryAPYsRoot>()
-        .await?;
-    println!(
-        "get_factory_apys_resp:\n{:#?}",
-        get_factory_apys_resp.success
-    );
-
-    if get_factory_apys_resp.success {
-        for pd in get_factory_apys_resp.clone().data.unwrap().pool_details {
-            if pd.pool_address == moonbeam_curve_st_dot.clone() {
-                // pd.apy
-                // pd.index
-
-                let get_factory_v2_pools_resp =
-                    reqwest::get("https://api.curve.fi/api/getFactoryV2Pools-moonbeam")
-                        .await?
-                        .json::<apis::curve::GetFactoryV2PoolsRoot>()
-                        .await?;
-                println!(
-                    "get_factory_v2_pools_resp:\n{:#?}",
-                    get_factory_v2_pools_resp.success
-                );
-
-                if get_factory_v2_pools_resp.success {
-                    for pda in get_factory_v2_pools_resp.clone().data.unwrap().pool_data {
-                        if pda.address == moonbeam_curve_st_dot.clone() {
-                            // pda.usd_total
-
-                            let get_facto_gauges_resp =
-                                reqwest::get("https://api.curve.fi/api/getFactoGauges/moonbeam")
-                                    .await?
-                                    .json::<apis::curve::GetFactoGaugesRoot>()
-                                    .await?;
-                            println!(
-                                "get_facto_gauges_resp:\n{:#?}",
-                                get_facto_gauges_resp.success
-                            );
-
-                            if get_facto_gauges_resp.success {
-                                for g in get_facto_gauges_resp.clone().data.unwrap().gauges {
-                                    if g.swap_token == moonbeam_curve_st_dot.clone() {
-                                        // g.extra_rewards
-                                        let ten: f64 = 10.0;
-
-                                        let mut total_apy = 0.0;
-
-                                        let mut rewards = vec![];
-                                        // <symbol, (exists, amount, valueUSD, freq)>
-                                        let mut reward_asset_map: HashMap<
-                                            String,
-                                            (bool, f64, f64, String),
-                                        > = HashMap::new();
-                                        // TODO: check if we need to handle zero case
-                                        for er in g.extra_rewards {
-                                            let rate = er
-                                                .meta_data
-                                                .rate
-                                                .parse::<f64>()
-                                                .unwrap_or_default()
-                                                as f64
-                                                / ten.powf(
-                                                    er.decimals.parse::<f64>().unwrap_or_default(),
-                                                )
-                                                    as f64;
-                                            let amount = rate * 60.0 * 60.0 * 24.0;
-                                            rewards.push(bson!({
-                                                "amount": amount,
-                                                "asset":  er.symbol,
-                                                "valueUSD": amount * er.token_price,
-                                                "freq": models::Freq::Daily.to_string(),
-                                            }));
-                                            total_apy += er.apy;
-                                        }
-
-                                        let timestamp = Utc::now().to_string();
-
-                                        println!(
-                                            "curve v2 farm lastUpdatedAtUTC {}",
-                                            timestamp.clone()
-                                        );
-
-                                        let ff = doc! {
-                                            "id": pd.index as i32,
-                                            "chef": "curve v2",
-                                            "chain": "moonbeam",
-                                            "protocol": "curve",
-                                        };
-                                        let fu = doc! {
-                                            "$set" : {
-                                                "id": pd.index,
-                                                "chef": "curve v2",
-                                                "chain": "moonbeam",
-                                                "protocol": "curve",
-                                                "farmType": models::FarmType::StableAmm.to_string(),
-                                                "farmImpl": models::FarmImplementation::Vyper.to_string(),
-                                                "asset": {
-                                                    "symbol": "stDOT LP",
-                                                    "address": pd.pool_address.clone(),
-                                                    "price": 0,
-                                                    "logos": [
-                                                        "https://raw.githubusercontent.com/yield-bay/assets/main/list/xcDOT.png",
-                                                        "https://raw.githubusercontent.com/yield-bay/assets/main/list/stDOT.png",
-                                                    ],
-                                                },
-                                                "tvl": pda.usd_total as f64,
-                                                "apr.reward": total_apy,
-                                                "apr.base": pd.apy,
-                                                "rewards": rewards,
-                                                "allocPoint": 1,
-                                                "lastUpdatedAtUTC": timestamp.clone(),
-                                            }
-                                        };
-                                        let options = FindOneAndUpdateOptions::builder()
-                                            .upsert(Some(true))
-                                            .build();
-                                        farms_collection
-                                            .find_one_and_update(ff, fu, Some(options))
-                                            .await?;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
-async fn taiga_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>> {
-    let mut client_options = ClientOptions::parse(mongo_uri).await?;
-    client_options.app_name = Some("Bay Watcher".to_string());
-    let client = MongoClient::with_options(client_options)?;
-    let db_name = dotenv::var("DB_NAME").unwrap();
-    let db = client.database(&db_name);
-
-    let farms_collection = db.collection::<models::Farm>("farms");
-
-    let tapio_rewards_resp = reqwest::get("https://api.taigaprotocol.io/rewards?network=acala")
-        .await?
-        .json::<apis::tapio::Root>()
-        .await?;
-
-    println!("tapio_rewards_resp {:?}", tapio_rewards_resp);
-
-    let taiga_rewards_resp = reqwest::get("https://api.taigaprotocol.io/rewards")
-        .await?
-        .json::<apis::taiga::Root>()
-        .await?;
-
-    println!("taiga_rewards_resp {:?}", taiga_rewards_resp);
-
-    if taiga_rewards_resp.clone().taiksm.is_some() {
-        let tai_ksm_base_apr = taiga_rewards_resp.clone().taiksm.unwrap().taiksm_fee.apr * 100.0;
-        let tai_ksm_reward_apr = (taiga_rewards_resp.clone().taiksm.unwrap().kar_reward.apr as f64
-            + taiga_rewards_resp.clone().taiksm.unwrap().tai_reward.apr
-            + taiga_rewards_resp.clone().taiksm.unwrap().taiksm_yield.apr)
-            * 100.0;
-
-        let _tai_ksm = fetch_tai_ksm(
-            constants::taiga::DAILY_DATA_TAI_KSM_QUERY.to_owned(),
-            constants::taiga::TOKEN_PRICE_HISTORY_QUERY.to_owned(),
-        )
-        .await;
-
-        // if _tai_ksm.0 != 0.0 && _tai_ksm.1.len() > 0 {
-        if _tai_ksm.0 != 0.0 {
-            let mut tai_ksm_rewards = vec![];
-            for r in _tai_ksm.1.clone() {
-                tai_ksm_rewards.push(bson!({
-                    "amount": r.0 as f64,
-                    "asset":  r.1.clone(),
-                    "valueUSD": r.2 as f64,
-                    "freq": r.3.clone(),
-                }));
-            }
-
-            let timestamp = Utc::now().to_string();
-
-            println!("taiKSM farm lastUpdatedAtUTC {}", timestamp.clone());
-
-            let tai_ksm_ff = doc! {
-                "id": 0,
-                "chef": "taiKSM".to_string(),
-                "chain": "karura".to_string(),
-                "protocol": "taiga".to_string(),
-            };
-            let tai_ksm_fu = doc! {
-                "$set" : {
-                    "id": 0,
-                    "chef": "taiKSM".to_string(),
-                    "chain": "karura".to_string(),
-                    "protocol": "taiga".to_string(),
-                    "farmType": models::FarmType::StableAmm.to_string(),
-                    "farmImpl": models::FarmImplementation::Pallet.to_string(),
-                    "asset": {
-                        "symbol": "taiKSM".to_string(),
-                        "address": "taiKSM".to_string(),
-                        "price": 0 as f64,
-                        "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/list/taiKSM.png".to_string()],
-                    },
-                    "tvl": _tai_ksm.0 as f64,
-                    "apr.reward": tai_ksm_reward_apr, // _tai_ksm.2.1 as f64 * 100.0,
-                    "apr.base": tai_ksm_base_apr, // _tai_ksm.2.0 as f64 * 100.0,
-                    "rewards": tai_ksm_rewards,
-                    "allocPoint": 1,
-                    "lastUpdatedAtUTC": timestamp.clone(),
-                }
-            };
-            let options = FindOneAndUpdateOptions::builder()
-                .upsert(Some(true))
-                .build();
-            farms_collection
-                .find_one_and_update(tai_ksm_ff, tai_ksm_fu, Some(options))
-                .await?;
-        } else {
-            println!("tksmf");
-        }
-    }
-
-    if taiga_rewards_resp.clone().n3usd.is_some() {
-        let _3usd_base_apr = taiga_rewards_resp.clone().n3usd.unwrap().n3usd_fee.apr * 100.0;
-        let _3usd_reward_apr = (taiga_rewards_resp.clone().n3usd.unwrap().kar_reward.apr
-            + taiga_rewards_resp.clone().n3usd.unwrap().lksm_reward.apr
-            + taiga_rewards_resp.clone().n3usd.unwrap().tai_reward.apr
-            + taiga_rewards_resp.clone().n3usd.unwrap().taiksm_reward.apr)
-            * 100.0;
-
-        let _3usd = fetch_3usd(
-            constants::taiga::DAILY_DATA_3_USD_QUERY.to_owned(),
-            constants::taiga::TOKEN_PRICE_HISTORY_QUERY.to_owned(),
-        )
-        .await;
-
-        // if _3usd.0 != 0.0 && _3usd.1.len() > 0 {
-        if _3usd.0 != 0.0 {
-            let mut _3usd_rewards = vec![];
-            for r in _3usd.1.clone() {
-                _3usd_rewards.push(bson!({
-                    "amount": r.0 as f64,
-                    "asset":  r.1.clone(),
-                    "valueUSD": r.2 as f64,
-                    "freq": r.3.clone(),
-                }));
-            }
-
-            let timestamp = Utc::now().to_string();
-
-            println!("3USD farm lastUpdatedAtUTC {}", timestamp.clone());
-
-            let _3usd_ff = doc! {
-                "id": 1,
-                "chef": "3USD".to_string(),
-                "chain": "karura".to_string(),
-                "protocol": "taiga".to_string(),
-            };
-            let _3usd_fu = doc! {
-                "$set" : {
-                    "id": 1,
-                    "chef": "3USD".to_string(),
-                    "chain": "karura".to_string(),
-                    "protocol": "taiga".to_string(),
-                    "farmType": models::FarmType::StableAmm.to_string(),
-                    "farmImpl": models::FarmImplementation::Pallet.to_string(),
-                    "asset": {
-                        "symbol": "3USD".to_string(),
-                        "address": "3USD".to_string(),
-                        "price": 0 as f64,
-                        "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/list/3USD.png".to_string()],
-                    },
-                    "tvl": _3usd.0 as f64,
-                    "apr.reward": _3usd_reward_apr, // _3usd.2.1 as f64 * 100.0,
-                    "apr.base": _3usd_base_apr, // _3usd.2.0 as f64 * 100.0,
-                    "rewards": _3usd_rewards,
-                    "allocPoint": 1,
-                    "lastUpdatedAtUTC": timestamp.clone(),
-                }
-            };
-            let options = FindOneAndUpdateOptions::builder()
-                .upsert(Some(true))
-                .build();
-            farms_collection
-                .find_one_and_update(_3usd_ff, _3usd_fu, Some(options))
-                .await?;
-        } else {
-            println!("3usdf");
-        }
-    }
-
-    if tapio_rewards_resp.clone().tdot.is_some() {
-        let t_dot_base_apr = tapio_rewards_resp.clone().tdot.unwrap().tdot_fee.apr * 100.0;
-        let t_dot_reward_apr = tapio_rewards_resp.clone().tdot.unwrap().tdot_yield.apr * 100.0;
-
-        let _t_dot = fetch_t_dot(
-            constants::taiga::DAILY_DATA_TAI_KSM_QUERY.to_owned(),
-            constants::taiga::TOKEN_PRICE_HISTORY_QUERY.to_owned(),
-        )
-        .await
-        .unwrap();
-
-        let t_dot_rewards: Vec<Bson> = vec![];
-
-        let timestamp = Utc::now().to_string();
-
-        println!("tDOT farm lastUpdatedAtUTC {}", timestamp.clone());
-
-        let t_dot_ff = doc! {
-            "id": 0,
-            "chef": "tDOT".to_string(),
-            "chain": "acala".to_string(),
-            "protocol": "tapio".to_string(),
-        };
-        let t_dot_fu = doc! {
-            "$set" : {
-                "id": 0,
-                "chef": "tDOT".to_string(),
-                "chain": "acala".to_string(),
-                "protocol": "tapio".to_string(),
-                "farmType": models::FarmType::StableAmm.to_string(),
-                "farmImpl": models::FarmImplementation::Pallet.to_string(),
-                "asset": {
-                    "symbol": "tDOT".to_string(),
-                    "address": "tDOT".to_string(),
-                    "price": 0 as f64,
-                    "logos": ["https://raw.githubusercontent.com/yield-bay/assets/main/list/tDOT.png".to_string()],
-                },
-                "tvl": _t_dot.0 as f64,
-                "apr.reward": t_dot_reward_apr, // _3usd.2.1 as f64 * 100.0,
-                "apr.base": t_dot_base_apr, // _3usd.2.0 as f64 * 100.0,
-                "rewards": t_dot_rewards,
-                "allocPoint": 1,
-                "lastUpdatedAtUTC": timestamp.clone(),
-            }
-        };
-        let options = FindOneAndUpdateOptions::builder()
-            .upsert(Some(true))
-            .build();
-        farms_collection
-            .find_one_and_update(t_dot_ff, t_dot_fu, Some(options))
-            .await?;
     }
 
     Ok(())
@@ -4899,440 +3988,4 @@ async fn get_one_day_pools(
         return pairs_data.clone().unwrap().pairs;
     }
     return vec![];
-}
-
-async fn fetch_3usd(
-    taiga_query_str: String,
-    karura_dex_query_str: String,
-) -> (f64, Vec<(i32, String, f64, String)>, (f64, f64)) {
-    let subql_client = Client::new(
-        "https://api.subquery.network/sq/nutsfinance/taiga-protocol".to_string(),
-        60,
-    );
-    #[derive(Serialize)]
-    pub struct Vars {
-        days: i64,
-    }
-    let vars = Vars { days: 14 };
-    let pool_data = subql_client
-        .query_with_vars_unwrap::<subgraph::TapioDD, Vars>(&taiga_query_str, vars)
-        .await;
-
-    let mut tvl = 0.0;
-    let mut apr = (0.0, 0.0);
-    if pool_data.is_ok() {
-        if pool_data.clone().unwrap().daily_data.nodes.len() > 0 {
-            tvl = pool_data
-                .clone()
-                .unwrap()
-                .daily_data
-                .nodes
-                .get(0)
-                .unwrap()
-                .total_supply;
-        }
-
-        apr = fetch_3usd_apr(pool_data.clone().unwrap(), karura_dex_query_str.clone()).await;
-    }
-
-    let tai_price_history = get_token_price_history(
-        karura_dex_query_str.clone(),
-        "taiga".to_string(),
-        "TAI".to_string(),
-        1,
-    )
-    .await;
-    let tai_ksm_price_history = get_token_price_history(
-        karura_dex_query_str.clone(),
-        "taiga".to_string(),
-        "sa://0".to_string(),
-        1,
-    )
-    .await;
-    let lksm_price_history = get_token_price_history(
-        karura_dex_query_str.clone(),
-        "taiga".to_string(),
-        "LKSM".to_string(),
-        1,
-    )
-    .await;
-    let kar_price_history = get_token_price_history(
-        karura_dex_query_str.clone(),
-        "taiga".to_string(),
-        "KAR".to_string(),
-        1,
-    )
-    .await;
-
-    if tai_price_history.len() < 1
-        || tai_ksm_price_history.len() < 1
-        || lksm_price_history.len() < 1
-        || kar_price_history.len() < 1
-    {
-        return (tvl, vec![], apr);
-    }
-
-    let rewards = vec![
-        // (amount, asset, value_usd, freq)
-        (
-            8000,
-            "TAI".to_string(),
-            tai_price_history[0].0 * 8000.0,
-            "Weekly".to_string(),
-        ),
-        (
-            30,
-            "taiKSM".to_string(),
-            tai_ksm_price_history[0].0 * 30.0,
-            "Weekly".to_string(),
-        ),
-        (
-            250,
-            "LKSM".to_string(),
-            lksm_price_history[0].0 * 250.0,
-            "Weekly".to_string(),
-        ),
-        (
-            2000,
-            "KAR".to_string(),
-            kar_price_history[0].0 * 2000.0,
-            "Weekly".to_string(),
-        ),
-    ];
-
-    (tvl, rewards, apr)
-}
-
-async fn fetch_t_dot(
-    tapio_query_str: String,
-    acala_dex_query_str: String,
-) -> Result<((f64, Vec<(i32, String, f64, String)>, (f64, f64))), Box<dyn std::error::Error>> {
-    let subql_client = Client::new(
-        "https://api.subquery.network/sq/nutsfinance/tapio-protocol".to_string(),
-        60,
-    );
-    #[derive(Serialize)]
-    pub struct Vars {
-        days: i64,
-    }
-    let vars = Vars { days: 30 };
-    let pool_data = subql_client
-        .query_with_vars_unwrap::<subgraph::TapioDD, Vars>(&tapio_query_str, vars)
-        .await;
-
-    let mut current_supply = 0.0;
-    let mut tvl = 0.0;
-    let mut apr = (0.0, 0.0);
-    let mut rewards: Vec<(i32, String, f64, String)> = vec![];
-
-    if pool_data.is_ok() {
-        println!(
-            "tapio pool_datau {:?}",
-            pool_data.clone().unwrap().daily_data.nodes.len()
-        );
-
-        // let t_dot_price_history = get_token_price_history(
-        //     acala_dex_query_str.clone(),
-        //     "tapio".to_string(),
-        //     "tDOT".to_string(),
-        //     1,
-        // )
-        // .await;
-
-        // println!("t_dot_price_history {:?}", t_dot_price_history);
-
-        // let mut t_dot_price = 0.0;
-        // if t_dot_price_history.len() > 0 {
-        //     t_dot_price = t_dot_price_history[0].0;
-        // }
-        let dot_price = reqwest::get(
-            "https://api.coingecko.com/api/v3/simple/price?ids=polkadot&vs_currencies=usd",
-        )
-        .await?
-        .json::<apis::coingecko::Root>()
-        .await?;
-        println!("DPPP {:?}", dot_price.polkadot.usd);
-
-        let t_dot_price = dot_price.polkadot.usd;
-
-        if pool_data.clone().unwrap().daily_data.nodes.len() > 0 {
-            current_supply = pool_data
-                .clone()
-                .unwrap()
-                .daily_data
-                .nodes
-                .get(0)
-                .unwrap()
-                .total_supply;
-        }
-        println!(
-            "current_supply {:?}, pdau {:?}, t_dot_price {:?}",
-            current_supply,
-            pool_data.clone().unwrap(),
-            t_dot_price
-        );
-
-        tvl = current_supply * t_dot_price;
-
-        // apr = fetch_tai_ksm_apr(pool_data.clone().unwrap(), acala_dex_query_str.clone()).await;
-    } else {
-        println!("pooldatau notok");
-    }
-
-    Ok((tvl, rewards, apr))
-}
-
-async fn fetch_tai_ksm(
-    taiga_query_str: String,
-    karura_dex_query_str: String,
-) -> (f64, Vec<(i32, String, f64, String)>, (f64, f64)) {
-    let subql_client = Client::new(
-        "https://api.subquery.network/sq/nutsfinance/taiga-protocol".to_string(),
-        60,
-    );
-    #[derive(Serialize)]
-    pub struct Vars {
-        days: i64,
-    }
-    let vars = Vars { days: 30 };
-    let pool_data = subql_client
-        .query_with_vars_unwrap::<subgraph::TapioDD, Vars>(&taiga_query_str, vars)
-        .await;
-
-    let mut current_supply = 0.0;
-    let mut tvl = 0.0;
-    let mut apr = (0.0, 0.0);
-    let mut rewards = vec![];
-
-    if pool_data.is_ok() {
-        println!(
-            "pool_datau {:?}",
-            pool_data.clone().unwrap().daily_data.nodes.len()
-        );
-
-        let tai_price_history = get_token_price_history(
-            karura_dex_query_str.clone(),
-            "taiga".to_string(),
-            "TAI".to_string(),
-            1,
-        )
-        .await;
-        let tai_ksm_price_history = get_token_price_history(
-            karura_dex_query_str.clone(),
-            "taiga".to_string(),
-            "sa://0".to_string(),
-            1,
-        )
-        .await;
-
-        let mut tai_price = 0.0;
-        if tai_price_history.len() > 0 && tai_ksm_price_history.len() > 0 {
-            tai_price = tai_price_history[0].0;
-        }
-        let mut tai_ksm_price = 0.0;
-        if tai_ksm_price_history.len() > 0 {
-            tai_ksm_price = tai_ksm_price_history[0].0;
-        }
-
-        if pool_data.clone().unwrap().daily_data.nodes.len() > 0 {
-            current_supply = pool_data
-                .clone()
-                .unwrap()
-                .daily_data
-                .nodes
-                .get(0)
-                .unwrap()
-                .total_supply;
-        }
-
-        tvl = current_supply * tai_ksm_price;
-
-        apr = fetch_tai_ksm_apr(pool_data.clone().unwrap(), karura_dex_query_str.clone()).await;
-
-        if tai_price != 0.0 {
-            rewards = vec![
-                // (amount, asset, value_usd, freq)
-                (
-                    4000,
-                    "TAI".to_string(),
-                    tai_price * 4000.0,
-                    "Daily".to_string(),
-                ),
-            ];
-        }
-    }
-
-    (tvl, rewards, apr)
-}
-
-async fn fetch_3usd_apr(pool_data: subgraph::TapioDD, karura_dex_query_str: String) -> (f64, f64) {
-    let days = 14;
-
-    let daily_data = pool_data.clone().daily_data.nodes;
-
-    let tai_price_history = get_token_price_history(
-        karura_dex_query_str.clone(),
-        "taiga".to_string(),
-        "TAI".to_string(),
-        days,
-    )
-    .await;
-    let tai_ksm_price_history = get_token_price_history(
-        karura_dex_query_str.clone(),
-        "taiga".to_string(),
-        "sa://0".to_string(),
-        days,
-    )
-    .await;
-    let lksm_price_history = get_token_price_history(
-        karura_dex_query_str.clone(),
-        "taiga".to_string(),
-        "LKSM".to_string(),
-        days,
-    )
-    .await;
-    let kar_price_history = get_token_price_history(
-        karura_dex_query_str.clone(),
-        "taiga".to_string(),
-        "KAR".to_string(),
-        days,
-    )
-    .await;
-
-    let mut total = 0.0;
-    let daily_total_supply = daily_data.clone().into_iter().map(|node| node.total_supply);
-    let dts: Vec<f64> = daily_total_supply.clone().collect();
-
-    for i in 0..daily_total_supply.len() {
-        if tai_price_history.get(i).is_some() {
-            // 8000 TAI per week
-            total += (8000.0 * tai_price_history.get(i).unwrap().0 * (365.0 / 7.0)) / dts[i];
-        }
-        if tai_ksm_price_history.get(i).is_some() {
-            // 30 taiKSM per week
-            total += (30.0 * tai_ksm_price_history.get(i).unwrap().0 * (365.0 / 7.0)) / dts[i];
-        }
-        if lksm_price_history.get(i).is_some() {
-            // 250 LKSM per week
-            total += (250.0 * lksm_price_history.get(i).unwrap().0 * (365.0 / 7.0)) / dts[i];
-        }
-        if kar_price_history.get(i).is_some() {
-            // 2000 KAR per week
-            total += (2000.0 * kar_price_history.get(i).unwrap().0 * (365.0 / 7.0)) / dts[i];
-        }
-    }
-
-    let reward_apr = total / daily_total_supply.len() as f64;
-    let base_apr = calculate_base_apr(daily_data.clone());
-
-    (base_apr, reward_apr)
-}
-
-async fn fetch_tai_ksm_apr(
-    pool_data: subgraph::TapioDD,
-    karura_dex_query_str: String,
-) -> (f64, f64) {
-    let days = 30;
-
-    let daily_data = pool_data.clone().daily_data.nodes;
-
-    let tai_price_history = get_token_price_history(
-        karura_dex_query_str.clone(),
-        "taiga".to_string(),
-        "TAI".to_string(),
-        days,
-    )
-    .await;
-    let tai_ksm_price_history = get_token_price_history(
-        karura_dex_query_str.clone(),
-        "taiga".to_string(),
-        "sa://0".to_string(),
-        days,
-    )
-    .await;
-
-    let mut total = 0.0;
-    let daily_total_supply = daily_data.clone().into_iter().map(|node| node.total_supply);
-    let dts: Vec<f64> = daily_total_supply.clone().collect();
-
-    for i in 0..daily_total_supply.len() {
-        if tai_price_history.get(i).is_some() && tai_ksm_price_history.get(i).is_some() {
-            // 4000 TAI each day
-            total += (4000.0 * tai_price_history.get(i).unwrap().0 * (365.0))
-                / (dts[i] * tai_ksm_price_history.get(i).unwrap().0);
-        }
-    }
-
-    let reward_apr = total / daily_total_supply.len() as f64;
-    let base_apr = calculate_base_apr(daily_data.clone());
-
-    (base_apr, reward_apr)
-}
-
-fn calculate_base_apr(daily_data: Vec<subgraph::TapioDailyDataNode>) -> f64 {
-    let daily_fee_apr = daily_data
-        .clone()
-        .into_iter()
-        .map(|d| d.fee_volume * 365.0 / d.total_supply);
-    let daily_yield_apr = daily_data
-        .clone()
-        .into_iter()
-        .map(|d| d.yield_volume * 365.0 / d.total_supply);
-
-    // daily_fee_apr.filter(|apr| apr.to_owned() < 0.5).sum();
-    let dfaprf = daily_fee_apr.filter(|apr| apr.to_owned() < 0.5);
-    let fee_apr = dfaprf.clone().sum::<f64>() / dfaprf.clone().count() as f64;
-    let yield_apr =
-        daily_yield_apr.clone().sum::<f64>() as f64 / daily_yield_apr.clone().count() as f64;
-
-    fee_apr + yield_apr
-}
-
-async fn get_token_price_history(
-    query_str: String,
-    protocol: String,
-    asset: String,
-    days: i64,
-) -> Vec<(f64, String)> {
-    let mut subql = "https://dashboard.nuts.finance/api/datasources/proxy/7".to_string();
-    if protocol == "tapio".to_string() {
-        subql = "https://grafana.acbtc.fi/api/datasources/proxy/11".to_string();
-    }
-    let subql_client = Client::new(
-        // "https://api.subquery.network/sq/AcalaNetwork/karura-dex".to_string(),
-        // "https://dashboard.nuts.finance/api/datasources/proxy/7".to_string(),
-        subql, 60,
-    );
-    #[derive(Serialize)]
-    pub struct Vars {
-        days: i64,
-        asset: String,
-    }
-    let vars = Vars {
-        days: days,
-        asset: asset,
-    };
-    let price_history_data = subql_client
-        .query_with_vars_unwrap::<subgraph::KaruraTokenPriceHistoryData, Vars>(&query_str, vars)
-        .await;
-
-    println!(
-        "protocol {:?} price_history_data {:?}",
-        protocol, price_history_data
-    );
-
-    let ph = price_history_data
-        .unwrap_or_default()
-        .token
-        .daily_data
-        .nodes
-        .into_iter()
-        .map(|x| {
-            let ten: f64 = 10.0;
-            let p: f64 = x.price.parse().unwrap_or_default();
-            return (p / ten.powf(18.0), x.timestamp);
-        });
-    let ph_vec: Vec<(f64, String)> = ph.collect();
-
-    ph_vec
 }
