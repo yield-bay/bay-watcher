@@ -18,6 +18,8 @@ pub struct PairDayData {
     pub date: i64,
     #[serde(rename = "dailyVolumeUSD")]
     pub daily_volume_usd: String,
+    pub daily_volume_token0: String,
+    pub daily_volume_token1: String,
     pub pair_address: String,
     pub id: String,
     pub token0: Token0,

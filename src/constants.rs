@@ -184,6 +184,8 @@ pub mod chef {
             ) {
                 date
                 dailyVolumeUSD
+                dailyVolumeToken0
+                dailyVolumeToken1
                 pairAddress
                 id
                 token0 {

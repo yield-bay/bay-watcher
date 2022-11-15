@@ -1850,7 +1850,7 @@ async fn chef_contract_jobs(
                                     addr: String,
                                 }
                                 let vars = Vars {
-                                    addr: asset.clone().unwrap().address,
+                                    addr: asset.clone().unwrap().address.to_lowercase(),
                                 };
                                 let pair_day_datas =
                                     p.6.query_with_vars_unwrap::<subgraph::PairDayDatas, Vars>(
@@ -2908,8 +2908,13 @@ async fn chef_contract_jobs(
                                     addr: String,
                                 }
                                 let vars = Vars {
-                                    addr: asset.clone().unwrap().address,
+                                    addr: asset.clone().unwrap().address.to_lowercase(),
                                 };
+                                println!(
+                                    "pddq {:?} addr {:?}",
+                                    &constants::chef::PAIR_DAY_DATAS_QUERY.clone(),
+                                    asset.clone().unwrap().address.to_lowercase()
+                                );
                                 let pair_day_datas =
                                     p.6.query_with_vars_unwrap::<subgraph::PairDayDatas, Vars>(
                                         &constants::chef::PAIR_DAY_DATAS_QUERY.clone(),
@@ -2932,7 +2937,49 @@ async fn chef_contract_jobs(
                                     for pdd in pair_day_datas.clone().unwrap().pair_day_datas {
                                         let dv: f64 =
                                             pdd.daily_volume_usd.parse().unwrap_or_default();
-                                        daily_volume_lw += dv;
+                                        if dv == 0.0 {
+                                            println!("dv0000");
+
+                                            for (i, ua) in asset
+                                                .clone()
+                                                .unwrap_or_default()
+                                                .underlying_assets
+                                                .iter()
+                                                .enumerate()
+                                            {
+                                                println!("dv {:?} {:?}", i, ua.clone());
+                                                let ua_filter = doc! { "address": ua.clone(), "protocol": p.3.clone(), "chain": p.2.clone() };
+                                                let ua_obj = assets_collection
+                                                    .find_one(ua_filter, None)
+                                                    .await?;
+                                                let dvt0: f64 = pdd
+                                                    .daily_volume_token0
+                                                    .parse()
+                                                    .unwrap_or_default();
+                                                let dvt1: f64 = pdd
+                                                    .daily_volume_token1
+                                                    .parse()
+                                                    .unwrap_or_default();
+
+                                                println!(
+                                                    "gm {:?} {:?} {:?}",
+                                                    ua_obj.clone().unwrap_or_default().price,
+                                                    dvt0,
+                                                    dvt1
+                                                );
+                                                if i == 0 {
+                                                    daily_volume_lw += dvt0
+                                                        * ua_obj.clone().unwrap_or_default().price;
+                                                } else if i == 1 {
+                                                    daily_volume_lw += dvt1
+                                                        * ua_obj.clone().unwrap_or_default().price;
+                                                } else {
+                                                    println!("nadaaa");
+                                                }
+                                            }
+                                        } else {
+                                            daily_volume_lw += dv;
+                                        }
                                     }
                                     daily_volume_lw /=
                                         pair_day_datas.unwrap().pair_day_datas.len() as f64;
@@ -2953,8 +3000,9 @@ async fn chef_contract_jobs(
                                             base_apr /= usdc_nomad_solarflare.unwrap().price;
                                         }
                                     }
+                                } else {
+                                    println!("pddnotok");
                                 }
-
                                 if base_apr.is_nan() {
                                     base_apr = 0.0;
                                 }
