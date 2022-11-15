@@ -152,12 +152,12 @@ pub async fn safety_score(mongo_uri: String) -> Result<(), Box<dyn std::error::E
                 scores.push(0.6)
             } else if farm.farm_type == "SingleStaking" {
                 scores.push(0.3)
-            }
-            // TODO: calculate their base_aprs
-            else if farm.asset == "wstKSM-xcKSM LP" || farm.asset == "wstDOT-xcDOT LP" {
-                scores.push(0.5)
             } else {
-                scores.push(farm.base_apr / max_apr)
+                if max_apr != 0.0 {
+                    scores.push(farm.base_apr / max_apr)
+                } else {
+                    scores.push(0.5)
+                }
             }
         }
         scores
