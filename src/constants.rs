@@ -308,11 +308,11 @@ pub mod subgraph_urls {
     pub const SUSHI_SUBGRAPH: &str =
         "https://api.thegraph.com/subgraphs/name/sushiswap/exchange-moonriver";
     pub const ZENLINK_ASTAR_SUBSQUID: &str =
-        "https://squid.subsquid.io/zlk-astar-subsquid/v/1/graphql";
+        "https://squid.subsquid.io/zenlink-astar-squid-yb/v/1/graphql";
     pub const ZENLINK_MOONRIVER_SUBSQUID: &str =
-        "https://squid.subsquid.io/zlk-moonriver-subsquid/v/1/graphql";
+        "https://squid.subsquid.io/zenlink-moonriver-squid-yb/v/1/graphql";
     pub const ZENLINK_MOONBEAM_SUBSQUID: &str =
-        "https://squid.subsquid.io/zlk-moonbeam-squid/v/23/graphql";
+        "https://squid.subsquid.io/zenlink-moonbeam-squid-yb/v/1/graphql";
 
     pub const SOLARBEAM_BLOCKLYTICS_SUBGRAPH: &str =
         "https://api.thegraph.com/subgraphs/name/solarbeamio/blocklytics";
