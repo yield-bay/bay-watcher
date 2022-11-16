@@ -1419,6 +1419,61 @@ async fn chef_contract_jobs(
                         if base_apr.is_nan() {
                             base_apr = 0.0;
                         }
+                        // if stable
+                        if (pid == 11 && p.2.clone() == "moonriver".to_string())
+                            || (pid == 3 && p.2.clone() == "astar".to_string())
+                        {
+                            println!("stable zenlink");
+                            let zenlink_stable_swaps =
+                                p.6.query_unwrap::<subsquid::ZenlinkStableSwaps>(
+                                    &constants::subsquid::STABLE_SWAPS_DAY_DATA_QUERY.clone(),
+                                )
+                                .await;
+
+                            if zenlink_stable_swaps.is_ok() {
+                                let mut daily_volume_lw: f64 = 0.0;
+                                if zenlink_stable_swaps.clone().unwrap().stable_swaps.len() > 0 {
+                                    for ss in zenlink_stable_swaps.clone().unwrap().stable_swaps[0]
+                                        .stable_swap_day_data
+                                        .clone()
+                                    {
+                                        let dv: f64 =
+                                            ss.daily_volume_usd.parse().unwrap_or_default();
+                                        daily_volume_lw += dv;
+                                    }
+                                    println!("stable zenlinkdvsum {:?}", daily_volume_lw);
+
+                                    daily_volume_lw /=
+                                        zenlink_stable_swaps.clone().unwrap().stable_swaps[0]
+                                            .stable_swap_day_data
+                                            .clone()
+                                            .len() as f64;
+
+                                    println!("stable zenlinkdvlwavg {:?}", daily_volume_lw);
+                                }
+
+                                if asset.clone().unwrap_or_default().total_supply == 0.0
+                                    || asset.clone().unwrap_or_default().price == 0.0
+                                {
+                                    base_apr = 0.0;
+                                    println!("c1");
+                                } else {
+                                    base_apr = daily_volume_lw * 0.00025 * 365.0 * 100.0
+                                        / (asset.clone().unwrap_or_default().total_supply
+                                            * asset.clone().unwrap_or_default().price);
+                                    println!(
+                                        "bapr {:?} c2 {:?}",
+                                        base_apr,
+                                        (asset.clone().unwrap_or_default().total_supply
+                                            * asset.clone().unwrap_or_default().price)
+                                    );
+                                }
+                            } else {
+                                println!("ssddnok");
+                            }
+                        }
+                        // else if (pid == 3 && p.2.clone() == "astar".to_string()) {
+                        // }
 
                         let timestamp = Utc::now().to_string();
 

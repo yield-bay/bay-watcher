@@ -294,6 +294,20 @@ pub mod subsquid {
             }
         }
     "#;
+
+    pub const STABLE_SWAPS_DAY_DATA_QUERY: &str = r#"
+        query {
+            stableSwaps {
+                    id
+                    lpToken
+                    stableSwapDayData(orderBy: date_DESC, limit: 7) {
+                        id
+                        date
+                        dailyVolumeUSD
+                    }
+            }
+        }
+    "#;
 }
 
 pub mod subgraph_urls {

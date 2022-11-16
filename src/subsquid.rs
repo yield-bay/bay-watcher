@@ -2,6 +2,29 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ZenlinkStableSwaps {
+    pub stable_swaps: Vec<ZenlinkStableSwap>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ZenlinkStableSwap {
+    pub id: String,
+    pub lp_token: String,
+    pub stable_swap_day_data: Vec<StableSwapDayData>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StableSwapDayData {
+    pub id: String,
+    pub date: String,
+    #[serde(rename = "dailyVolumeUSD")]
+    pub daily_volume_usd: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ZenlinkPairDayDatas {
     pub pair_day_data: Vec<PairDayData>,
 }
