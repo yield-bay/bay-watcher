@@ -1336,9 +1336,14 @@ async fn chef_contract_jobs(
                                 reward_apr = ((rewards_per_day as f64
                                     / ten.pow(reward_asset.clone().unwrap().decimals) as f64
                                     * reward_asset_price)
-                                    / (asset_tvl as f64 * asset_price / ten.pow(18) as f64))
+                                    / (asset_tvl as f64 * asset_price))
                                     * 365.0
                                     * 100.0;
+                                if farm_type == models::FarmType::SingleStaking
+                                    || farm_type == models::FarmType::StableAmm
+                                {
+                                    reward_apr *= ten.pow(18) as f64;
+                                }
 
                                 println!("reward_apr: {}", reward_apr);
                                 if asset_tvl != 0 && asset_price != 0.0 {
@@ -1359,7 +1364,12 @@ async fn chef_contract_jobs(
 
                     let ten: f64 = 10.0;
 
-                    let atvl: f64 = asset_tvl as f64 * asset_price / ten.powf(18.0);
+                    let mut atvl: f64 = asset_tvl as f64 * asset_price;
+                    if farm_type == models::FarmType::SingleStaking
+                        || farm_type == models::FarmType::StableAmm
+                    {
+                        atvl = asset_tvl as f64 * asset_price / ten.powf(18.0);
+                    }
 
                     println!(
                         "rewards {:?} total_reward_apr {:?} tvl {:?}",
