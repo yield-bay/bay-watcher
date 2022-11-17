@@ -1487,45 +1487,47 @@ async fn chef_contract_jobs(
 
                         let timestamp = Utc::now().to_string();
 
-                        println!(
-                            "zenlink chef v3 farm lastUpdatedAtUTC {}",
-                            timestamp.clone()
-                        );
+                        if pid != 12 && p.2.clone() == "moonriver".to_string() {
+                            println!(
+                                "zenlink chef v3 farm lastUpdatedAtUTC {}",
+                                timestamp.clone()
+                            );
 
-                        let ff = doc! {
-                            "id": pid as i32,
-                            "chef": p.5.clone(),
-                            "chain": p.2.clone(),
-                            "protocol": "zenlink".to_string(),
-                        };
-                        let fu = doc! {
-                            "$set" : {
-                                "id": pid,
+                            let ff = doc! {
+                                "id": pid as i32,
                                 "chef": p.5.clone(),
                                 "chain": p.2.clone(),
                                 "protocol": "zenlink".to_string(),
-                                "farmType": farm_type.to_string(),
-                                "farmImpl": models::FarmImplementation::Solidity.to_string(),
-                                "asset": {
-                                    "symbol": asset.clone().unwrap().symbol,
-                                    "address": asset.clone().unwrap().address,
-                                    "price": asset.clone().unwrap().price,
-                                    "logos": asset.clone().unwrap().logos,
-                                },
-                                "tvl": atvl,
-                                "apr.reward": total_reward_apr,
-                                "apr.base": base_apr,
-                                "rewards": rewards,
-                                "allocPoint": 1,
-                                "lastUpdatedAtUTC": timestamp.clone(),
-                            }
-                        };
-                        let options = FindOneAndUpdateOptions::builder()
-                            .upsert(Some(true))
-                            .build();
-                        farms_collection
-                            .find_one_and_update(ff, fu, Some(options))
-                            .await?;
+                            };
+                            let fu = doc! {
+                                "$set" : {
+                                    "id": pid,
+                                    "chef": p.5.clone(),
+                                    "chain": p.2.clone(),
+                                    "protocol": "zenlink".to_string(),
+                                    "farmType": farm_type.to_string(),
+                                    "farmImpl": models::FarmImplementation::Solidity.to_string(),
+                                    "asset": {
+                                        "symbol": asset.clone().unwrap().symbol,
+                                        "address": asset.clone().unwrap().address,
+                                        "price": asset.clone().unwrap().price,
+                                        "logos": asset.clone().unwrap().logos,
+                                    },
+                                    "tvl": atvl,
+                                    "apr.reward": total_reward_apr,
+                                    "apr.base": base_apr,
+                                    "rewards": rewards,
+                                    "allocPoint": 1,
+                                    "lastUpdatedAtUTC": timestamp.clone(),
+                                }
+                            };
+                            let options = FindOneAndUpdateOptions::builder()
+                                .upsert(Some(true))
+                                .build();
+                            farms_collection
+                                .find_one_and_update(ff, fu, Some(options))
+                                .await?;
+                        }
                     }
                 }
             } else if p.4.clone() == "v0".to_string() {
