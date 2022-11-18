@@ -222,6 +222,17 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
         headers.clone(),
     );
 
+    let solarbeam_stable_subgraph_client = Client::new_with_headers(
+        constants::subgraph_urls::SOLARBEAM_STABLE_SUBGRAPH.clone(),
+        60,
+        headers.clone(),
+    );
+    let stellaswap_stable_subgraph_client = Client::new_with_headers(
+        constants::subgraph_urls::STELLASWAP_STABLE_SUBGRAPH.clone(),
+        60,
+        headers.clone(),
+    );
+
     let _moonriver_blocklytics_client = Client::new_with_headers(
         constants::subgraph_urls::SOLARBEAM_BLOCKLYTICS_SUBGRAPH.clone(),
         60,
@@ -304,6 +315,8 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
         zenlink_moonriver_subsquid_client.clone(),
         zenlink_moonbeam_subsquid_client.clone(),
         solarflare_subgraph_client.clone(),
+        solarbeam_stable_subgraph_client.clone(),
+        stellaswap_stable_subgraph_client.clone(),
     )
     .await
     .unwrap();
@@ -323,6 +336,8 @@ async fn chef_contract_jobs(
     zenlink_moonriver_subsquid_client: Client,
     zenlink_moonbeam_subsquid_client: Client,
     solarflare_subgraph_client: Client,
+    solarbeam_stable_subgraph_client: Client,
+    stellaswap_stable_subgraph_client: Client,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut client_options = ClientOptions::parse(mongo_uri).await?;
     client_options.app_name = Some("Bay Watcher".to_string());
@@ -2002,6 +2017,8 @@ async fn chef_contract_jobs(
                             addresses, symbols, decimals, rewards_per_sec
                         );
 
+                        let mut stable_owner_addr = "".to_string();
+
                         // stable amm asset
                         if p.3.clone() == "solarbeam".to_string()
                             && (pid == 8
@@ -2022,6 +2039,10 @@ async fn chef_contract_jobs(
                             // let split_name_vec: Vec<&str> = split_name.collect();
                             // if split_name_vec.len() > 1 && (split_name_vec[1] == "Stable") {
                             let owner_addr: Address = stable_asset.owner().call().await?;
+                            // stable_owner_addr = owner_addr.to_string();
+                            stable_owner_addr =
+                                ethers::utils::to_checksum(&owner_addr.to_owned(), None);
+
                             let owner =
                                 IStableLpTokenOwner::new(owner_addr, Arc::clone(&p.8.clone()));
                             let stable_lp_underlying_tokens = owner.get_tokens().call().await?;
@@ -2613,6 +2634,9 @@ async fn chef_contract_jobs(
                             println!("name: {:?}", name);
 
                             let owner_addr: Address = stable_asset.owner().call().await?;
+                            // stable_owner_addr = owner_addr.to_string();
+                            stable_owner_addr =
+                                ethers::utils::to_checksum(&owner_addr.to_owned(), None);
                             let owner =
                                 IStableLpTokenOwner::new(owner_addr, Arc::clone(&p.8.clone()));
                             let stable_lp_underlying_tokens = owner.get_tokens().call().await?;
@@ -2978,97 +3002,198 @@ async fn chef_contract_jobs(
                                     addr: asset.clone().unwrap().address.to_lowercase(),
                                 };
                                 println!(
-                                    "pddq {:?} addr {:?}",
+                                    "pddq {:?} addr {:?} stable_owner_addr {:?}",
                                     &constants::chef::PAIR_DAY_DATAS_QUERY.clone(),
-                                    asset.clone().unwrap().address.to_lowercase()
+                                    asset.clone().unwrap().address.to_lowercase(),
+                                    stable_owner_addr.clone().to_lowercase()
                                 );
-                                let pair_day_datas =
-                                    p.6.query_with_vars_unwrap::<subgraph::PairDayDatas, Vars>(
-                                        &constants::chef::PAIR_DAY_DATAS_QUERY.clone(),
-                                        vars,
-                                    )
-                                    .await;
+                                if p.3.clone() == "solarbeam".to_string()
+                                    && (pid == 8
+                                        || pid == 9
+                                        || pid == 13
+                                        || pid == 16
+                                        || pid == 17
+                                        || pid == 25)
+                                {
+                                    println!("stablesolarbeam");
+                                    let vars = Vars {
+                                        // addr: asset.clone().unwrap().address.to_lowercase(),
+                                        addr: stable_owner_addr.clone().to_lowercase(),
+                                    };
+                                    let swap_data =  solarbeam_stable_subgraph_client.query_with_vars_unwrap::<subgraph::SolarbeamStableData, Vars>(
+                                            &constants::chef::SOLARBEAM_STABLE_SWAPS_DAY_DATA_QUERY.clone(),
+                                            vars,
+                                        )
+                                        .await;
 
-                                let usdc_nomad_solarflare_filter = doc! { "address": "0x818ec0A7Fe18Ff94269904fCED6AE3DaE6d6dC0b", "protocol": "solarflare", "chain": "moonbeam" };
-                                let usdc_nomad_solarflare = assets_collection
-                                    .find_one(usdc_nomad_solarflare_filter, None)
-                                    .await?;
+                                    if swap_data.is_ok() {
+                                        println!(
+                                            "solarbeam swap_data {:?}",
+                                            swap_data.clone().unwrap()
+                                        );
+                                        let mut daily_volume_lw: f64 = 0.0;
+                                        for pdd in swap_data.clone().unwrap().swap.daily_data {
+                                            let dv: f64 = pdd.volume.parse().unwrap_or_default();
 
-                                println!(
-                                    "usdc_nomad_solarflare {:?}",
-                                    usdc_nomad_solarflare.clone().unwrap()
-                                );
+                                            daily_volume_lw += dv * asset.clone().unwrap().price;
+                                        }
+                                        println!("daily_volume_lw {:?}", daily_volume_lw);
+                                        daily_volume_lw /=
+                                            swap_data.clone().unwrap().swap.daily_data.len() as f64;
+                                        println!("daily_volume_lwad {:?}", daily_volume_lw);
 
-                                if pair_day_datas.is_ok() {
-                                    let mut daily_volume_lw: f64 = 0.0;
-                                    for pdd in pair_day_datas.clone().unwrap().pair_day_datas {
-                                        let dv: f64 =
-                                            pdd.daily_volume_usd.parse().unwrap_or_default();
-                                        if dv == 0.0 {
-                                            println!("dv0000");
-
-                                            for (i, ua) in asset
-                                                .clone()
-                                                .unwrap_or_default()
-                                                .underlying_assets
-                                                .iter()
-                                                .enumerate()
-                                            {
-                                                println!("dv {:?} {:?}", i, ua.clone());
-                                                let ua_filter = doc! { "address": ua.clone(), "protocol": p.3.clone(), "chain": p.2.clone() };
-                                                let ua_obj = assets_collection
-                                                    .find_one(ua_filter, None)
-                                                    .await?;
-                                                let dvt0: f64 = pdd
-                                                    .daily_volume_token0
-                                                    .parse()
-                                                    .unwrap_or_default();
-                                                let dvt1: f64 = pdd
-                                                    .daily_volume_token1
-                                                    .parse()
-                                                    .unwrap_or_default();
-
-                                                println!(
-                                                    "gm {:?} {:?} {:?}",
-                                                    ua_obj.clone().unwrap_or_default().price,
-                                                    dvt0,
-                                                    dvt1
-                                                );
-                                                if i == 0 {
-                                                    daily_volume_lw += dvt0
-                                                        * ua_obj.clone().unwrap_or_default().price;
-                                                } else if i == 1 {
-                                                    daily_volume_lw += dvt1
-                                                        * ua_obj.clone().unwrap_or_default().price;
-                                                } else {
-                                                    println!("nadaaa");
-                                                }
-                                            }
+                                        if asset.clone().unwrap_or_default().total_supply == 0.0
+                                            || asset.clone().unwrap_or_default().price == 0.0
+                                        {
+                                            println!("ts0 or p0");
+                                            base_apr = 0.0;
                                         } else {
-                                            daily_volume_lw += dv;
+                                            base_apr = daily_volume_lw * 0.002 * 365.0 * 100.0
+                                                / (asset.clone().unwrap_or_default().total_supply
+                                                    * asset.clone().unwrap_or_default().price);
                                         }
                                     }
-                                    daily_volume_lw /=
-                                        pair_day_datas.unwrap().pair_day_datas.len() as f64;
+                                } else if p.3.clone() == "stellaswap".to_string()
+                                    && p.4.clone() == "v2"
+                                    && (pid == 31 || pid == 33)
+                                {
+                                    println!("stablestellaswap");
+                                    let vars = Vars {
+                                        // addr: asset.clone().unwrap().address.to_lowercase(),
+                                        addr: stable_owner_addr.clone().to_lowercase(),
+                                    };
+                                    let swap_data = stellaswap_stable_subgraph_client.query_with_vars_unwrap::<subgraph::StellaStableData, Vars>(
+                                            &constants::chef::STELLASWAP_STABLE_SWAPS_DAY_DATA_QUERY.clone(),
+                                            vars,
+                                        )
+                                        .await;
 
-                                    if asset.clone().unwrap_or_default().total_supply == 0.0
-                                        || asset.clone().unwrap_or_default().price == 0.0
-                                    {
-                                        base_apr = 0.0;
-                                    } else {
-                                        base_apr = daily_volume_lw * 0.002 * 365.0 * 100.0
-                                            / (asset.clone().unwrap_or_default().total_supply
-                                                * asset.clone().unwrap_or_default().price);
-                                        if p.3.clone() == "solarflare" {
-                                            println!(
-                                                "thisisdway {:?}",
-                                                usdc_nomad_solarflare.clone().unwrap().price
-                                            );
-                                            base_apr /= usdc_nomad_solarflare.unwrap().price;
+                                    if swap_data.is_ok() {
+                                        println!(
+                                            "stellaswap swap_data {:?}",
+                                            swap_data.clone().unwrap()
+                                        );
+                                        let mut daily_volume_lw: f64 = 0.0;
+                                        for pdd in swap_data.clone().unwrap().swap.daily_volumes {
+                                            let dv: f64 = pdd.volume.parse().unwrap_or_default();
+
+                                            daily_volume_lw += dv * asset.clone().unwrap().price;
                                         }
+                                        println!("daily_volume_lw {:?}", daily_volume_lw);
+                                        daily_volume_lw /=
+                                            swap_data.clone().unwrap().swap.daily_volumes.len()
+                                                as f64;
+                                        println!("daily_volume_lwad {:?}", daily_volume_lw);
+
+                                        if asset.clone().unwrap_or_default().total_supply == 0.0
+                                            || asset.clone().unwrap_or_default().price == 0.0
+                                        {
+                                            println!("ts0 or p0");
+                                            base_apr = 0.0;
+                                        } else {
+                                            base_apr = daily_volume_lw * 0.002 * 365.0 * 100.0
+                                                / (asset.clone().unwrap_or_default().total_supply
+                                                    * asset.clone().unwrap_or_default().price);
+                                        }
+                                    } else {
+                                        println!("swap_dataerr {:?}", swap_data);
                                     }
                                 } else {
-                                    println!("pddnotok");
+                                    println!("notstable");
+                                    let pair_day_datas =
+                                        p.6.query_with_vars_unwrap::<subgraph::PairDayDatas, Vars>(
+                                            &constants::chef::PAIR_DAY_DATAS_QUERY.clone(),
+                                            vars,
+                                        )
+                                        .await;
+
+                                    let usdc_nomad_solarflare_filter = doc! { "address": "0x818ec0A7Fe18Ff94269904fCED6AE3DaE6d6dC0b", "protocol": "solarflare", "chain": "moonbeam" };
+                                    let usdc_nomad_solarflare = assets_collection
+                                        .find_one(usdc_nomad_solarflare_filter, None)
+                                        .await?;
+
+                                    println!(
+                                        "usdc_nomad_solarflare {:?}",
+                                        usdc_nomad_solarflare.clone().unwrap()
+                                    );
+
+                                    if pair_day_datas.is_ok() {
+                                        let mut daily_volume_lw: f64 = 0.0;
+                                        for pdd in pair_day_datas.clone().unwrap().pair_day_datas {
+                                            let dv: f64 =
+                                                pdd.daily_volume_usd.parse().unwrap_or_default();
+                                            if dv == 0.0 {
+                                                println!("dv0000");
+
+                                                for (i, ua) in asset
+                                                    .clone()
+                                                    .unwrap_or_default()
+                                                    .underlying_assets
+                                                    .iter()
+                                                    .enumerate()
+                                                {
+                                                    println!("dv {:?} {:?}", i, ua.clone());
+                                                    let ua_filter = doc! { "address": ua.clone(), "protocol": p.3.clone(), "chain": p.2.clone() };
+                                                    let ua_obj = assets_collection
+                                                        .find_one(ua_filter, None)
+                                                        .await?;
+                                                    let dvt0: f64 = pdd
+                                                        .daily_volume_token0
+                                                        .parse()
+                                                        .unwrap_or_default();
+                                                    let dvt1: f64 = pdd
+                                                        .daily_volume_token1
+                                                        .parse()
+                                                        .unwrap_or_default();
+
+                                                    println!(
+                                                        "gm {:?} {:?} {:?}",
+                                                        ua_obj.clone().unwrap_or_default().price,
+                                                        dvt0,
+                                                        dvt1
+                                                    );
+                                                    if i == 0 {
+                                                        daily_volume_lw += dvt0
+                                                            * ua_obj
+                                                                .clone()
+                                                                .unwrap_or_default()
+                                                                .price;
+                                                    } else if i == 1 {
+                                                        daily_volume_lw += dvt1
+                                                            * ua_obj
+                                                                .clone()
+                                                                .unwrap_or_default()
+                                                                .price;
+                                                    } else {
+                                                        println!("nadaaa");
+                                                    }
+                                                }
+                                            } else {
+                                                daily_volume_lw += dv;
+                                            }
+                                        }
+                                        daily_volume_lw /=
+                                            pair_day_datas.unwrap().pair_day_datas.len() as f64;
+
+                                        if asset.clone().unwrap_or_default().total_supply == 0.0
+                                            || asset.clone().unwrap_or_default().price == 0.0
+                                        {
+                                            base_apr = 0.0;
+                                        } else {
+                                            base_apr = daily_volume_lw * 0.002 * 365.0 * 100.0
+                                                / (asset.clone().unwrap_or_default().total_supply
+                                                    * asset.clone().unwrap_or_default().price);
+                                            if p.3.clone() == "solarflare" {
+                                                println!(
+                                                    "thisisdway {:?}",
+                                                    usdc_nomad_solarflare.clone().unwrap().price
+                                                );
+                                                base_apr /= usdc_nomad_solarflare.unwrap().price;
+                                            }
+                                        }
+                                    } else {
+                                        println!("pddnotok");
+                                    }
                                 }
                                 if base_apr.is_nan() {
                                     base_apr = 0.0;

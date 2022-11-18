@@ -222,6 +222,40 @@ pub mod chef {
             }
         }
     "#;
+
+    pub const SOLARBEAM_STABLE_SWAPS_DAY_DATA_QUERY: &str = r#"
+        query Swap($addr: String) {
+            swap(id: $addr) {
+                id
+                address
+                tokens {
+                    symbol
+                }
+                dailyData(orderBy: timestamp, orderDirection: desc, first: 7) {
+                    id
+                    timestamp
+                    volume
+                }
+            }
+        }
+    "#;
+
+    pub const STELLASWAP_STABLE_SWAPS_DAY_DATA_QUERY: &str = r#"
+        query Swap($addr: String) {
+            swap(id: $addr) {
+                id
+                address
+                tokens {
+                    symbol
+                }
+                dailyVolumes(orderBy: timestamp, orderDirection: desc, first: 7) {
+                    id
+                    timestamp
+                    volume
+                }
+            }
+        }
+    "#;
 }
 
 pub mod subsquid {
@@ -327,6 +361,11 @@ pub mod subgraph_urls {
         "https://squid.subsquid.io/zenlink-moonriver-squid-yb/v/1/graphql";
     pub const ZENLINK_MOONBEAM_SUBSQUID: &str =
         "https://squid.subsquid.io/zenlink-moonbeam-squid-yb/v/1/graphql";
+
+    pub const SOLARBEAM_STABLE_SUBGRAPH: &str =
+        "https://api.thegraph.com/subgraphs/name/capjacksparrow42/solarbeam-stable-amm";
+    pub const STELLASWAP_STABLE_SUBGRAPH: &str =
+        "https://api.thegraph.com/subgraphs/name/stellaswap/stable-amm";
 
     pub const SOLARBEAM_BLOCKLYTICS_SUBGRAPH: &str =
         "https://api.thegraph.com/subgraphs/name/solarbeamio/blocklytics";

@@ -2,6 +2,70 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct SolarbeamStableRoot {
+    pub data: SolarbeamStableData,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SolarbeamStableData {
+    pub swap: SolarbeamStableSwap,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SolarbeamStableSwap {
+    pub id: String,
+    pub address: String,
+    pub tokens: Vec<TokenSymbol>,
+    pub daily_data: Vec<DailyDaum>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DailyDaum {
+    pub id: String,
+    pub timestamp: String,
+    pub volume: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StellaStableRoot {
+    pub data: StellaStableData,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StellaStableData {
+    pub swap: StellaStableSwap,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StellaStableSwap {
+    pub id: String,
+    pub address: String,
+    pub tokens: Vec<TokenSymbol>,
+    pub daily_volumes: Vec<DailyVolume>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenSymbol {
+    pub symbol: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DailyVolume {
+    pub id: String,
+    pub timestamp: String,
+    pub volume: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ZenlinkPairDayDatas {
     pub pair_day_data: Vec<PairDayData>,
 }
