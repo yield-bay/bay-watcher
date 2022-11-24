@@ -256,6 +256,7 @@ pub async fn safety_score(mongo_uri: String) -> Result<(), Box<dyn std::error::E
             "chef": obj.chef.clone(),
             "chain": obj.chain.clone(),
             "protocol": obj.protocol.clone(),
+            "asset.address": obj.asset_addr.clone(),
         };
         let fu = doc! {
             "$set" : {
@@ -263,6 +264,7 @@ pub async fn safety_score(mongo_uri: String) -> Result<(), Box<dyn std::error::E
                 "chef": obj.chef.clone(),
                 "chain": obj.chain.clone(),
                 "protocol": obj.protocol.clone(),
+                "asset.address": obj.asset_addr.clone(),
                 "totalScore": obj.total_score.clone(),
                 "tvlScore": obj.tvl_score.clone(),
                 "baseAPRScore": obj.base_apr_score.clone(),
