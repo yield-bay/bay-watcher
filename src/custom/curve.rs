@@ -69,11 +69,7 @@ pub async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Err
                                         let mut total_apy = 0.0;
 
                                         let mut rewards = vec![];
-                                        // <symbol, (exists, amount, valueUSD, freq)>
-                                        let mut reward_asset_map: HashMap<
-                                            String,
-                                            (bool, f64, f64, String),
-                                        > = HashMap::new();
+
                                         // TODO: check if we need to handle zero case
                                         for er in g.extra_rewards {
                                             let rate = er

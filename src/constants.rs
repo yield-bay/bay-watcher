@@ -377,6 +377,9 @@ pub mod utils {
     pub const MOONRIVER_BLOCK_TIME: f64 = 14.6;
     pub const MOONBEAM_BLOCK_TIME: f64 = 12.4;
     pub const ASTAR_BLOCK_TIME: f64 = 12.8;
+
+    pub const TEN_F64: f64 = 10.0;
+    pub const TEN_I128: i128 = 10;
 }
 
 pub mod addresses {

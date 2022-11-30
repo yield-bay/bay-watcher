@@ -332,8 +332,8 @@ async fn fetch_3usd(
 
 async fn fetch_t_dot(
     tapio_query_str: String,
-    acala_dex_query_str: String,
-) -> Result<((f64, Vec<(i32, String, f64, String)>, (f64, f64))), Box<dyn std::error::Error>> {
+    _acala_dex_query_str: String,
+) -> Result<(f64, Vec<(i32, String, f64, String)>, (f64, f64)), Box<dyn std::error::Error>> {
     let subql_client = Client::new(
         "https://api.subquery.network/sq/nutsfinance/tapio-protocol".to_string(),
         60,
@@ -349,8 +349,8 @@ async fn fetch_t_dot(
 
     let mut current_supply = 0.0;
     let mut tvl = 0.0;
-    let mut apr = (0.0, 0.0);
-    let mut rewards: Vec<(i32, String, f64, String)> = vec![];
+    let apr = (0.0, 0.0);
+    let rewards: Vec<(i32, String, f64, String)> = vec![];
 
     if pool_data.is_ok() {
         println!(

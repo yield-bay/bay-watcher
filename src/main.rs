@@ -444,8 +444,6 @@ async fn chef_contract_jobs(
         .find_one(poop_beamswap_filter, None)
         .await?;
 
-    let ten: f64 = 10.0;
-
     let stellaswap_wglmr_poop_liq = wglmr_stellaswap_asset.clone().unwrap().price
         * stellaswap_r0 as f64
         + poop_stellaswap_asset.clone().unwrap().price * stellaswap_r1 as f64;
@@ -454,15 +452,15 @@ async fn chef_contract_jobs(
 
     println!(
         "stellaswap_wglmr_poop_liq {:?} wglmr_poop_stellaswap_lp_ts {:?} lpprice {:}",
-        stellaswap_wglmr_poop_liq / ten.powf(18.0),
-        wglmr_poop_stellaswap_lp_ts.as_u128() as f64 / ten.powf(18.0),
+        stellaswap_wglmr_poop_liq / constants::utils::TEN_F64.powf(18.0),
+        wglmr_poop_stellaswap_lp_ts.as_u128() as f64 / constants::utils::TEN_F64.powf(18.0),
         stellaswap_wglmr_poop_liq / wglmr_poop_stellaswap_lp_ts.as_u128() as f64
     );
 
     println!(
         "beamswap_wglmr_poop_liq {:?} wglmr_poop_beamswap_lp_ts {:?} lpprice {:}",
-        beamswap_wglmr_poop_liq / ten.powf(18.0),
-        wglmr_poop_beamswap_lp_ts.as_u128() as f64 / ten.powf(18.0),
+        beamswap_wglmr_poop_liq / constants::utils::TEN_F64.powf(18.0),
+        wglmr_poop_beamswap_lp_ts.as_u128() as f64 / constants::utils::TEN_F64.powf(18.0),
         beamswap_wglmr_poop_liq / wglmr_poop_beamswap_lp_ts.as_u128() as f64
     );
 
@@ -495,15 +493,15 @@ async fn chef_contract_jobs(
                 poop_logo.clone(),
             ],
             "price": stellaswap_wglmr_poop_liq / wglmr_poop_stellaswap_lp_ts.as_u128() as f64,
-            "liquidity": stellaswap_wglmr_poop_liq / ten.powf(18.0),
-            "totalSupply": wglmr_poop_stellaswap_lp_ts.as_u128() as f64 / ten.powf(18.0),
+            "liquidity": stellaswap_wglmr_poop_liq / constants::utils::TEN_F64.powf(18.0),
+            "totalSupply": wglmr_poop_stellaswap_lp_ts.as_u128() as f64 / constants::utils::TEN_F64.powf(18.0),
             "isLP": true,
             "feesAPR": 0.0,
             "underlyingAssets": [
                 wglmr_stellaswap_asset.clone().unwrap().address,
                 poop_stellaswap_asset.clone().unwrap().address,
             ],
-            "underlyingAssetsAlloc": [0.5, 0.5],
+            "underlyingAssetsAlloc": [],
             "lastUpdatedAtUTC": timestamp.clone(),
         }
     };
@@ -544,15 +542,15 @@ async fn chef_contract_jobs(
                 poop_logo.clone(),
             ],
             "price": beamswap_wglmr_poop_liq / wglmr_poop_beamswap_lp_ts.as_u128() as f64,
-            "liquidity": beamswap_wglmr_poop_liq / ten.powf(18.0),
-            "totalSupply": wglmr_poop_beamswap_lp_ts.as_u128() as f64 / ten.powf(18.0),
+            "liquidity": beamswap_wglmr_poop_liq / constants::utils::TEN_F64.powf(18.0),
+            "totalSupply": wglmr_poop_beamswap_lp_ts.as_u128() as f64 / constants::utils::TEN_F64.powf(18.0),
             "isLP": true,
             "feesAPR": 0.0,
             "underlyingAssets": [
                 wglmr_beamswap_asset.clone().unwrap().address,
                 poop_beamswap_asset.clone().unwrap().address,
             ],
-            "underlyingAssetsAlloc": [0.5, 0.5],
+            "underlyingAssetsAlloc": [],
             "lastUpdatedAtUTC": timestamp.clone(),
         }
     };
@@ -724,10 +722,8 @@ async fn chef_contract_jobs(
 
                     println!("asset {:?} alloc_point {:?}", asset, ap);
 
-                    let mut farm_type = models::FarmType::StandardAmm;
+                    let farm_type = models::FarmType::StandardAmm;
                     let farm_implementation = models::FarmImplementation::Solidity;
-
-                    let ten: i128 = 10;
 
                     let mut rewards = vec![];
                     let mut total_reward_apr = 0.0;
@@ -768,11 +764,11 @@ async fn chef_contract_jobs(
 
                         if rewards_per_day != 0.0 {
                             rewards.push(bson!({
-                            "amount": rewards_per_day as f64 / ten.pow(arsw.clone().unwrap().decimals) as f64,
-                            "asset":  arsw.clone().unwrap().symbol,
-                            "valueUSD": (rewards_per_day as f64 / ten.pow(arsw.clone().unwrap().decimals) as f64) * arsw_price,
-                            "freq": models::Freq::Daily.to_string(),
-                        }));
+                                "amount": rewards_per_day as f64 / constants::utils::TEN_I128.pow(arsw.clone().unwrap().decimals) as f64,
+                                "asset":  arsw.clone().unwrap().symbol,
+                                "valueUSD": (rewards_per_day as f64 / constants::utils::TEN_I128.pow(arsw.clone().unwrap().decimals) as f64) * arsw_price,
+                                "freq": models::Freq::Daily.to_string(),
+                            }));
 
                             // reward_apr/farm_apr/pool_apr
                             println!(
@@ -782,7 +778,8 @@ async fn chef_contract_jobs(
 
                             let reward_apr = ((rewards_per_day as f64 * arsw_price)
                                 / (asset_tvl as f64
-                                    * ten.pow(arsw.clone().unwrap().decimals) as f64))
+                                    * constants::utils::TEN_I128.pow(arsw.clone().unwrap().decimals)
+                                        as f64))
                                 * 365.0
                                 * 100.0;
                             println!("reward_apr: {}", reward_apr);
@@ -802,7 +799,6 @@ async fn chef_contract_jobs(
                         "chain": p.2.clone(),
                         "protocol": p.3.clone(),
                     };
-                    let ten: f64 = 10.0;
                     let fu = doc! {
                         "$set" : {
                             "id": pid,
@@ -854,10 +850,10 @@ async fn chef_contract_jobs(
                     amount,
                     reward_tokens,
                     reward_per_block,
-                    acc_reward_per_share,
-                    last_reward_block,
-                    start_block,
-                    claimable_interval,
+                    _acc_reward_per_share,
+                    _last_reward_block,
+                    _start_block,
+                    _claimable_interval,
                 ): (
                     Address,
                     U256,
@@ -923,7 +919,6 @@ async fn chef_contract_jobs(
                     let usdc_filter = doc! {"chain": p.2.clone(), "protocol": p.3.clone(), "address": constants::addresses::zenlink_on_astar::USDC};
                     let usdc_asset = assets_collection.find_one(usdc_filter, None).await?;
 
-                    let ten: f64 = 10.0;
                     let bai_bal: U256 = bai.balance_of(owner_addr).call().await?;
                     let busd_bal: U256 = busd.balance_of(owner_addr).call().await?;
                     let dai_bal: U256 = dai.balance_of(owner_addr).call().await?;
@@ -936,16 +931,16 @@ async fn chef_contract_jobs(
                     let _4pool_bal: U256 = _4pool.balance_of(owner_addr).call().await?;
 
                     let usd_pool_liq = bai_bal.as_u128() as f64 * bai_asset.clone().unwrap().price
-                        / ten.powf(18.0)
+                        / constants::utils::TEN_F64.powf(18.0)
                         + busd_bal.as_u128() as f64 * busd_asset.clone().unwrap().price
-                            / ten.powf(18.0)
+                            / constants::utils::TEN_F64.powf(18.0)
                         + dai_bal.as_u128() as f64 * dai_asset.clone().unwrap().price
-                            / ten.powf(18.0)
+                            / constants::utils::TEN_F64.powf(18.0)
                         + usdc_bal.as_u128() as f64 * usdc_asset.clone().unwrap().price
-                            / ten.powf(6.0);
+                            / constants::utils::TEN_F64.powf(6.0);
                     println!("4pool usd_pool_liq {}", usd_pool_liq);
                     let total_supply: U256 = stable_asset.total_supply().call().await?;
-                    let ts = total_supply.as_u128() as f64 / ten.powf(18.0);
+                    let ts = total_supply.as_u128() as f64 / constants::utils::TEN_F64.powf(18.0);
 
                     let usd_pool_price = usd_pool_liq / ts;
                     println!("usd_pool_price {}", usd_pool_price);
@@ -983,7 +978,7 @@ async fn chef_contract_jobs(
                                 dai_asset.clone().unwrap().address,
                                 usdc_asset.clone().unwrap().address,
                             ],
-                            "underlyingAssetsAlloc": [0.25, 0.25, 0.25, 0.25],
+                            "underlyingAssetsAlloc": [],
                             "lastUpdatedAtUTC": timestamp.clone(),
                         }
                     };
@@ -1041,7 +1036,6 @@ async fn chef_contract_jobs(
                     let xcausd_filter = doc! {"chain": p.2.clone(), "protocol": p.3.clone(), "address": constants::addresses::zenlink_on_moonriver::XCAUSD};
                     let xcausd_asset = assets_collection.find_one(xcausd_filter, None).await?;
 
-                    let ten: f64 = 10.0;
                     let usdt_bal: U256 = usdt.balance_of(owner_addr).call().await?;
                     let frax_bal: U256 = frax.balance_of(owner_addr).call().await?;
                     let usdc_bal: U256 = usdc.balance_of(owner_addr).call().await?;
@@ -1053,19 +1047,18 @@ async fn chef_contract_jobs(
                     );
                     let _4pool_bal: U256 = _4pool.balance_of(owner_addr).call().await?;
 
-                    //
                     let usd_pool_liq = usdt_bal.as_u128() as f64
                         * usdt_asset.clone().unwrap().price
-                        / ten.powf(6.0)
+                        / constants::utils::TEN_F64.powf(6.0)
                         + frax_bal.as_u128() as f64 * frax_asset.clone().unwrap().price
-                            / ten.powf(18.0)
+                            / constants::utils::TEN_F64.powf(18.0)
                         + usdc_bal.as_u128() as f64 * usdc_asset.clone().unwrap().price
-                            / ten.powf(6.0)
+                            / constants::utils::TEN_F64.powf(6.0)
                         + xcausd_bal.as_u128() as f64 * xcausd_asset.clone().unwrap().price
-                            / ten.powf(12.0);
+                            / constants::utils::TEN_F64.powf(12.0);
                     println!("4pool usd_pool_liq {}", usd_pool_liq);
                     let total_supply: U256 = stable_asset.total_supply().call().await?;
-                    let ts = total_supply.as_u128() as f64 / ten.powf(18.0);
+                    let ts = total_supply.as_u128() as f64 / constants::utils::TEN_F64.powf(18.0);
 
                     let usd_pool_price = usd_pool_liq / ts;
                     println!("usd_pool_price {}", usd_pool_price);
@@ -1103,7 +1096,7 @@ async fn chef_contract_jobs(
                                 usdc_asset.clone().unwrap().address,
                                 xcausd_asset.clone().unwrap().address,
                             ],
-                            "underlyingAssetsAlloc": [0.25, 0.25, 0.25, 0.25],
+                            "underlyingAssetsAlloc": [],
                             "lastUpdatedAtUTC": timestamp.clone(),
                         }
                     };
@@ -1176,8 +1169,6 @@ async fn chef_contract_jobs(
 
                             asset_tvl = amount.as_u128();
 
-                            let ten: i128 = 10;
-
                             if rewards_per_day != 0 {
                                 if !reward_asset_map
                                     .contains_key(&reward_asset.clone().unwrap().symbol)
@@ -1187,10 +1178,12 @@ async fn chef_contract_jobs(
                                         (
                                             true,
                                             rewards_per_day as f64
-                                                / ten.pow(reward_asset.clone().unwrap().decimals)
+                                                / constants::utils::TEN_I128
+                                                    .pow(reward_asset.clone().unwrap().decimals)
                                                     as f64,
                                             (rewards_per_day as f64
-                                                / ten.pow(reward_asset.clone().unwrap().decimals)
+                                                / constants::utils::TEN_I128
+                                                    .pow(reward_asset.clone().unwrap().decimals)
                                                     as f64)
                                                 * reward_asset_price,
                                             models::Freq::Daily.to_string(),
@@ -1205,10 +1198,12 @@ async fn chef_contract_jobs(
                                         (
                                             true,
                                             er.1 + rewards_per_day as f64
-                                                / ten.pow(reward_asset.clone().unwrap().decimals)
+                                                / constants::utils::TEN_I128
+                                                    .pow(reward_asset.clone().unwrap().decimals)
                                                     as f64,
                                             er.2 + (rewards_per_day as f64
-                                                / ten.pow(reward_asset.clone().unwrap().decimals)
+                                                / constants::utils::TEN_I128
+                                                    .pow(reward_asset.clone().unwrap().decimals)
                                                     as f64)
                                                 * reward_asset_price,
                                             models::Freq::Daily.to_string(),
@@ -1221,10 +1216,11 @@ async fn chef_contract_jobs(
                                     "rewards/sec: {} rewards/day: {} asset_tvl: {}",
                                     rewards_per_sec, rewards_per_day, asset_tvl
                                 );
-                                let mut reward_apr = 0.0;
 
-                                reward_apr = ((rewards_per_day as f64
-                                    / ten.pow(reward_asset.clone().unwrap().decimals) as f64
+                                let mut reward_apr = ((rewards_per_day as f64
+                                    / constants::utils::TEN_I128
+                                        .pow(reward_asset.clone().unwrap().decimals)
+                                        as f64
                                     * reward_asset_price)
                                     / (asset_tvl as f64 * asset_price))
                                     * 365.0
@@ -1232,7 +1228,7 @@ async fn chef_contract_jobs(
                                 if farm_type == models::FarmType::SingleStaking
                                     || farm_type == models::FarmType::StableAmm
                                 {
-                                    reward_apr *= ten.pow(18) as f64;
+                                    reward_apr *= constants::utils::TEN_I128.pow(18) as f64;
                                 }
 
                                 println!("reward_apr: {}", reward_apr);
@@ -1252,13 +1248,12 @@ async fn chef_contract_jobs(
                         }));
                     }
 
-                    let ten: f64 = 10.0;
-
                     let mut atvl: f64 = asset_tvl as f64 * asset_price;
                     if farm_type == models::FarmType::SingleStaking
                         || farm_type == models::FarmType::StableAmm
                     {
-                        atvl = asset_tvl as f64 * asset_price / ten.powf(18.0);
+                        atvl =
+                            asset_tvl as f64 * asset_price / constants::utils::TEN_F64.powf(18.0);
                     }
 
                     println!(
@@ -1496,13 +1491,11 @@ async fn chef_contract_jobs(
                                 let rewards_per_day: f64 = rewards_per_sec * 60.0 * 60.0 * 24.0;
                                 asset_tvl = asset.clone().unwrap().liquidity;
 
-                                let ten: i128 = 10;
-
                                 if rewards_per_day != 0.0 {
                                     rewards.push(bson!({
-                                        "amount": rewards_per_day as f64 / ten.pow(sushi.clone().unwrap().decimals) as f64,
+                                        "amount": rewards_per_day as f64 / constants::utils::TEN_I128.pow(sushi.clone().unwrap().decimals) as f64,
                                         "asset":  sushi.clone().unwrap().symbol,
-                                        "valueUSD": (rewards_per_day as f64 / ten.pow(sushi.clone().unwrap().decimals) as f64) * reward_asset_price,
+                                        "valueUSD": (rewards_per_day as f64 / constants::utils::TEN_I128.pow(sushi.clone().unwrap().decimals) as f64) * reward_asset_price,
                                         "freq": models::Freq::Daily.to_string(),
                                     }));
 
@@ -1515,7 +1508,9 @@ async fn chef_contract_jobs(
                                     let reward_apr = ((rewards_per_day as f64
                                         * reward_asset_price)
                                         / (asset_tvl as f64
-                                            * ten.pow(sushi.clone().unwrap().decimals) as f64))
+                                            * constants::utils::TEN_I128
+                                                .pow(sushi.clone().unwrap().decimals)
+                                                as f64))
                                         * 365.0
                                         * 100.0;
                                     println!("reward_apr: {}", reward_apr);
@@ -1549,12 +1544,11 @@ async fn chef_contract_jobs(
                                 let rewards_per_day: f64 = rewards_per_sec * 60.0 * 60.0 * 24.0;
                                 asset_tvl = asset.clone().unwrap().liquidity;
 
-                                let ten: i128 = 10;
                                 if rewards_per_day != 0.0 {
                                     rewards.push(bson!({
-                                        "amount": rewards_per_day as f64 / ten.pow(movr.clone().unwrap().decimals) as f64,
+                                        "amount": rewards_per_day as f64 / constants::utils::TEN_I128.pow(movr.clone().unwrap().decimals) as f64,
                                         "asset":  movr.clone().unwrap().symbol,
-                                        "valueUSD": (rewards_per_day as f64 / ten.pow(movr.clone().unwrap().decimals) as f64) * reward_asset_price,
+                                        "valueUSD": (rewards_per_day as f64 / constants::utils::TEN_I128.pow(movr.clone().unwrap().decimals) as f64) * reward_asset_price,
                                         "freq": models::Freq::Daily.to_string(),
                                     }));
 
@@ -1567,7 +1561,9 @@ async fn chef_contract_jobs(
                                     let reward_apr = ((rewards_per_day as f64
                                         * reward_asset_price)
                                         / (asset_tvl as f64
-                                            * ten.pow(movr.clone().unwrap().decimals) as f64))
+                                            * constants::utils::TEN_I128
+                                                .pow(movr.clone().unwrap().decimals)
+                                                as f64))
                                         * 365.0
                                         * 100.0;
                                     println!("reward_apr: {}", reward_apr);
@@ -1776,12 +1772,11 @@ async fn chef_contract_jobs(
                                 let rewards_per_day: f64 = rewards_per_sec * 60.0 * 60.0 * 24.0;
                                 asset_tvl = total_lp.as_u128();
 
-                                let ten: i128 = 10;
                                 if rewards_per_day != 0.0 {
                                     rewards.push(bson!({
-                                        "amount": rewards_per_day as f64 / ten.pow(stella.clone().unwrap().decimals) as f64,
+                                        "amount": rewards_per_day as f64 / constants::utils::TEN_I128.pow(stella.clone().unwrap().decimals) as f64,
                                         "asset":  stella.clone().unwrap().symbol,
-                                        "valueUSD": (rewards_per_day as f64 / ten.pow(stella.clone().unwrap().decimals) as f64) * reward_asset_price,
+                                        "valueUSD": (rewards_per_day as f64 / constants::utils::TEN_I128.pow(stella.clone().unwrap().decimals) as f64) * reward_asset_price,
                                         "freq": models::Freq::Daily.to_string(),
                                     }));
                                 }
@@ -1851,7 +1846,6 @@ async fn chef_contract_jobs(
                                     "chain": p.2.clone(),
                                     "protocol": p.3.clone(),
                                 };
-                                let ten: f64 = 10.0;
                                 let fu = doc! {
                                     "$set" : {
                                         "id": pid,
@@ -1866,7 +1860,7 @@ async fn chef_contract_jobs(
                                             "price": asset.clone().unwrap().price,
                                             "logos": asset.clone().unwrap().logos,
                                         },
-                                        "tvl": asset_tvl as f64 * asset_price / ten.powf(18.0),
+                                        "tvl": asset_tvl as f64 * asset_price / constants::utils::TEN_F64.powf(18.0),
                                         "apr.reward": reward_apr,
                                         "apr.base": base_apr,
                                         "rewards": rewards,
@@ -2008,7 +2002,6 @@ async fn chef_contract_jobs(
                             let stksm_asset =
                                 assets_collection.find_one(stksm_filter, None).await?;
 
-                            let ten: f64 = 10.0;
                             let busd_bal: U256 = busd.balance_of(owner_addr).call().await?;
                             let usdc_bal: U256 = usdc.balance_of(owner_addr).call().await?;
                             let usdt_bal: U256 = usdt.balance_of(owner_addr).call().await?;
@@ -2035,14 +2028,15 @@ async fn chef_contract_jobs(
                             if symbol == "3pool".to_string() {
                                 let usd_pool_liq = busd_bal.as_u128() as f64
                                     * busd_asset.clone().unwrap().price
-                                    / ten.powf(18.0)
+                                    / constants::utils::TEN_F64.powf(18.0)
                                     + usdc_bal.as_u128() as f64 * usdc_asset.clone().unwrap().price
-                                        / ten.powf(6.0)
+                                        / constants::utils::TEN_F64.powf(6.0)
                                     + usdt_bal.as_u128() as f64 * usdt_asset.clone().unwrap().price
-                                        / ten.powf(6.0);
+                                        / constants::utils::TEN_F64.powf(6.0);
                                 println!("3pool usd_pool_liq {}", usd_pool_liq);
                                 let total_supply: U256 = stable_asset.total_supply().call().await?;
-                                let ts = total_supply.as_u128() as f64 / ten.powf(18.0);
+                                let ts = total_supply.as_u128() as f64
+                                    / constants::utils::TEN_F64.powf(18.0);
 
                                 let usd_pool_price = usd_pool_liq / ts;
                                 println!("usd_pool_price {}", usd_pool_price);
@@ -2078,7 +2072,7 @@ async fn chef_contract_jobs(
                                             usdc_asset.clone().unwrap().address,
                                             usdt_asset.clone().unwrap().address,
                                         ],
-                                        "underlyingAssetsAlloc": [0.33, 0.33, 0.33],
+                                        "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
                                 };
@@ -2090,11 +2084,13 @@ async fn chef_contract_jobs(
                                     .find_one_and_update(f, u, Some(options))
                                     .await?;
                             } else if symbol == "FRAX-3pool".to_string() {
-                                let usd_pool_liq = _3pool_bal.as_u128() as f64 / ten.powf(18.0)
+                                let usd_pool_liq = _3pool_bal.as_u128() as f64
+                                    / constants::utils::TEN_F64.powf(18.0)
                                     + frax_bal.as_u128() as f64 * frax_asset.clone().unwrap().price
-                                        / ten.powf(18.0);
+                                        / constants::utils::TEN_F64.powf(18.0);
                                 let total_supply: U256 = stable_asset.total_supply().call().await?;
-                                let ts = total_supply.as_u128() as f64 / ten.powf(18.0);
+                                let ts = total_supply.as_u128() as f64
+                                    / constants::utils::TEN_F64.powf(18.0);
 
                                 let usd_pool_price = usd_pool_liq / ts;
                                 println!("usd_pool_price {}", usd_pool_price);
@@ -2132,7 +2128,7 @@ async fn chef_contract_jobs(
                                             usdc_asset.clone().unwrap().address,
                                             usdt_asset.clone().unwrap().address,
                                         ],
-                                        "underlyingAssetsAlloc": [0.25, 0.25, 0.25, 0.25],
+                                        "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
                                 };
@@ -2144,11 +2140,13 @@ async fn chef_contract_jobs(
                                     .find_one_and_update(f, u, Some(options))
                                     .await?;
                             } else if symbol == "MAI-3pool".to_string() {
-                                let usd_pool_liq = _3pool_bal.as_u128() as f64 / ten.powf(18.0)
+                                let usd_pool_liq = _3pool_bal.as_u128() as f64
+                                    / constants::utils::TEN_F64.powf(18.0)
                                     + mai_bal.as_u128() as f64 * mai_asset.clone().unwrap().price
-                                        / ten.powf(18.0);
+                                        / constants::utils::TEN_F64.powf(18.0);
                                 let total_supply: U256 = stable_asset.total_supply().call().await?;
-                                let ts = total_supply.as_u128() as f64 / ten.powf(18.0);
+                                let ts = total_supply.as_u128() as f64
+                                    / constants::utils::TEN_F64.powf(18.0);
 
                                 let usd_pool_price = usd_pool_liq / ts;
                                 println!("usd_pool_price {}", usd_pool_price);
@@ -2186,7 +2184,7 @@ async fn chef_contract_jobs(
                                             usdc_asset.clone().unwrap().address,
                                             usdt_asset.clone().unwrap().address,
                                         ],
-                                        "underlyingAssetsAlloc": [0.25, 0.25, 0.25, 0.25],
+                                        "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
                                 };
@@ -2198,11 +2196,13 @@ async fn chef_contract_jobs(
                                     .find_one_and_update(f, u, Some(options))
                                     .await?;
                             } else if symbol == "MIM-3pool".to_string() {
-                                let usd_pool_liq = _3pool_bal.as_u128() as f64 / ten.powf(18.0)
+                                let usd_pool_liq = _3pool_bal.as_u128() as f64
+                                    / constants::utils::TEN_F64.powf(18.0)
                                     + mim_bal.as_u128() as f64 * mim_asset.clone().unwrap().price
-                                        / ten.powf(18.0);
+                                        / constants::utils::TEN_F64.powf(18.0);
                                 let total_supply: U256 = stable_asset.total_supply().call().await?;
-                                let ts = total_supply.as_u128() as f64 / ten.powf(18.0);
+                                let ts = total_supply.as_u128() as f64
+                                    / constants::utils::TEN_F64.powf(18.0);
 
                                 let usd_pool_price = usd_pool_liq / ts;
                                 println!("usd_pool_price {}", usd_pool_price);
@@ -2240,7 +2240,7 @@ async fn chef_contract_jobs(
                                             usdc_asset.clone().unwrap().address,
                                             usdt_asset.clone().unwrap().address,
                                         ],
-                                        "underlyingAssetsAlloc": [0.25, 0.25, 0.25, 0.25],
+                                        "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
                                 };
@@ -2255,10 +2255,12 @@ async fn chef_contract_jobs(
                                 let wbtc_price = wbtc_asset.clone().unwrap().price;
                                 let xckbtc_price = xckbtc_asset.clone().unwrap().price;
                                 let pool_liq = wbtc_bal.as_u128() as f64 * wbtc_price
-                                    / ten.powf(8.0)
-                                    + xckbtc_bal.as_u128() as f64 * xckbtc_price / ten.powf(8.0);
+                                    / constants::utils::TEN_F64.powf(8.0)
+                                    + xckbtc_bal.as_u128() as f64 * xckbtc_price
+                                        / constants::utils::TEN_F64.powf(8.0);
                                 let total_supply: U256 = stable_asset.total_supply().call().await?;
-                                let ts = total_supply.as_u128() as f64 / ten.powf(18.0);
+                                let ts = total_supply.as_u128() as f64
+                                    / constants::utils::TEN_F64.powf(18.0);
 
                                 let pool_price = pool_liq / ts;
                                 println!("pool_price {}", pool_price);
@@ -2292,7 +2294,7 @@ async fn chef_contract_jobs(
                                             wbtc_asset.clone().unwrap().address,
                                             xckbtc_asset.clone().unwrap().address,
                                         ],
-                                        "underlyingAssetsAlloc": [0.25, 0.25, 0.25, 0.25],
+                                        "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
                                 };
@@ -2306,12 +2308,13 @@ async fn chef_contract_jobs(
                             } else if symbol == "stKSM".to_string() {
                                 let pool_liq = xcksm_bal.as_u128() as f64
                                     * xcksm_asset.clone().unwrap().price
-                                    / ten.powf(12.0)
+                                    / constants::utils::TEN_F64.powf(12.0)
                                     + stksm_bal.as_u128() as f64
                                         * stksm_asset.clone().unwrap().price
-                                        / ten.powf(12.0);
+                                        / constants::utils::TEN_F64.powf(12.0);
                                 let total_supply: U256 = stable_asset.total_supply().call().await?;
-                                let ts = total_supply.as_u128() as f64 / ten.powf(18.0);
+                                let ts = total_supply.as_u128() as f64
+                                    / constants::utils::TEN_F64.powf(18.0);
 
                                 let pool_price = pool_liq / ts;
                                 println!("pool_price {}", pool_price);
@@ -2345,7 +2348,7 @@ async fn chef_contract_jobs(
                                             xcksm_asset.clone().unwrap().address,
                                             stksm_asset.clone().unwrap().address,
                                         ],
-                                        "underlyingAssetsAlloc": [0.5, 0.5],
+                                        "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
                                 };
@@ -2414,7 +2417,6 @@ async fn chef_contract_jobs(
                             let dai_filter = doc! {"chain":"moonbeam", "protocol":"beamswap", "address":constants::addresses::beamswap_on_moonbeam::DAI};
                             let dai_asset = assets_collection.find_one(dai_filter, None).await?;
 
-                            let ten: f64 = 10.0;
                             let busd_bal: U256 = busd.balance_of(owner_addr).call().await?;
                             let usdc_bal: U256 = usdc.balance_of(owner_addr).call().await?;
                             let usdt_bal: U256 = usdt.balance_of(owner_addr).call().await?;
@@ -2429,16 +2431,17 @@ async fn chef_contract_jobs(
                             if symbol == "4pool".to_string() {
                                 let usd_pool_liq = busd_bal.as_u128() as f64
                                     * busd_asset.clone().unwrap().price
-                                    / ten.powf(18.0)
+                                    / constants::utils::TEN_F64.powf(18.0)
                                     + usdc_bal.as_u128() as f64 * usdc_asset.clone().unwrap().price
-                                        / ten.powf(6.0)
+                                        / constants::utils::TEN_F64.powf(6.0)
                                     + usdt_bal.as_u128() as f64 * usdt_asset.clone().unwrap().price
-                                        / ten.powf(6.0)
+                                        / constants::utils::TEN_F64.powf(6.0)
                                     + dai_bal.as_u128() as f64 * dai_asset.clone().unwrap().price
-                                        / ten.powf(18.0);
+                                        / constants::utils::TEN_F64.powf(18.0);
                                 println!("4pool usd_pool_liq {}", usd_pool_liq);
                                 let total_supply: U256 = stable_asset.total_supply().call().await?;
-                                let ts = total_supply.as_u128() as f64 / ten.powf(18.0);
+                                let ts = total_supply.as_u128() as f64
+                                    / constants::utils::TEN_F64.powf(18.0);
 
                                 let usd_pool_price = usd_pool_liq / ts;
                                 println!("usd_pool_price {}", usd_pool_price);
@@ -2476,7 +2479,7 @@ async fn chef_contract_jobs(
                                             usdt_asset.clone().unwrap().address,
                                             dai_asset.clone().unwrap().address,
                                         ],
-                                        "underlyingAssetsAlloc": [0.25, 0.25, 0.25, 0.25],
+                                        "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
                                 };
@@ -2557,7 +2560,6 @@ async fn chef_contract_jobs(
                             let mai_filter = doc! {"chain":"moonbeam", "protocol":"stellaswap", "address":constants::addresses::stellaswap_on_moonbeam::MAI};
                             let mai_asset = assets_collection.find_one(mai_filter, None).await?;
 
-                            let ten: f64 = 10.0;
                             let busd_bal: U256 = busd.balance_of(owner_addr).call().await?;
                             let usdc_bal: U256 = usdc.balance_of(owner_addr).call().await?;
                             let usdt_bal: U256 = usdt.balance_of(owner_addr).call().await?;
@@ -2574,16 +2576,17 @@ async fn chef_contract_jobs(
                             if symbol == "stella4pool".to_string() {
                                 let usd_pool_liq = busd_bal.as_u128() as f64
                                     * busd_asset.clone().unwrap().price
-                                    / ten.powf(18.0)
+                                    / constants::utils::TEN_F64.powf(18.0)
                                     + usdc_bal.as_u128() as f64 * usdc_asset.clone().unwrap().price
-                                        / ten.powf(6.0)
+                                        / constants::utils::TEN_F64.powf(6.0)
                                     + usdt_bal.as_u128() as f64 * usdt_asset.clone().unwrap().price
-                                        / ten.powf(6.0)
+                                        / constants::utils::TEN_F64.powf(6.0)
                                     + frax_bal.as_u128() as f64 * frax_asset.clone().unwrap().price
-                                        / ten.powf(18.0);
+                                        / constants::utils::TEN_F64.powf(18.0);
                                 println!("stella4pool usd_pool_liq {}", usd_pool_liq);
                                 let total_supply: U256 = stable_asset.total_supply().call().await?;
-                                let ts = total_supply.as_u128() as f64 / ten.powf(18.0);
+                                let ts = total_supply.as_u128() as f64
+                                    / constants::utils::TEN_F64.powf(18.0);
 
                                 let usd_pool_price = usd_pool_liq / ts;
                                 println!("usd_pool_price {}", usd_pool_price);
@@ -2621,7 +2624,7 @@ async fn chef_contract_jobs(
                                             usdc_asset.clone().unwrap().address,
                                             usdt_asset.clone().unwrap().address,
                                         ],
-                                        "underlyingAssetsAlloc": [0.25, 0.25, 0.25, 0.25],
+                                        "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
                                 };
@@ -2635,12 +2638,14 @@ async fn chef_contract_jobs(
                             } else if symbol == "stellaMAI-4pool" {
                                 let usd_pool_liq = mai_bal.as_u128() as f64
                                     * mai_asset.clone().unwrap().price
-                                    / ten.powf(18.0)
-                                    + _4pool_bal.as_u128() as f64 / ten.powf(18.0);
+                                    / constants::utils::TEN_F64.powf(18.0)
+                                    + _4pool_bal.as_u128() as f64
+                                        / constants::utils::TEN_F64.powf(18.0);
 
                                 println!("stellaMAI-4pool usd_pool_liq {}", usd_pool_liq);
                                 let total_supply: U256 = stable_asset.total_supply().call().await?;
-                                let ts = total_supply.as_u128() as f64 / ten.powf(18.0);
+                                let ts = total_supply.as_u128() as f64
+                                    / constants::utils::TEN_F64.powf(18.0);
 
                                 let usd_pool_price = usd_pool_liq / ts;
                                 println!("usd_pool_price {}", usd_pool_price);
@@ -2680,7 +2685,7 @@ async fn chef_contract_jobs(
                                             usdc_asset.clone().unwrap().address,
                                             usdt_asset.clone().unwrap().address,
                                         ],
-                                        "underlyingAssetsAlloc": [0.25, 0.25, 0.25, 0.25],
+                                        "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
                                 };
@@ -2750,8 +2755,6 @@ async fn chef_contract_jobs(
                                             rewards_per_sec[i].as_u128() * 60 * 60 * 24;
                                         asset_tvl = total_lp.as_u128();
 
-                                        let ten: i128 = 10;
-
                                         if p.3.clone() == "stellaswap".to_string()
                                             && p.5.clone()
                                                 == constants::addresses::stellaswap_on_moonbeam::STELLA_CHEF_V2
@@ -2779,7 +2782,7 @@ async fn chef_contract_jobs(
                                                     (
                                                         true,
                                                         rewards_per_day as f64
-                                                            / ten.pow(
+                                                            / constants::utils::TEN_I128.pow(
                                                                 reward_asset
                                                                     .clone()
                                                                     .unwrap()
@@ -2787,7 +2790,7 @@ async fn chef_contract_jobs(
                                                             )
                                                                 as f64,
                                                         (rewards_per_day as f64
-                                                            / ten.pow(
+                                                            / constants::utils::TEN_I128.pow(
                                                                 reward_asset
                                                                     .clone()
                                                                     .unwrap()
@@ -2807,7 +2810,7 @@ async fn chef_contract_jobs(
                                                     (
                                                         true,
                                                         er.1 + rewards_per_day as f64
-                                                            / ten.pow(
+                                                            / constants::utils::TEN_I128.pow(
                                                                 reward_asset
                                                                     .clone()
                                                                     .unwrap()
@@ -2815,7 +2818,7 @@ async fn chef_contract_jobs(
                                                             )
                                                                 as f64,
                                                         er.2 + (rewards_per_day as f64
-                                                            / ten.pow(
+                                                            / constants::utils::TEN_I128.pow(
                                                                 reward_asset
                                                                     .clone()
                                                                     .unwrap()
@@ -2837,11 +2840,12 @@ async fn chef_contract_jobs(
                                             );
 
                                             let reward_apr = ((rewards_per_day as f64
-                                                / ten.pow(decimals[i].as_u128().try_into().unwrap())
+                                                / constants::utils::TEN_I128
+                                                    .pow(decimals[i].as_u128().try_into().unwrap())
                                                     as f64
                                                 * reward_asset_price)
                                                 / (asset_tvl as f64 * asset_price
-                                                    / ten.pow(18) as f64))
+                                                    / constants::utils::TEN_I128.pow(18) as f64))
                                                 * 365.0
                                                 * 100.0;
                                             println!("reward_apr: {}", reward_apr);
@@ -2886,7 +2890,6 @@ async fn chef_contract_jobs(
                                 {
                                     println!("stablesolarbeam");
                                     let vars = Vars {
-                                        // addr: asset.clone().unwrap().address.to_lowercase(),
                                         addr: stable_owner_addr.clone().to_lowercase(),
                                     };
                                     let swap_data =  solarbeam_stable_subgraph_client.query_with_vars_unwrap::<subgraph::SolarbeamStableData, Vars>(
@@ -2928,7 +2931,6 @@ async fn chef_contract_jobs(
                                 {
                                     println!("stablestellaswap");
                                     let vars = Vars {
-                                        // addr: asset.clone().unwrap().address.to_lowercase(),
                                         addr: stable_owner_addr.clone().to_lowercase(),
                                     };
                                     let swap_data = stellaswap_stable_subgraph_client.query_with_vars_unwrap::<subgraph::StellaStableData, Vars>(
@@ -3078,7 +3080,6 @@ async fn chef_contract_jobs(
                                     "chain": p.2.clone(),
                                     "protocol": p.3.clone(),
                                 };
-                                let ten: f64 = 10.0;
                                 let fu = doc! {
                                     "$set" : {
                                         "id": pid,
@@ -3093,7 +3094,7 @@ async fn chef_contract_jobs(
                                             "price": asset.clone().unwrap().price,
                                             "logos": asset.clone().unwrap().logos,
                                         },
-                                        "tvl": asset_tvl as f64 * asset_price / ten.powf(18.0),
+                                        "tvl": asset_tvl as f64 * asset_price / constants::utils::TEN_F64.powf(18.0),
                                         "apr.reward": total_reward_apr,
                                         "apr.base": base_apr,
                                         "rewards": rewards,
@@ -3552,7 +3553,6 @@ async fn subgraph_jobs(
                     }
 
                     if p.0.clone() == "solarflare" {
-                        // let mut nomad_usdc_price = 1.0;
                         for ft in tokens_data.clone().unwrap().tokens.clone() {
                             if ft.id == constants::addresses::beamswap_on_moonbeam::USDC {
                                 nomad_usdc_price =
@@ -3669,22 +3669,6 @@ async fn subgraph_jobs(
 
             if pairs_data.is_ok() {
                 for pair in pairs_data.clone().unwrap().pairs.clone() {
-                    let token0price: f64 = pair.token0price.parse().unwrap_or_default();
-                    let token1price: f64 = pair.token1price.parse().unwrap_or_default();
-
-                    let mut token0alloc = 0.0;
-                    let mut token1alloc = 0.0;
-
-                    if token0price > 0.0 && token1price > 0.0 {
-                        if token0price > token1price {
-                            token0alloc = (1.0 / token0price) * 100.0;
-                            token1alloc = 100.0 - token0alloc;
-                        } else {
-                            token1alloc = (1.0 / token1price) * 100.0;
-                            token0alloc = 100.0 - token1alloc;
-                        }
-                    }
-
                     let pa = Address::from_str(pair.id.as_str()).unwrap();
                     let pair_addr = to_checksum(&pa, None);
 
@@ -3758,7 +3742,7 @@ async fn subgraph_jobs(
                             "isLP": true,
                             "feesAPR": fees_apr,
                             "underlyingAssets": [token0_addr.clone(), token1_addr.clone()],
-                            "underlyingAssetsAlloc": [token0alloc, token1alloc],
+                            "underlyingAssetsAlloc": [],
                             "lastUpdatedAtUTC": timestamp.clone(),
                         }
                     };
@@ -3784,22 +3768,6 @@ async fn subgraph_jobs(
 
             if pairs_data.is_ok() {
                 for pair in pairs_data.clone().unwrap().pairs.clone() {
-                    let token0price: f64 = pair.token0price.parse().unwrap_or_default();
-                    let token1price: f64 = pair.token1price.parse().unwrap_or_default();
-
-                    let mut token0alloc = 0.0;
-                    let mut token1alloc = 0.0;
-
-                    if token0price > 0.0 && token1price > 0.0 {
-                        if token0price > token1price {
-                            token0alloc = (1.0 / token0price) * 100.0;
-                            token1alloc = 100.0 - token0alloc;
-                        } else {
-                            token1alloc = (1.0 / token1price) * 100.0;
-                            token0alloc = 100.0 - token1alloc;
-                        }
-                    }
-
                     let pa = Address::from_str(pair.id.as_str()).unwrap();
                     let pair_addr = to_checksum(&pa, None);
 
@@ -3879,7 +3847,7 @@ async fn subgraph_jobs(
                             "isLP": true,
                             "feesAPR": fees_apr,
                             "underlyingAssets": [token0_addr.clone(), token1_addr.clone()],
-                            "underlyingAssetsAlloc": [token0alloc, token1alloc],
+                            "underlyingAssetsAlloc": [],
                             "lastUpdatedAtUTC": timestamp.clone(),
                         }
                     };
@@ -3905,22 +3873,6 @@ async fn subgraph_jobs(
 
             if pairs_data.is_ok() {
                 for pair in pairs_data.clone().unwrap().pairs.clone() {
-                    let token0price: f64 = pair.token0price.parse().unwrap_or_default();
-                    let token1price: f64 = pair.token1price.parse().unwrap_or_default();
-
-                    let mut token0alloc = 0.0;
-                    let mut token1alloc = 0.0;
-
-                    if token0price > 0.0 && token1price > 0.0 {
-                        if token0price > token1price {
-                            token0alloc = (1.0 / token0price) * 100.0;
-                            token1alloc = 100.0 - token0alloc;
-                        } else {
-                            token1alloc = (1.0 / token1price) * 100.0;
-                            token0alloc = 100.0 - token1alloc;
-                        }
-                    }
-
                     let pa = Address::from_str(pair.id.as_str()).unwrap();
                     let pair_addr = to_checksum(&pa, None);
 
@@ -4009,7 +3961,7 @@ async fn subgraph_jobs(
                             "isLP": true,
                             "feesAPR": fees_apr,
                             "underlyingAssets": [token0_addr.clone(), token1_addr.clone()],
-                            "underlyingAssetsAlloc": [token0alloc, token1alloc],
+                            "underlyingAssetsAlloc": [],
                             "lastUpdatedAtUTC": timestamp.clone(),
                         }
                     };
