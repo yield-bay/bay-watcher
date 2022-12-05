@@ -444,9 +444,13 @@ pub mod addresses {
         pub const USDC: &str = "0x931715FEE2d06333043d11F658C8CE934aC61D0c";
         pub const USDT: &str = "0xFFFFFFfFea09FB06d082fd1275CD48b191cbCD1d";
         pub const MAI: &str = "0xdFA46478F9e5EA86d57387849598dbFB2e964b02";
+        pub const ATH_USD: &str = "0x9D5d41D8C03e38194A577347206F8829B9cF7C9a";
+        pub const AXL_USDC: &str = "0xCa01a1D0993565291051daFF390892518ACfAD3A";
 
         pub const _4POOL: &str = "0xB326b5189AA42Acaa3C649B120f084Ed8F4dCaA6";
         pub const MAI_4POOL: &str = "0xEceab9F0FcF15Fddbffbd7baE2cEB78CD57b879a";
+        pub const ATH_USD_4POOL: &str = "0xe196001e2a4798E437E80493216c2aD1b9f5c190";
+        pub const AXL_USDC_4POOL: &str = "0xacb7dA459719EA26054D0481c5B3AE5903bd9906";
 
         pub const WGLMR_POOP_LP: &str = "0x4EfB208eeEb5A8C85af70e8FBC43D6806b422bec";
     }
