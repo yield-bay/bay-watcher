@@ -383,6 +383,9 @@ pub mod utils {
 }
 
 pub mod addresses {
+    pub mod bay {
+        pub const BAY_NFT: &str = "0xB89C3775fF2F0876829932762BbD9Ae1399Dc76c";
+    }
     pub mod arthswap_on_astar {
         pub const ARSW: &str = "0xDe2578Edec4669BA7F41c5d5D2386300bcEA4678";
         pub const ARTHSWAP_CHEF: &str = "0xc5b016c5597D298Fe9eD22922CE290A048aA5B75";

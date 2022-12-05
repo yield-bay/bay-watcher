@@ -22,6 +22,7 @@ mod constants;
 mod contracts;
 mod custom;
 mod models;
+mod nft;
 mod scoring;
 mod subgraph;
 mod subsquid;
@@ -44,6 +45,10 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut headers = HashMap::new();
     headers.insert("content-type", "application/json");
+
+    nft::mint::check_status_and_mint(mongo_uri.clone())
+        .await
+        .unwrap();
 
     println!("------------------------------\ncurve_jobs");
     custom::curve::curve_jobs(mongo_uri.clone()).await.unwrap();

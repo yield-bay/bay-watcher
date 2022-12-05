@@ -3,6 +3,16 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct User {
+    pub address: String,
+    pub hash: String,
+    pub users_brought: u32,
+    pub created_at: String,
+    pub last_user_brought_at: String,
+    pub owns_nft: bool,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Asset {
     pub address: String,
