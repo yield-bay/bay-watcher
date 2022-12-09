@@ -13,8 +13,8 @@ The primary ETL service for Yield Bay.
 
 1.  Fetch dex related data from their subgraph/subsquid/subql
 
-    - Create subgraph client as shown in [`run_jobs` function](src/main.rs#L56)
-    - Add details to [protocols array](src/main.rs#L121)
+    - Create subgraph client as shown in [`run_jobs` function](src/main.rs#L56).
+    - Add details to [protocols array](src/main.rs#L121).
 
 2.  Fetch farm related data from the smart contract (NOTE: for evm chef-style farms)
 
@@ -31,3 +31,22 @@ The primary ETL service for Yield Bay.
 ## Safety Score
 
 - The Yield farm safety score system is implemented in [src/scoring.rs](src/scoring.rs).
+
+## Misc Details
+
+- The constants (which include the graphql query strings, api urls, smart contract addresses, and other utilities) are present in [src/constants.rs](src/constants.rs).
+- The human-readable abis are present in [src/contracts.rs](src/contracts.rs).
+- We run all the tasks in an infinite loop with a delay of 3 mins in between.
+
+### Farm model (non-obvious fields)
+
+| Field             |                                                           Description                                                           |
+| :---------------- | :-----------------------------------------------------------------------------------------------------------------------------: |
+| **id**            |                                          Farm id, pid in case of chef-style contracts                                           |
+| **chef**          |                              Chef contract address. Some other unique identifier if not chef-style                              |
+| **asset.address** |                                                    Underlying asset address                                                     |
+| **apr.base**      |                                          The trading APR of the protocol (usually DEX)                                          |
+| **apr.reward**    |                                         The APR from the incentive provided by the farm                                         |
+| **allocPoint**    | Represents the share of reward in the whole farm in chef-style farms. Its utility for us is that `0` indicates an inactive farm |
+
+The combination (**id**, **chef**, **chain**, **protocol**, **asset.address**) can be considered the primary key (although we are using mongodb, which uses object ids).
