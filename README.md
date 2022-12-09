@@ -30,7 +30,8 @@ The primary ETL service for Yield Bay.
 
 ## Safety Score
 
-- The Yield farm safety score system is implemented in [src/scoring.rs](src/scoring.rs).
+- The Yield farm safety score system is described [here](https://hackmd.io/@rz4NXhzNS0qhxd_EzzPY_Q/BJFENaxuo).
+- Implementation present in [src/scoring.rs](src/scoring.rs).
 
 ## Misc Details
 
