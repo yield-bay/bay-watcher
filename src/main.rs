@@ -3699,6 +3699,22 @@ async fn subgraph_jobs(
                         price_usd = 1.0;
                     }
 
+                    if t.symbol == "RUM" {
+                        let dexscreener_pairs_rum_url="https://api.dexscreener.com/latest/dex/pairs/moonriver/0xbbcef4055ba5c9aa9c1c1b77915887011435a5ab";
+
+                        let rum_pairs = reqwest::get(dexscreener_pairs_rum_url)
+                            .await?
+                            .json::<apis::dexscreener::Root>()
+                            .await?;
+
+                        if rum_pairs.pairs.len() > 0 {
+                            let pair = rum_pairs.pairs[0].clone();
+
+                            price_usd = pair.price_usd.parse().unwrap_or_default();
+                            println!("RUM price {:?}", price_usd);
+                        }
+                    }
+
                     if p.0.clone() == "solarflare" {
                         for ft in tokens_data.clone().unwrap().tokens.clone() {
                             if ft.id == constants::addresses::beamswap_on_moonbeam::USDC {
