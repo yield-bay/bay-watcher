@@ -3327,6 +3327,54 @@ async fn subgraph_jobs(
 
     let assets_collection = db.collection::<models::Asset>("assets");
 
+    let ldo_price = reqwest::get(
+        "https://api.coingecko.com/api/v3/simple/price?ids=lido-dao&vs_currencies=usd",
+    )
+    .await?
+    .json::<apis::coingecko::LDORoot>()
+    .await?;
+
+    println!("ldo_price {:?}", ldo_price);
+    let ldo_p = ldo_price.lido_dao.usd;
+    println!("ldo_price {:?}", ldo_p);
+
+    let f = doc! {
+        "address": constants::addresses::beamswap_on_moonbeam::LDO,
+        "chain": "moonbeam",
+        "protocol": "beamswap",
+    };
+
+    let timestamp = Utc::now().to_string();
+
+    let u = doc! {
+        "$set" : {
+            "address": constants::addresses::beamswap_on_moonbeam::LDO,
+            "chain": "moonbeam",
+            "protocol": "beamswap",
+            "name": "Lido DAO Token",
+            "symbol": "LDO",
+            "decimals": 18,
+            "logos": [
+                "https://raw.githubusercontent.com/yield-bay/assets/main/list/LDO.png",
+            ],
+            "price": ldo_p,
+            "liquidity": 1.0,
+            "totalSupply": 1.0,
+            "isLP": false,
+            "feesAPR": 0.0,
+            "underlyingAssets": [],
+            "underlyingAssetsAlloc": [],
+            "lastUpdatedAtUTC": timestamp.clone(),
+        }
+    };
+
+    let options = FindOneAndUpdateOptions::builder()
+        .upsert(Some(true))
+        .build();
+    assets_collection
+        .find_one_and_update(f, u, Some(options))
+        .await?;
+
     let arsw_price = reqwest::get(
         "https://api.coingecko.com/api/v3/simple/price?ids=arthswap&vs_currencies=usd",
     )
@@ -3703,6 +3751,16 @@ async fn subgraph_jobs(
                         let xcksm = assets_collection.find_one(doc! {"chain":"moonriver", "protocol":"solarbeam", "address":constants::addresses::solarbeam_on_moonriver::XCKSM}, None).await?;
                         price_usd = xcksm.clone().unwrap().price;
                     }
+
+                    // wstDOT
+                    if p.0.clone() == "beamswap"
+                        && (token_addr.clone()
+                            == constants::addresses::beamswap_on_moonbeam::WSTDOT)
+                    {
+                        let xcdot = assets_collection.find_one(doc! {"chain":"moonbeam", "protocol":"beamswap", "address":constants::addresses::beamswap_on_moonbeam::XCDOT}, None).await?;
+                        price_usd = xcdot.clone().unwrap().price;
+                    }
+
                     // axlUSDC
                     if p.0.clone() == "stellaswap"
                         && token_addr.clone()
@@ -4081,9 +4139,17 @@ async fn subgraph_jobs(
                     }
 
                     let mut liquidity: f64 = pair.reserve_usd.parse().unwrap_or_default();
+
                     // wstKSM-xcKSM LP
                     if pair_addr.clone()
                         == constants::addresses::solarbeam_on_moonriver::XCKSM_WSTKSM_LP
+                    {
+                        liquidity *= 2.0;
+                    }
+
+                    // wstDOT-xcDOT LP
+                    if pair_addr.clone()
+                        == constants::addresses::beamswap_on_moonbeam::XCDOT_WSTDOT_LP
                     {
                         liquidity *= 2.0;
                     }

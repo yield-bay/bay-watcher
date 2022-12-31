@@ -463,10 +463,16 @@ pub mod addresses {
         pub const USDC: &str = "0x818ec0A7Fe18Ff94269904fCED6AE3DaE6d6dC0b";
         pub const USDT: &str = "0xeFAeeE334F0Fd1712f9a8cc375f427D9Cdd40d73";
         pub const DAI: &str = "0x765277EebeCA2e31912C9946eAe1021199B39C61";
+        pub const LDO: &str = "0x9Fda7cEeC4c18008096C2fE2B85F05dc300F94d0";
+        pub const XCDOT: &str = "0xFfFFfFff1FcaCBd218EDc0EbA20Fc2308C778080";
+        // pub const STDOT: &str = "";
+        pub const WSTDOT: &str = "0x191cf2602Ca2e534c5Ccae7BCBF4C46a704bb949";
 
         pub const _4POOL: &str = "0x9BF6910790D70E9b5B07Cb28271C42531B929b4c";
 
         pub const WGLMR_POOP_LP: &str = "0xa049a6260921B5ee3183cFB943133d36d7FdB668";
+
+        pub const XCDOT_WSTDOT_LP: &str = "0x79f05B32e29139C35Cd219aEDB5D99cedb1915aC";
     }
     pub mod sushi_on_moonriver {
         pub const SUSHI_MINI_CHEF: &str = "0x3dB01570D97631f69bbb0ba39796865456Cf89A5";

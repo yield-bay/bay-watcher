@@ -8,6 +8,13 @@ pub struct Root {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct LDORoot {
+    #[serde(alias = "lido-dao")]
+    pub lido_dao: Lido,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ASRoot {
     pub arthswap: Arthswap,
 }
@@ -21,5 +28,11 @@ pub struct Polkadot {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Arthswap {
+    pub usd: f64,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Lido {
     pub usd: f64,
 }
