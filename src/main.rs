@@ -2839,6 +2839,18 @@ async fn chef_contract_jobs(
                             }
                         }
 
+                        if p.3.clone() == "beamswap".to_string() && p.4.clone() == "v2" && pid == 5
+                        {
+                            farm_type = models::FarmType::SingleStaking;
+                        }
+
+                        if p.3.clone() == "solarflare".to_string()
+                            && p.4.clone() == "v2"
+                            && pid == 3
+                        {
+                            farm_type = models::FarmType::SingleStaking;
+                        }
+
                         if rewards_per_sec.len() > 0 {
                             let mut total_reward_apr = 0.0;
 
