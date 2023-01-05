@@ -17,6 +17,30 @@ pub async fn safety_score(mongo_uri: String) -> Result<(), Box<dyn std::error::E
 
     let farms_collection = db.collection::<models::Farm>("farms");
 
+    let null_score_filter = doc! {
+        "totalScore": {"$exists":false}
+    };
+
+    let mut null_score_farms_cursor = farms_collection.find(null_score_filter, None).await?;
+
+    while let Some(farm) = null_score_farms_cursor.try_next().await? {
+        println!(
+            "nullScoreFarm {:?} {:?} {:?} {:?} {:?}",
+            farm.id,
+            farm.chef.clone(),
+            farm.chain.clone(),
+            farm.protocol.clone(),
+            farm.asset.address.clone()
+        );
+        let filter = doc! { "id": farm.id, "chef": farm.chef, "chain": farm.chain, "protocol": farm.protocol, "asset.address": farm.asset.address };
+        let update = doc! { "$set": { "totalScore": 0, "tvlScore": 0, "baseAPRScore": 0, "rewardAPRScore": 0, "rewardsScore": 0 } };
+
+        farms_collection
+            .update_one(filter, update, None)
+            .await
+            .unwrap();
+    }
+
     let f = doc! {
         "allocPoint" : {
             "$ne": 0,
