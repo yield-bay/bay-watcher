@@ -3769,6 +3769,14 @@ async fn subgraph_jobs(
                         price_usd = 1.0;
                     }
 
+                    // athUSDC
+                    if p.0.clone() == "stellaswap"
+                        && token_addr.clone()
+                            == constants::addresses::stellaswap_on_moonbeam::ATH_USD
+                    {
+                        price_usd = 1.0;
+                    }
+
                     if t.symbol == "RUM" {
                         let dexscreener_pairs_rum_url="https://api.dexscreener.com/latest/dex/pairs/moonriver/0xbbcef4055ba5c9aa9c1c1b77915887011435a5ab";
 
