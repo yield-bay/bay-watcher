@@ -45,6 +45,9 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
     let mut headers = HashMap::new();
     headers.insert("content-type", "application/json");
 
+    println!("------------------------------\ndemeter_jobs");
+    custom::demeter::demeter_jobs(mongo_uri.clone()).await.unwrap();
+
     println!("------------------------------\ncurve_jobs");
     custom::curve::curve_jobs(mongo_uri.clone()).await.unwrap();
 
