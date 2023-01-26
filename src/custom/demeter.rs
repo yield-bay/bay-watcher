@@ -27,14 +27,16 @@ pub async fn demeter_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::E
         .await?;
 
     // println!("deo_resp {:?}", deo_resp);
-    let mut i = 0;
+
     for ele in deo_resp {
         let rewards: Vec<Bson> = vec![bson!({
             "amount": ele.reward_token_per_day,
-            "asset":  ele.reward_token,
+            "asset":  ele.reward_token.clone(),
             "valueUSD": ele.reward_token_per_day * ele.reward_token_price,
             "freq": models::Freq::Daily.to_string(),
         })];
+
+        let mut id_vec = vec![];
 
         let asset_name = ele.underlying_asset_name.to_string();
         // asset_name.split(" ");
@@ -49,23 +51,46 @@ pub async fn demeter_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::E
             );
             println!("logoname:: {logo_name}");
 
-            logos.push(logo_name)
+            logos.push(logo_name);
+
+            let char_vec: Vec<char> = a.chars().collect();
+            for c in char_vec {
+                println!("c: {}, ascii: {}", c, c as u32);
+                id_vec.push(c as u32);
+            }
         }
+
+        for r in rewards.clone() {
+            let s = ele.reward_token.as_str();
+            let char_vec: Vec<char> = s.chars().collect();
+            for c in char_vec {
+                println!("c: {}, ascii: {}", c, c as u32);
+                id_vec.push(c as u32);
+            }
+        }
+
+        // let id = id_vec.iter().fold(0, |acc, elem| acc * 10 + elem);
+        let mut id: u128 = 0;
+        for elem in id_vec {
+            println!("elem {} idnow {}", elem, id);
+            id *= 10;
+            id += elem as u128;
+        }
+        println!("id {} asi32 {}", id, id as i32);
+
         let timestamp = Utc::now().to_string();
 
         println!("demeter farm lastUpdatedAtUTC {}", timestamp.clone());
 
         let f = doc! {
-            // "id": 1000+i,
-            "asset.symbol": ele.underlying_asset_name.to_string(),
-            "rewards": rewards.clone(),
+            "id": id as i32,
             "chef": "demeterFarmingPlatform".to_string(),
             "chain": "sora".to_string(),
             "protocol": "demeter".to_string(),
         };
         let u = doc! {
             "$set" : {
-                "id": 1000,
+                "id": id as i32,
                 "chef": "demeterFarmingPlatform".to_string(),
                 "chain": "sora".to_string(),
                 "protocol": "demeter".to_string(),
