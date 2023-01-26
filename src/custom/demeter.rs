@@ -58,6 +58,7 @@ pub async fn demeter_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::E
         let f = doc! {
             // "id": 1000+i,
             "asset.symbol": ele.underlying_asset_name.to_string(),
+            "rewards": rewards.clone(),
             "chef": "demeterFarmingPlatform".to_string(),
             "chain": "sora".to_string(),
             "protocol": "demeter".to_string(),
