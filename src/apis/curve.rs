@@ -97,7 +97,7 @@ pub struct GetFactoryAPYsRoot {
 pub struct GetFactoryAPYsData {
     pub pool_details: Vec<PoolDetail>,
     pub total_volume: f64,
-    pub latest: i64,
+    // pub latest: i64,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
