@@ -71,8 +71,18 @@ pub struct ExtraReward {
     pub name: String,
     pub symbol: String,
     pub decimals: String,
+    pub apy_data: ApyData,
     pub apy: f64,
     pub meta_data: MetaData,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApyData {
+    pub is_reward_still_active: bool,
+    pub token_price: f64,
+    pub rate: f64,
+    pub total_supply: f64,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -74,24 +74,28 @@ pub async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Err
 
                                         // TODO: check if we need to handle zero case
                                         for er in g.extra_rewards {
-                                            let rate = er
-                                                .meta_data
-                                                .rate
-                                                .parse::<f64>()
-                                                .unwrap_or_default()
-                                                as f64
-                                                / ten.powf(
-                                                    er.decimals.parse::<f64>().unwrap_or_default(),
-                                                )
-                                                    as f64;
-                                            let amount = rate * 60.0 * 60.0 * 24.0;
-                                            rewards.push(bson!({
-                                                "amount": amount,
-                                                "asset":  er.symbol,
-                                                "valueUSD": amount * er.token_price,
-                                                "freq": models::Freq::Daily.to_string(),
-                                            }));
-                                            total_apy += er.apy;
+                                            if er.apy_data.is_reward_still_active {
+                                                let rate = er
+                                                    .meta_data
+                                                    .rate
+                                                    .parse::<f64>()
+                                                    .unwrap_or_default()
+                                                    as f64
+                                                    / ten.powf(
+                                                        er.decimals
+                                                            .parse::<f64>()
+                                                            .unwrap_or_default(),
+                                                    )
+                                                        as f64;
+                                                let amount = rate * 60.0 * 60.0 * 24.0;
+                                                rewards.push(bson!({
+                                                    "amount": amount,
+                                                    "asset":  er.symbol,
+                                                    "valueUSD": amount * er.token_price,
+                                                    "freq": models::Freq::Daily.to_string(),
+                                                }));
+                                                total_apy += er.apy;
+                                            }
                                         }
 
                                         let timestamp = Utc::now().to_string();
@@ -197,24 +201,28 @@ pub async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Err
 
                                         // TODO: check if we need to handle zero case
                                         for er in g.extra_rewards {
-                                            let rate = er
-                                                .meta_data
-                                                .rate
-                                                .parse::<f64>()
-                                                .unwrap_or_default()
-                                                as f64
-                                                / ten.powf(
-                                                    er.decimals.parse::<f64>().unwrap_or_default(),
-                                                )
-                                                    as f64;
-                                            let amount = rate * 60.0 * 60.0 * 24.0;
-                                            rewards.push(bson!({
-                                                "amount": amount,
-                                                "asset":  er.symbol,
-                                                "valueUSD": amount * er.token_price,
-                                                "freq": models::Freq::Daily.to_string(),
-                                            }));
-                                            total_apy += er.apy;
+                                            if er.apy_data.is_reward_still_active {
+                                                let rate = er
+                                                    .meta_data
+                                                    .rate
+                                                    .parse::<f64>()
+                                                    .unwrap_or_default()
+                                                    as f64
+                                                    / ten.powf(
+                                                        er.decimals
+                                                            .parse::<f64>()
+                                                            .unwrap_or_default(),
+                                                    )
+                                                        as f64;
+                                                let amount = rate * 60.0 * 60.0 * 24.0;
+                                                rewards.push(bson!({
+                                                    "amount": amount,
+                                                    "asset":  er.symbol,
+                                                    "valueUSD": amount * er.token_price,
+                                                    "freq": models::Freq::Daily.to_string(),
+                                                }));
+                                                total_apy += er.apy;
+                                            }
                                         }
 
                                         let timestamp = Utc::now().to_string();
