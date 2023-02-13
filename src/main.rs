@@ -46,7 +46,9 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
     headers.insert("content-type", "application/json");
 
     println!("------------------------------\ndemeter_jobs");
-    custom::demeter::demeter_jobs(mongo_uri.clone()).await.unwrap();
+    custom::demeter::demeter_jobs(mongo_uri.clone())
+        .await
+        .unwrap();
 
     println!("------------------------------\ncurve_jobs");
     custom::curve::curve_jobs(mongo_uri.clone()).await.unwrap();
@@ -3227,42 +3229,46 @@ async fn chef_contract_jobs(
 
                                 let timestamp = Utc::now().to_string();
 
-                                println!("chef v2 farm lastUpdatedAtUTC {}", timestamp.clone());
+                                if (!(p.3.clone() == "solarbeam".to_string()
+                                    && (pid == 39 || pid == 40 || pid == 43)))
+                                {
+                                    println!("chef v2 farm lastUpdatedAtUTC {}", timestamp.clone());
 
-                                let ff = doc! {
-                                    "id": pid as i32,
-                                    "chef": p.5.clone(),
-                                    "chain": p.2.clone(),
-                                    "protocol": p.3.clone(),
-                                };
-                                let fu = doc! {
-                                    "$set" : {
-                                        "id": pid,
+                                    let ff = doc! {
+                                        "id": pid as i32,
                                         "chef": p.5.clone(),
                                         "chain": p.2.clone(),
                                         "protocol": p.3.clone(),
-                                        "farmType": farm_type.to_string(),
-                                        "farmImpl": farm_implementation.to_string(),
-                                        "asset": {
-                                            "symbol": asset.clone().unwrap().symbol,
-                                            "address": asset_addr.clone(),
-                                            "price": asset.clone().unwrap().price,
-                                            "logos": asset.clone().unwrap().logos,
-                                        },
-                                        "tvl": asset_tvl as f64 * asset_price / constants::utils::TEN_F64.powf(18.0),
-                                        "apr.reward": total_reward_apr,
-                                        "apr.base": base_apr,
-                                        "rewards": rewards,
-                                        "allocPoint": ap,
-                                        "lastUpdatedAtUTC": timestamp.clone(),
-                                    }
-                                };
-                                let options = FindOneAndUpdateOptions::builder()
-                                    .upsert(Some(true))
-                                    .build();
-                                farms_collection
-                                    .find_one_and_update(ff, fu, Some(options))
-                                    .await?;
+                                    };
+                                    let fu = doc! {
+                                        "$set" : {
+                                            "id": pid,
+                                            "chef": p.5.clone(),
+                                            "chain": p.2.clone(),
+                                            "protocol": p.3.clone(),
+                                            "farmType": farm_type.to_string(),
+                                            "farmImpl": farm_implementation.to_string(),
+                                            "asset": {
+                                                "symbol": asset.clone().unwrap().symbol,
+                                                "address": asset_addr.clone(),
+                                                "price": asset.clone().unwrap().price,
+                                                "logos": asset.clone().unwrap().logos,
+                                            },
+                                            "tvl": asset_tvl as f64 * asset_price / constants::utils::TEN_F64.powf(18.0),
+                                            "apr.reward": total_reward_apr,
+                                            "apr.base": base_apr,
+                                            "rewards": rewards,
+                                            "allocPoint": ap,
+                                            "lastUpdatedAtUTC": timestamp.clone(),
+                                        }
+                                    };
+                                    let options = FindOneAndUpdateOptions::builder()
+                                        .upsert(Some(true))
+                                        .build();
+                                    farms_collection
+                                        .find_one_and_update(ff, fu, Some(options))
+                                        .await?;
+                                }
                             } else {
                                 println!("pdne");
                             }
