@@ -114,18 +114,20 @@ pub async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Err
                                         let mut symbol = "stDOT LP";
                                         let mut logo0 = "xcDOT";
                                         let mut logo1 = "stDOT";
+                                        let mut chef = "0xC106C836771B0B4f4a0612Bd68163Ca93be1D340";
                                         if pd.pool_address.clone()
                                             == moonbeam_curve_d2o_xcusdt.clone()
                                         {
                                             symbol = "d2o-xcUSDT LP";
                                             logo0 = "d2o";
                                             logo1 = "xcUSDT";
+                                            chef = "0x4efb9942e50aB8bBA4953F71d8Bebd7B2dcdE657";
                                             println!("case2 total_apy {}", total_apy);
                                         }
                                         let fu = doc! {
                                             "$set" : {
                                                 "id": pd.index,
-                                                "chef": "curve v2",
+                                                "chef": chef,
                                                 "chain": "moonbeam",
                                                 "protocol": "curve",
                                                 "farmType": models::FarmType::StableAmm.to_string(),
@@ -241,18 +243,20 @@ pub async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Err
                                         let mut symbol = "stDOT LP";
                                         let mut logo0 = "xcDOT";
                                         let mut logo1 = "stDOT";
+                                        let mut chef = "0xC106C836771B0B4f4a0612Bd68163Ca93be1D340";
                                         if pd.pool_address.clone()
                                             == moonbeam_curve_d2o_xcusdt.clone()
                                         {
                                             symbol = "d2o-xcUSDT LP";
                                             logo0 = "d2o";
                                             logo1 = "xcUSDT";
+                                            chef = "0x4efb9942e50aB8bBA4953F71d8Bebd7B2dcdE657";
                                             println!("case2 total_apy {}", total_apy);
                                         }
                                         let fu = doc! {
                                             "$set" : {
                                                 "id": pd.index,
-                                                "chef": "curve v2",
+                                                "chef": chef,
                                                 "chain": "moonbeam",
                                                 "protocol": "curve",
                                                 "farmType": models::FarmType::StableAmm.to_string(),
