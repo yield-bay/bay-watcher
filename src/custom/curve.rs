@@ -105,12 +105,6 @@ pub async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Err
                                             timestamp.clone()
                                         );
 
-                                        let ff = doc! {
-                                            "id": pd.index as i32,
-                                            "chef": "curve v2",
-                                            "chain": "moonbeam",
-                                            "protocol": "curve",
-                                        };
                                         let mut symbol = "stDOT LP";
                                         let mut logo0 = "xcDOT";
                                         let mut logo1 = "stDOT";
@@ -124,6 +118,14 @@ pub async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Err
                                             chef = "0x4efb9942e50aB8bBA4953F71d8Bebd7B2dcdE657";
                                             println!("case2 total_apy {}", total_apy);
                                         }
+
+                                        let ff = doc! {
+                                            "id": pd.index as i32,
+                                            "chef": chef,
+                                            "chain": "moonbeam",
+                                            "protocol": "curve",
+                                        };
+
                                         let fu = doc! {
                                             "$set" : {
                                                 "id": pd.index,
@@ -234,12 +236,6 @@ pub async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Err
                                             timestamp.clone()
                                         );
 
-                                        let ff = doc! {
-                                            "id": pd.index as i32,
-                                            "chef": "curve v2",
-                                            "chain": "moonbeam",
-                                            "protocol": "curve",
-                                        };
                                         let mut symbol = "stDOT LP";
                                         let mut logo0 = "xcDOT";
                                         let mut logo1 = "stDOT";
@@ -253,6 +249,14 @@ pub async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Err
                                             chef = "0x4efb9942e50aB8bBA4953F71d8Bebd7B2dcdE657";
                                             println!("case2 total_apy {}", total_apy);
                                         }
+
+                                        let ff = doc! {
+                                            "id": pd.index as i32,
+                                            "chef": chef,
+                                            "chain": "moonbeam",
+                                            "protocol": "curve",
+                                        };
+
                                         let fu = doc! {
                                             "$set" : {
                                                 "id": pd.index,
