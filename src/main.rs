@@ -2501,7 +2501,12 @@ async fn chef_contract_jobs(
                         // stellaswap stable
                         if p.3.clone() == "stellaswap".to_string()
                             && p.4.clone() == "v2"
-                            && (pid == 31 || pid == 33 || pid == 34 || pid == 35)
+                            && (pid == 31
+                                || pid == 33
+                                || pid == 34
+                                || pid == 35
+                                || pid == 37
+                                || pid == 38)
                         {
                             farm_type = models::FarmType::StableAmm;
 
@@ -2829,6 +2834,118 @@ async fn chef_contract_jobs(
                                             busd_asset.clone().unwrap().address,
                                             usdc_asset.clone().unwrap().address,
                                             usdt_asset.clone().unwrap().address,
+                                        ],
+                                        "underlyingAssetsAlloc": [],
+                                        "lastUpdatedAtUTC": timestamp.clone(),
+                                    }
+                                };
+
+                                let options = FindOneAndUpdateOptions::builder()
+                                    .upsert(Some(true))
+                                    .build();
+                                assets_collection
+                                    .find_one_and_update(f, u, Some(options))
+                                    .await?;
+                            } else if symbol == "stella-tripool" {
+                                let usd_pool_liq = usdc_bal.as_u128() as f64
+                                    * usdc_asset.clone().unwrap().price
+                                    / constants::utils::TEN_F64.powf(6.0)
+                                    + frax_bal.as_u128() as f64 * frax_asset.clone().unwrap().price
+                                        / constants::utils::TEN_F64.powf(18.0)
+                                    + usdt_bal.as_u128() as f64 * usdt_asset.clone().unwrap().price
+                                        / constants::utils::TEN_F64.powf(6.0);
+                                println!("stella-tripool usd_pool_liq {}", usd_pool_liq);
+                                let total_supply: U256 = stable_asset.total_supply().call().await?;
+                                let ts = total_supply.as_u128() as f64
+                                    / constants::utils::TEN_F64.powf(18.0);
+
+                                let usd_pool_price = usd_pool_liq / ts;
+                                println!("usd_pool_price {}", usd_pool_price);
+
+                                let f = doc! {
+                                    "address": constants::addresses::stellaswap_on_moonbeam::TRI_POOL.clone(),
+                                    "chain": p.2.clone(),
+                                    "protocol": p.3.clone(),
+                                };
+
+                                let timestamp = Utc::now().to_string();
+
+                                let u = doc! {
+                                    "$set" : {
+                                        "address": constants::addresses::stellaswap_on_moonbeam::TRI_POOL.to_string(),
+                                        "chain": p.2.clone(),
+                                        "protocol": p.3.clone(),
+                                        "name": "StellaSwap Tripool".to_string(),
+                                        "symbol": "tripool".to_string(),
+                                        "decimals": 18,
+                                        "logos": [
+                                            usdc_asset.clone().unwrap().logos.get(0),
+                                            usdt_asset.clone().unwrap().logos.get(0),
+                                            frax_asset.clone().unwrap().logos.get(0),
+                                        ],
+                                        "price": usd_pool_price,
+                                        "liquidity": usd_pool_liq,
+                                        "totalSupply": ts,
+                                        "isLP": true,
+                                        "feesAPR": 0.0,
+                                        "underlyingAssets": [
+                                            usdc_asset.clone().unwrap().address,
+                                            usdt_asset.clone().unwrap().address,
+                                            frax_asset.clone().unwrap().address,
+                                        ],
+                                        "underlyingAssetsAlloc": [],
+                                        "lastUpdatedAtUTC": timestamp.clone(),
+                                    }
+                                };
+
+                                let options = FindOneAndUpdateOptions::builder()
+                                    .upsert(Some(true))
+                                    .build();
+                                assets_collection
+                                    .find_one_and_update(f, u, Some(options))
+                                    .await?;
+                            } else if symbol == "stella-axlDualPool" {
+                                let usd_pool_liq = axlusdc_bal.as_u128() as f64
+                                    * axlusdc_asset.clone().unwrap().price
+                                    / constants::utils::TEN_F64.powf(6.0)
+                                    + usdc_bal.as_u128() as f64 * usdc_asset.clone().unwrap().price
+                                        / constants::utils::TEN_F64.powf(6.0);
+                                println!("stella-axlDualPool usd_pool_liq {}", usd_pool_liq);
+                                let total_supply: U256 = stable_asset.total_supply().call().await?;
+                                let ts = total_supply.as_u128() as f64
+                                    / constants::utils::TEN_F64.powf(18.0);
+
+                                let usd_pool_price = usd_pool_liq / ts;
+                                println!("usd_pool_price {}", usd_pool_price);
+
+                                let f = doc! {
+                                    "address": constants::addresses::stellaswap_on_moonbeam::AXL_DUAL_POOL.clone(),
+                                    "chain": p.2.clone(),
+                                    "protocol": p.3.clone(),
+                                };
+
+                                let timestamp = Utc::now().to_string();
+
+                                let u = doc! {
+                                    "$set" : {
+                                        "address": constants::addresses::stellaswap_on_moonbeam::AXL_DUAL_POOL.to_string(),
+                                        "chain": p.2.clone(),
+                                        "protocol": p.3.clone(),
+                                        "name": "StellaSwap Axelar Dual Pool".to_string(),
+                                        "symbol": "axlDualPool".to_string(),
+                                        "decimals": 18,
+                                        "logos": [
+                                            axlusdc_asset.clone().unwrap().logos.get(0),
+                                            usdc_asset.clone().unwrap().logos.get(0),
+                                        ],
+                                        "price": usd_pool_price,
+                                        "liquidity": usd_pool_liq,
+                                        "totalSupply": ts,
+                                        "isLP": true,
+                                        "feesAPR": 0.0,
+                                        "underlyingAssets": [
+                                            axlusdc_asset.clone().unwrap().address,
+                                            usdc_asset.clone().unwrap().address,
                                         ],
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),

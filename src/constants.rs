@@ -451,6 +451,8 @@ pub mod addresses {
         pub const MAI_4POOL: &str = "0xEceab9F0FcF15Fddbffbd7baE2cEB78CD57b879a";
         pub const ATH_USD_4POOL: &str = "0xe196001e2a4798E437E80493216c2aD1b9f5c190";
         pub const AXL_USDC_4POOL: &str = "0xacb7dA459719EA26054D0481c5B3AE5903bd9906";
+        pub const TRI_POOL: &str = "0x4FB1b0452341ebB0DF325a8286763447dd6F15fF";
+        pub const AXL_DUAL_POOL: &str = "0x6Cd1c3807DbB49785b86cF006Fe2C90287c183B2";
 
         pub const WGLMR_POOP_LP: &str = "0x4EfB208eeEb5A8C85af70e8FBC43D6806b422bec";
     }
