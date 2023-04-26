@@ -2506,7 +2506,8 @@ async fn chef_contract_jobs(
                                 || pid == 34
                                 || pid == 35
                                 || pid == 37
-                                || pid == 38)
+                                || pid == 38
+                                || pid == 39)
                         {
                             farm_type = models::FarmType::StableAmm;
 
@@ -2600,6 +2601,13 @@ async fn chef_contract_jobs(
                                 Arc::clone(&p.8.clone()),
                             );
                             let _4pool_bal: U256 = _4pool.balance_of(owner_addr).call().await?;
+
+                            let tripool = contracts::IStableLpToken::new(
+                                constants::addresses::stellaswap_on_moonbeam::TRI_POOL
+                                    .parse::<Address>()?,
+                                Arc::clone(&p.8.clone()),
+                            );
+                            let tripool_bal: U256 = tripool.balance_of(owner_addr).call().await?;
 
                             if symbol == "stella4pool".to_string() {
                                 let usd_pool_liq = busd_bal.as_u128() as f64
@@ -2946,6 +2954,64 @@ async fn chef_contract_jobs(
                                         "underlyingAssets": [
                                             axlusdc_asset.clone().unwrap().address,
                                             usdc_asset.clone().unwrap().address,
+                                        ],
+                                        "underlyingAssetsAlloc": [],
+                                        "lastUpdatedAtUTC": timestamp.clone(),
+                                    }
+                                };
+
+                                let options = FindOneAndUpdateOptions::builder()
+                                    .upsert(Some(true))
+                                    .build();
+                                assets_collection
+                                    .find_one_and_update(f, u, Some(options))
+                                    .await?;
+                            }else if symbol == "stellaMAI-tripool" {
+                                let usd_pool_liq = mai_bal.as_u128() as f64
+                                * mai_asset.clone().unwrap().price
+                                / constants::utils::TEN_F64.powf(18.0)
+                                + tripool_bal.as_u128() as f64
+                                    / constants::utils::TEN_F64.powf(18.0);
+                                println!("stellaMAI-tripool usd_pool_liq {}", usd_pool_liq);
+                                let total_supply: U256 = stable_asset.total_supply().call().await?;
+                                let ts = total_supply.as_u128() as f64
+                                    / constants::utils::TEN_F64.powf(18.0);
+
+                                let usd_pool_price = usd_pool_liq / ts;
+                                println!("usd_pool_price {}", usd_pool_price);
+
+                                let f = doc! {
+                                    "address": constants::addresses::stellaswap_on_moonbeam::MAI_TRI_POOL.clone(),
+                                    "chain": p.2.clone(),
+                                    "protocol": p.3.clone(),
+                                };
+
+                                let timestamp = Utc::now().to_string();
+
+                                let u = doc! {
+                                    "$set" : {
+                                        "address": constants::addresses::stellaswap_on_moonbeam::MAI_TRI_POOL.to_string(),
+                                        "chain": p.2.clone(),
+                                        "protocol": p.3.clone(),
+                                        "name": "StellaSwap MAI Tripool".to_string(),
+                                        "symbol": "MAI-tripool".to_string(),
+                                        "decimals": 18,
+                                        "logos": [
+                                            mai_asset.clone().unwrap().logos.get(0),
+                                            usdc_asset.clone().unwrap().logos.get(0),
+                                            usdt_asset.clone().unwrap().logos.get(0),
+                                            frax_asset.clone().unwrap().logos.get(0),
+                                        ],
+                                        "price": usd_pool_price,
+                                        "liquidity": usd_pool_liq,
+                                        "totalSupply": ts,
+                                        "isLP": true,
+                                        "feesAPR": 0.0,
+                                        "underlyingAssets": [
+                                            mai_asset.clone().unwrap().address,
+                                            usdc_asset.clone().unwrap().address,
+                                            usdt_asset.clone().unwrap().address,
+                                            frax_asset.clone().unwrap().address,
                                         ],
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
