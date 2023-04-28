@@ -2966,12 +2966,12 @@ async fn chef_contract_jobs(
                                 assets_collection
                                     .find_one_and_update(f, u, Some(options))
                                     .await?;
-                            }else if symbol == "stellaMAI-tripool" {
+                            } else if symbol == "stellaMAI-tripool" {
                                 let usd_pool_liq = mai_bal.as_u128() as f64
-                                * mai_asset.clone().unwrap().price
-                                / constants::utils::TEN_F64.powf(18.0)
-                                + tripool_bal.as_u128() as f64
-                                    / constants::utils::TEN_F64.powf(18.0);
+                                    * mai_asset.clone().unwrap().price
+                                    / constants::utils::TEN_F64.powf(18.0)
+                                    + tripool_bal.as_u128() as f64
+                                        / constants::utils::TEN_F64.powf(18.0);
                                 println!("stellaMAI-tripool usd_pool_liq {}", usd_pool_liq);
                                 let total_supply: U256 = stable_asset.total_supply().call().await?;
                                 let ts = total_supply.as_u128() as f64
@@ -3412,8 +3412,8 @@ async fn chef_contract_jobs(
 
                                 let timestamp = Utc::now().to_string();
 
-                                if (!(p.3.clone() == "solarbeam".to_string()
-                                    && (pid == 39 || pid == 40 || pid == 43)))
+                                if !(p.3.clone() == "solarbeam".to_string()
+                                    && (pid == 39 || pid == 40 || pid == 43))
                                 {
                                     println!("chef v2 farm lastUpdatedAtUTC {}", timestamp.clone());
 
