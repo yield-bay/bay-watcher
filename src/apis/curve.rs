@@ -146,6 +146,8 @@ pub struct PoolDaum {
     pub address: String,
     pub coins_addresses: Vec<String>,
     pub decimals: Vec<String>,
+    #[serde(deserialize_with = "float_or_string")]
+    pub virtual_price: f64,
     pub underlying_decimals: Option<Vec<String>>,
     pub asset_type: String,
     pub total_supply: String,
@@ -158,6 +160,30 @@ pub struct PoolDaum {
     pub usd_total: f64,
     pub is_meta_pool: bool,
     pub usd_total_excluding_base_pool: f64,
+}
+
+fn float_or_string<'de, D>(deserializer: D) -> Result<f64, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value: serde_json::Value = Deserialize::deserialize(deserializer)?;
+    match value {
+        serde_json::Value::Number(num) => {
+            if let Some(float) = num.as_f64() {
+                Ok(float)
+            } else {
+                Err(serde::de::Error::custom("Failed to parse float"))
+            }
+        }
+        serde_json::Value::String(string) => {
+            if let Ok(float) = string.parse::<f64>() {
+                Ok(float)
+            } else {
+                Err(serde::de::Error::custom("Failed to parse float"))
+            }
+        }
+        _ => Err(serde::de::Error::custom("Expected a number or a string")),
+    }
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]

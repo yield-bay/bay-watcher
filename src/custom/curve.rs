@@ -9,6 +9,9 @@ use std::collections::HashMap;
 use crate::apis;
 use crate::models;
 
+use crate::constants;
+// mod constants;
+
 pub async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>> {
     let mut client_options = ClientOptions::parse(mongo_uri).await?;
     client_options.app_name = Some("Bay Watcher".to_string());
@@ -17,6 +20,7 @@ pub async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Err
     let db = client.database(&db_name);
 
     let farms_collection = db.collection::<models::Farm>("farms");
+    let assets_collection = db.collection::<models::Asset>("assets");
 
     let moonbeam_curve_st_dot = "0xc6e37086D09ec2048F151D11CdB9F9BbbdB7d685".to_string();
     let moonbeam_curve_d2o_xcusdt = "0xFF6DD348e6eecEa2d81D4194b60c5157CD9e64f4".to_string();
@@ -119,6 +123,12 @@ pub async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Err
                                             println!("case2 total_apy {}", total_apy);
                                         }
 
+                                        let virtual_price: f64 = pda.virtual_price
+                                            / constants::utils::TEN_F64.powf(18.0); //.parse().unwrap_or_default();
+                                        let total_supply: f64 =
+                                            pda.total_supply.parse::<f64>().unwrap_or_default()
+                                                / constants::utils::TEN_F64.powf(18.0);
+
                                         let ff = doc! {
                                             "id": pd.index as i32,
                                             "chef": chef,
@@ -156,6 +166,42 @@ pub async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Err
                                             .build();
                                         farms_collection
                                             .find_one_and_update(ff, fu, Some(options))
+                                            .await?;
+
+                                        let f = doc! {
+                                            "address": pd.pool_address.clone(),
+                                            "chain": "moonbeam",
+                                            "protocol": "curve",
+                                        };
+
+                                        let u = doc! {
+                                            "$set" : {
+                                                "address": pd.pool_address.clone(),
+                                                "chain": "moonbeam",
+                                                "protocol": "curve",
+                                                "name": symbol,
+                                                "symbol": symbol,
+                                                "decimals": 18,
+                                                "logos": [
+                                                    format!("https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png", logo0),
+                                                    format!("https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png", logo1),
+                                                ],
+                                                "price": virtual_price,
+                                                "liquidity": total_supply * virtual_price,
+                                                "totalSupply": total_supply,
+                                                "isLP": true,
+                                                "feesAPR": pd.apy,
+                                                "underlyingAssets": [],
+                                                "underlyingAssetsAlloc": [],
+                                                "lastUpdatedAtUTC": timestamp.clone(),
+                                            }
+                                        };
+
+                                        let options = FindOneAndUpdateOptions::builder()
+                                            .upsert(Some(true))
+                                            .build();
+                                        assets_collection
+                                            .find_one_and_update(f, u, Some(options))
                                             .await?;
                                     }
                                 }
@@ -250,6 +296,12 @@ pub async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Err
                                             println!("case2 total_apy {}", total_apy);
                                         }
 
+                                        let virtual_price: f64 = pda.virtual_price
+                                            / constants::utils::TEN_F64.powf(18.0); //.parse().unwrap_or_default();
+                                        let total_supply: f64 =
+                                            pda.total_supply.parse::<f64>().unwrap_or_default()
+                                                / constants::utils::TEN_F64.powf(18.0);
+
                                         let ff = doc! {
                                             "id": pd.index as i32,
                                             "chef": chef,
@@ -287,6 +339,42 @@ pub async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Err
                                             .build();
                                         farms_collection
                                             .find_one_and_update(ff, fu, Some(options))
+                                            .await?;
+
+                                        let f = doc! {
+                                            "address": pd.pool_address.clone(),
+                                            "chain": "moonbeam",
+                                            "protocol": "curve",
+                                        };
+
+                                        let u = doc! {
+                                            "$set" : {
+                                                "address": pd.pool_address.clone(),
+                                                "chain": "moonbeam",
+                                                "protocol": "curve",
+                                                "name": symbol,
+                                                "symbol": symbol,
+                                                "decimals": 18,
+                                                "logos": [
+                                                    format!("https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png", logo0),
+                                                    format!("https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png", logo1),
+                                                ],
+                                                "price": virtual_price,
+                                                "liquidity": total_supply * virtual_price,
+                                                "totalSupply": total_supply,
+                                                "isLP": true,
+                                                "feesAPR": pd.apy,
+                                                "underlyingAssets": [],
+                                                "underlyingAssetsAlloc": [],
+                                                "lastUpdatedAtUTC": timestamp.clone(),
+                                            }
+                                        };
+
+                                        let options = FindOneAndUpdateOptions::builder()
+                                            .upsert(Some(true))
+                                            .build();
+                                        assets_collection
+                                            .find_one_and_update(f, u, Some(options))
                                             .await?;
                                     }
                                 }
