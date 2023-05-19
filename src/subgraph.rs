@@ -321,3 +321,72 @@ pub struct TapioDailyDataNode {
     pub fee_volume: f64,
     pub total_supply: f64,
 }
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PulsarRoot {
+    pub data: PulsarData,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PulsarData {
+    pub pools: Vec<Pool>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Pool {
+    pub id: String,
+    pub token0: PulsarToken,
+    pub token1: PulsarToken,
+    #[serde(rename = "totalValueLockedUSD")]
+    pub total_value_locked_usd: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PulsarToken {
+    pub id: String,
+    pub name: String,
+    pub symbol: String,
+    pub decimals: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EternalFarmingRoot {
+    pub data: EternalFarmingData,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EternalFarmingData {
+    pub eternal_farmings: Vec<EternalFarming>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EternalFarming {
+    pub id: String,
+    pub pool: String,
+    pub reward_token: String,
+    pub reward: String,
+    pub bonus_reward_token: String,
+    pub bonus_reward: String,
+    pub start_time: String,
+    pub end_time: String,
+    pub reward_rate: String,
+    pub bonus_reward_rate: String,
+    pub token_amount_for_tier1: String,
+    pub token_amount_for_tier2: String,
+    pub token_amount_for_tier3: String,
+    #[serde(rename = "tier1Multiplier")]
+    pub tier1multiplier: String,
+    #[serde(rename = "tier2Multiplier")]
+    pub tier2multiplier: String,
+    #[serde(rename = "tier3Multiplier")]
+    pub tier3multiplier: String,
+    pub multiplier_token: String,
+    pub min_range_length: String,
+}

@@ -45,6 +45,11 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
     let mut headers = HashMap::new();
     headers.insert("content-type", "application/json");
 
+    println!("------------------------------\npulsar_jobs");
+    custom::pulsar::pulsar_jobs(mongo_uri.clone())
+        .await
+        .unwrap();
+
     println!("------------------------------\ndemeter_jobs");
     custom::demeter::demeter_jobs(mongo_uri.clone())
         .await

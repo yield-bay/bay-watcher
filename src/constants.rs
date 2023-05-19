@@ -256,6 +256,52 @@ pub mod chef {
             }
         }
     "#;
+
+    pub const LISTED_POOLS_QUERY: &str = r#"
+        query listedPools {
+            pools(orderBy: totalValueLockedUSD, orderDirection: desc) {
+                id
+                token0 {
+                    id
+                    name
+                    symbol
+                    decimals
+                }
+                token1 {
+                    id
+                    name
+                    symbol
+                    decimals
+                }
+                totalValueLockedUSD
+            }
+        }
+    "#;
+
+    pub const ETERNAL_FARMINGS_QUERY: &str = r#"
+        {
+            eternalFarmings(first: 50, where: {isDetached: false}) {
+                id
+                pool
+                rewardToken
+                reward
+                bonusRewardToken
+                bonusReward
+                startTime
+                endTime
+                rewardRate
+                bonusRewardRate
+                tokenAmountForTier1
+                tokenAmountForTier2
+                tokenAmountForTier3
+                tier1Multiplier
+                tier2Multiplier
+                tier3Multiplier
+                multiplierToken
+                minRangeLength
+            }
+        }
+    "#;
 }
 
 pub mod subsquid {
@@ -361,6 +407,11 @@ pub mod subgraph_urls {
         "https://squid.subsquid.io/zenlink-moonriver-squid-yb/v/1/graphql";
     pub const ZENLINK_MOONBEAM_SUBSQUID: &str =
         "https://squid.subsquid.io/zenlink-moonbeam-squid-yb/v/1/graphql";
+
+    pub const STELLASWAP_PULSAR_SUBGRAPH: &str =
+        "https://api.thegraph.com/subgraphs/name/stellaswap/pulsar";
+    pub const STELLASWAP_PULSAR_REWARDS_SUBGRAPH: &str =
+        "https://api.thegraph.com/subgraphs/name/stellaswap/pulsar-farming";
 
     pub const SOLARBEAM_STABLE_SUBGRAPH: &str =
         "https://api.thegraph.com/subgraphs/name/capjacksparrow42/solarbeam-stable-amm";

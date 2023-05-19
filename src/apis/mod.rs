@@ -4,5 +4,6 @@ pub(crate) mod demeter;
 pub(crate) mod dexscreener;
 pub(crate) mod dextools;
 pub(crate) mod geckoterminal;
+pub(crate) mod pulsar;
 pub(crate) mod taiga;
 pub(crate) mod tapio;

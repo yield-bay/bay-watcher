@@ -89,6 +89,7 @@ pub enum FarmType {
     StandardAmm,
     StableAmm,
     SingleStaking,
+    ConcentratedLiquidity,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
