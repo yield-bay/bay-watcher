@@ -222,7 +222,7 @@ pub async fn pulsar_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Er
                                 "id": 0,
                                 "chef": "pulsar".to_string(),
                                 "chain": "moonbeam".to_string(),
-                                "protocol": "stellaswap".to_string(),
+                                "protocol": "Stellaswap Pulsar".to_string(),
                                 "asset.address": pool.id.clone(),
                             };
                             let fu = doc! {
@@ -230,7 +230,7 @@ pub async fn pulsar_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Er
                                     "id": 0,
                                     "chef": "pulsar".to_string(),
                                     "chain": "moonbeam".to_string(),
-                                    "protocol": "stellaswap".to_string(),
+                                    "protocol": "Stellaswap Pulsar".to_string(),
                                     "farmType": models::FarmType::ConcentratedLiquidity.to_string(),
                                     "farmImpl": models::FarmImplementation::Solidity.to_string(),
                                     "asset": {
