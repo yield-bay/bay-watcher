@@ -69,6 +69,7 @@ pub async fn pulsar_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Er
         .await?;
 
     let listed_pools = vec![
+        "0x79eb71c1592a678c234ea221ed3fdc10cee89f88".to_string(),
         "0x416bd9798d5214cae6f837c0a53a73beb3ced465".to_string(),
         "0xb13b281503f6ec8a837ae1a21e86a9cae368fcc5".to_string(),
         "0xab8c35164a8e3ef302d18da953923ea31f0fe393".to_string(),
