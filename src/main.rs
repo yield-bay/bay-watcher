@@ -3100,6 +3100,32 @@ async fn chef_contract_jobs(
                                             rewards_per_sec[i].as_u128() * 60 * 60 * 24;
                                         asset_tvl = total_lp.as_u128();
 
+                                        if p.3.clone() == "beamswap".to_string() && pid == 24 {
+                                            let dexscreener_pairs_rum_url="https://api.dexscreener.com/latest/dex/pairs/moonbeam/0x8A2982bA47Aa7a3A072E62930BEe8649B53a3dfe";
+
+                                            let glmb_d2o_pairs =
+                                                reqwest::get(dexscreener_pairs_rum_url)
+                                                    .await?
+                                                    .json::<apis::dx2::Root>()
+                                                    .await?;
+
+                                            asset_price = glmb_d2o_pairs
+                                                .pair
+                                                .price_usd
+                                                .clone()
+                                                .parse()
+                                                .unwrap_or_default();
+                                            let liq: u128 = (glmb_d2o_pairs.pair.liquidity.usd
+                                                / asset_price)
+                                                as u128;
+                                            asset_tvl =
+                                                liq * constants::utils::TEN_F64.powf(18.0) as u128;
+                                            println!(
+                                                "meow asset_price {:?} asset_tvl {:?}",
+                                                asset_price, asset_tvl
+                                            );
+                                        }
+
                                         if p.3.clone() == "stellaswap".to_string()
                                             && p.5.clone()
                                                 == constants::addresses::stellaswap_on_moonbeam::STELLA_CHEF_V2
@@ -3395,6 +3421,27 @@ async fn chef_contract_jobs(
                                             || asset.clone().unwrap_or_default().price == 0.0
                                         {
                                             base_apr = 0.0;
+                                            if p.3.clone() == "beamswap".to_string() && pid == 24 {
+                                                println!("meowbaseapr");
+                                                let dexscreener_pairs_rum_url="https://api.dexscreener.com/latest/dex/pairs/moonbeam/0x8A2982bA47Aa7a3A072E62930BEe8649B53a3dfe";
+
+                                                let glmb_d2o_pairs =
+                                                    reqwest::get(dexscreener_pairs_rum_url)
+                                                        .await?
+                                                        .json::<apis::dx2::Root>()
+                                                        .await?;
+
+                                                base_apr = glmb_d2o_pairs.pair.volume.h24
+                                                    * 0.002
+                                                    * 365.0
+                                                    * 100.0
+                                                    / (asset
+                                                        .clone()
+                                                        .unwrap_or_default()
+                                                        .total_supply
+                                                        * asset_price);
+                                                println!("meowbase_apr {:?}", base_apr);
+                                            }
                                         } else {
                                             base_apr = daily_volume_lw * 0.002 * 365.0 * 100.0
                                                 / (asset.clone().unwrap_or_default().total_supply
@@ -3993,7 +4040,7 @@ async fn subgraph_jobs(
 
                         let rum_pairs = reqwest::get(dexscreener_pairs_rum_url)
                             .await?
-                            .json::<apis::dexscreener::Root>()
+                            .json::<apis::dx2::Root>()
                             .await?;
 
                         if rum_pairs.pairs.len() > 0 {
