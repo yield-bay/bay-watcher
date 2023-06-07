@@ -1455,257 +1455,254 @@ async fn chef_contract_jobs(
                 let farm_type = models::FarmType::StandardAmm;
                 let farm_implementation = models::FarmImplementation::Solidity;
 
-                if ap > 0 {
-                    let lp_token: Address = sushi_mini_chef
-                        .lp_token(ethers::prelude::U256::from(pid))
-                        .call()
-                        .await?;
+                // if ap > 0 {
+                let lp_token: Address = sushi_mini_chef
+                    .lp_token(ethers::prelude::U256::from(pid))
+                    .call()
+                    .await?;
 
-                    let asset_addr = ethers::utils::to_checksum(&lp_token.to_owned(), None);
+                let asset_addr = ethers::utils::to_checksum(&lp_token.to_owned(), None);
 
-                    let asset_filter = doc! { "address": asset_addr.clone(), "protocol": p.3.clone(), "chain": p.2.clone() };
-                    let asset = assets_collection.find_one(asset_filter, None).await?;
+                let asset_filter = doc! { "address": asset_addr.clone(), "protocol": p.3.clone(), "chain": p.2.clone() };
+                let asset = assets_collection.find_one(asset_filter, None).await?;
 
-                    let mut asset_price: f64;
-                    let mut asset_tvl: f64 = 0.0;
+                let mut asset_price: f64;
+                let mut asset_tvl: f64 = 0.0;
 
-                    let mut rewards = vec![];
-                    // <symbol, (exists, amount, valueUSD, freq)>
-                    let reward_asset_map: HashMap<String, (bool, f64, f64, String)> =
-                        HashMap::new();
-                    let mut total_reward_apr = 0.0;
+                let mut rewards = vec![];
+                // <symbol, (exists, amount, valueUSD, freq)>
+                let reward_asset_map: HashMap<String, (bool, f64, f64, String)> = HashMap::new();
+                let mut total_reward_apr = 0.0;
 
-                    if asset.is_some() {
-                        println!("asset: {:?}", asset.clone().unwrap().symbol);
-                        let sps: U256 = sushi_mini_chef.sushi_per_second().call().await?;
-                        let tap: U256 = sushi_mini_chef.total_alloc_point().call().await?;
-                        let rps: U256 = sushi_complex_rewarder.reward_per_second().call().await?;
+                if asset.is_some() {
+                    println!("asset: {:?}", asset.clone().unwrap().symbol);
+                    let sps: U256 = sushi_mini_chef.sushi_per_second().call().await?;
+                    let tap: U256 = sushi_mini_chef.total_alloc_point().call().await?;
+                    let rps: U256 = sushi_complex_rewarder.reward_per_second().call().await?;
 
-                        let sushi_filter = doc! {"address": constants::addresses::sushi_on_moonriver::SUSHI,"protocol":"sushiswap","chain":"moonriver"};
-                        let sushi = assets_collection.find_one(sushi_filter, None).await?;
+                    let sushi_filter = doc! {"address": constants::addresses::sushi_on_moonriver::SUSHI,"protocol":"sushiswap","chain":"moonriver"};
+                    let sushi = assets_collection.find_one(sushi_filter, None).await?;
 
-                        let movr_filter = doc! {"address": constants::addresses::sushi_on_moonriver::MOVR,"protocol":"sushiswap","chain":"moonriver"};
-                        let movr = assets_collection.find_one(movr_filter, None).await?;
+                    let movr_filter = doc! {"address": constants::addresses::sushi_on_moonriver::MOVR,"protocol":"sushiswap","chain":"moonriver"};
+                    let movr = assets_collection.find_one(movr_filter, None).await?;
 
-                        if sushi.is_some() || movr.is_some() {
-                            if sushi.is_some() {
-                                let reward_asset_price = sushi.clone().unwrap().price;
-                                println!("reward_asset_price: {:?}", reward_asset_price);
+                    if sushi.is_some() || movr.is_some() {
+                        if sushi.is_some() {
+                            let reward_asset_price = sushi.clone().unwrap().price;
+                            println!("reward_asset_price: {:?}", reward_asset_price);
 
-                                asset_price = asset.clone().unwrap().price;
-                                println!("asset_price: {:?}", asset_price);
+                            asset_price = asset.clone().unwrap().price;
+                            println!("asset_price: {:?}", asset_price);
 
-                                let rewards_per_sec: f64 =
-                                    sps.as_u128() as f64 * (ap as f64 / tap.as_u128() as f64);
+                            let rewards_per_sec: f64 =
+                                sps.as_u128() as f64 * (ap as f64 / tap.as_u128() as f64);
 
-                                let rewards_per_day: f64 = rewards_per_sec * 60.0 * 60.0 * 24.0;
-                                asset_tvl = asset.clone().unwrap().liquidity;
+                            let rewards_per_day: f64 = rewards_per_sec * 60.0 * 60.0 * 24.0;
+                            asset_tvl = asset.clone().unwrap().liquidity;
 
-                                if rewards_per_day != 0.0 {
-                                    rewards.push(bson!({
+                            if rewards_per_day != 0.0 {
+                                rewards.push(bson!({
                                         "amount": rewards_per_day as f64 / constants::utils::TEN_I128.pow(sushi.clone().unwrap().decimals) as f64,
                                         "asset":  sushi.clone().unwrap().symbol,
                                         "valueUSD": (rewards_per_day as f64 / constants::utils::TEN_I128.pow(sushi.clone().unwrap().decimals) as f64) * reward_asset_price,
                                         "freq": models::Freq::Daily.to_string(),
                                     }));
 
-                                    // reward_apr/farm_apr/pool_apr
-                                    println!(
-                                        "rewards/sec: {} rewards/day: {} asset_tvl: {}",
-                                        rewards_per_sec, rewards_per_day, asset_tvl
-                                    );
+                                // reward_apr/farm_apr/pool_apr
+                                println!(
+                                    "rewards/sec: {} rewards/day: {} asset_tvl: {}",
+                                    rewards_per_sec, rewards_per_day, asset_tvl
+                                );
 
-                                    let reward_apr = ((rewards_per_day as f64
-                                        * reward_asset_price)
-                                        / (asset_tvl as f64
-                                            * constants::utils::TEN_I128
-                                                .pow(sushi.clone().unwrap().decimals)
-                                                as f64))
-                                        * 365.0
-                                        * 100.0;
-                                    println!("reward_apr: {}", reward_apr);
-                                    if asset_tvl != 0.0 && asset_price != 0.0 {
-                                        total_reward_apr += reward_apr;
-                                    }
+                                let reward_apr = ((rewards_per_day as f64 * reward_asset_price)
+                                    / (asset_tvl as f64
+                                        * constants::utils::TEN_I128
+                                            .pow(sushi.clone().unwrap().decimals)
+                                            as f64))
+                                    * 365.0
+                                    * 100.0;
+                                println!("reward_apr: {}", reward_apr);
+                                if asset_tvl != 0.0 && asset_price != 0.0 {
+                                    total_reward_apr += reward_apr;
                                 }
                             }
+                        }
 
-                            if movr.is_some() {
-                                let reward_asset_price = movr.clone().unwrap().price;
-                                println!("reward_asset_price: {:?}", reward_asset_price);
+                        if movr.is_some() {
+                            let reward_asset_price = movr.clone().unwrap().price;
+                            println!("reward_asset_price: {:?}", reward_asset_price);
 
-                                asset_price = asset.clone().unwrap().price;
-                                println!("asset_price: {:?}", asset_price);
+                            asset_price = asset.clone().unwrap().price;
+                            println!("asset_price: {:?}", asset_price);
 
-                                let (
-                                    _acc_native_reward_per_share,
-                                    _last_reward_timestamp,
-                                    r_alloc_point,
-                                ): (u128, u64, u64) = sushi_mini_chef
-                                    .pool_info(ethers::prelude::U256::from(pid))
-                                    .call()
-                                    .await?;
+                            let (
+                                _acc_native_reward_per_share,
+                                _last_reward_timestamp,
+                                r_alloc_point,
+                            ): (u128, u64, u64) = sushi_mini_chef
+                                .pool_info(ethers::prelude::U256::from(pid))
+                                .call()
+                                .await?;
 
-                                let rap = r_alloc_point as u32;
+                            let rap = r_alloc_point as u32;
 
-                                let rewards_per_sec: f64 =
-                                    rps.as_u128() as f64 * (rap as f64 / tap.as_u128() as f64);
+                            let rewards_per_sec: f64 =
+                                rps.as_u128() as f64 * (rap as f64 / tap.as_u128() as f64);
 
-                                let rewards_per_day: f64 = rewards_per_sec * 60.0 * 60.0 * 24.0;
-                                asset_tvl = asset.clone().unwrap().liquidity;
+                            let rewards_per_day: f64 = rewards_per_sec * 60.0 * 60.0 * 24.0;
+                            asset_tvl = asset.clone().unwrap().liquidity;
 
-                                if rewards_per_day != 0.0 {
-                                    rewards.push(bson!({
+                            if rewards_per_day != 0.0 {
+                                rewards.push(bson!({
                                         "amount": rewards_per_day as f64 / constants::utils::TEN_I128.pow(movr.clone().unwrap().decimals) as f64,
                                         "asset":  movr.clone().unwrap().symbol,
                                         "valueUSD": (rewards_per_day as f64 / constants::utils::TEN_I128.pow(movr.clone().unwrap().decimals) as f64) * reward_asset_price,
                                         "freq": models::Freq::Daily.to_string(),
                                     }));
 
-                                    // reward_apr/farm_apr/pool_apr
-                                    println!(
-                                        "rewards/sec: {} rewards/day: {} asset_tvl: {}",
-                                        rewards_per_sec, rewards_per_day, asset_tvl
-                                    );
+                                // reward_apr/farm_apr/pool_apr
+                                println!(
+                                    "rewards/sec: {} rewards/day: {} asset_tvl: {}",
+                                    rewards_per_sec, rewards_per_day, asset_tvl
+                                );
 
-                                    let reward_apr = ((rewards_per_day as f64
-                                        * reward_asset_price)
-                                        / (asset_tvl as f64
-                                            * constants::utils::TEN_I128
-                                                .pow(movr.clone().unwrap().decimals)
-                                                as f64))
-                                        * 365.0
-                                        * 100.0;
-                                    println!("reward_apr: {}", reward_apr);
-                                    if asset_tvl != 0.0 && asset_price != 0.0 {
-                                        total_reward_apr += reward_apr;
-                                    }
+                                let reward_apr = ((rewards_per_day as f64 * reward_asset_price)
+                                    / (asset_tvl as f64
+                                        * constants::utils::TEN_I128
+                                            .pow(movr.clone().unwrap().decimals)
+                                            as f64))
+                                    * 365.0
+                                    * 100.0;
+                                println!("reward_apr: {}", reward_apr);
+                                if asset_tvl != 0.0 && asset_price != 0.0 {
+                                    total_reward_apr += reward_apr;
                                 }
                             }
-
-                            // base_apr/trading_apr
-                            let mut base_apr = 0.0;
-                            #[derive(Serialize)]
-                            pub struct Vars {
-                                addr: String,
-                            }
-                            let vars = Vars {
-                                addr: asset.clone().unwrap().address.to_lowercase(),
-                            };
-                            let pair_day_datas =
-                                p.6.query_with_vars_unwrap::<subgraph::SushiPairDayDatas, Vars>(
-                                    &constants::chef::SUSHI_PAIR_DAY_DATAS_QUERY.clone(),
-                                    vars,
-                                )
-                                .await;
-                            if pair_day_datas.is_ok() {
-                                // TODO: check if formula for sushi base apr is correct
-                                // println!("ukk {:?}", pair_day_datas.clone().unwrap());
-                                let mut daily_volume_lw: f64 = 0.0;
-                                for pdd in pair_day_datas.clone().unwrap().pair_day_datas {
-                                    let dv: f64 = pdd.volume_usd.parse().unwrap_or_default();
-                                    daily_volume_lw += dv;
-                                    // println!("ukkdv {:?}", dv);
-                                }
-                                // daily_volume_lw /= pair_day_datas.unwrap().pair_day_datas.len() as f64;
-
-                                if asset.clone().unwrap_or_default().total_supply == 0.0
-                                    || asset.clone().unwrap_or_default().price == 0.0
-                                {
-                                    base_apr = 0.0;
-                                } else {
-                                    base_apr = daily_volume_lw * 0.0025 * 365.0 * 100.0
-                                        / (asset.clone().unwrap_or_default().total_supply
-                                            * asset.clone().unwrap_or_default().price);
-                                }
-                            }
-
-                            if base_apr.is_nan() {
-                                base_apr = 0.0;
-                            }
-
-                            let timestamp = Utc::now().to_string();
-
-                            println!("chef v0 farm lastUpdatedAtUTC {}", timestamp.clone());
-
-                            let ff = doc! {
-                                "id": pid as i32,
-                                "chef": p.5.clone(),
-                                "chain": p.2.clone(),
-                                "protocol": p.3.clone(),
-                            };
-                            let fu = doc! {
-                                "$set" : {
-                                    "id": pid,
-                                    "chef": p.5.clone(),
-                                    "chain": p.2.clone(),
-                                    "protocol": p.3.clone(),
-                                    "farmType": farm_type.to_string(),
-                                    "farmImpl": farm_implementation.to_string(),
-                                    "asset": {
-                                        "symbol": asset.clone().unwrap().symbol,
-                                        "address": asset_addr.clone(),
-                                        "price": asset.clone().unwrap().price,
-                                        "logos": asset.clone().unwrap().logos,
-                                    },
-                                    "tvl": asset_tvl as f64,
-                                    "apr.reward": total_reward_apr,
-                                    "apr.base": base_apr,
-                                    "rewards": rewards,
-                                    "allocPoint": ap,
-                                    "lastUpdatedAtUTC": timestamp.clone(),
-                                }
-                            };
-                            let options = FindOneAndUpdateOptions::builder()
-                                .upsert(Some(true))
-                                .build();
-                            farms_collection
-                                .find_one_and_update(ff, fu, Some(options))
-                                .await?;
                         }
-                    }
-                } else {
-                    println!("allocPoint = 0");
 
-                    let timestamp = Utc::now().to_string();
+                        // base_apr/trading_apr
+                        let mut base_apr = 0.0;
+                        #[derive(Serialize)]
+                        pub struct Vars {
+                            addr: String,
+                        }
+                        let vars = Vars {
+                            addr: asset.clone().unwrap().address.to_lowercase(),
+                        };
+                        let pair_day_datas =
+                            p.6.query_with_vars_unwrap::<subgraph::SushiPairDayDatas, Vars>(
+                                &constants::chef::SUSHI_PAIR_DAY_DATAS_QUERY.clone(),
+                                vars,
+                            )
+                            .await;
+                        if pair_day_datas.is_ok() {
+                            // TODO: check if formula for sushi base apr is correct
+                            // println!("ukk {:?}", pair_day_datas.clone().unwrap());
+                            let mut daily_volume_lw: f64 = 0.0;
+                            for pdd in pair_day_datas.clone().unwrap().pair_day_datas {
+                                let dv: f64 = pdd.volume_usd.parse().unwrap_or_default();
+                                daily_volume_lw += dv;
+                                // println!("ukkdv {:?}", dv);
+                            }
+                            // daily_volume_lw /= pair_day_datas.unwrap().pair_day_datas.len() as f64;
 
-                    println!("chef v0 farm lastUpdatedAtUTC {}", timestamp.clone());
+                            if asset.clone().unwrap_or_default().total_supply == 0.0
+                                || asset.clone().unwrap_or_default().price == 0.0
+                            {
+                                base_apr = 0.0;
+                            } else {
+                                base_apr = daily_volume_lw * 0.0025 * 365.0 * 100.0
+                                    / (asset.clone().unwrap_or_default().total_supply
+                                        * asset.clone().unwrap_or_default().price);
+                            }
+                        }
 
-                    let ff = doc! {
-                        "id": pid as i32,
-                        "chef": p.5.clone(),
-                        "chain": p.2.clone(),
-                        "protocol": p.3.clone(),
-                    };
-                    let fu = doc! {
-                        "$set" : {
-                            "id": pid,
+                        if base_apr.is_nan() {
+                            base_apr = 0.0;
+                        }
+
+                        let timestamp = Utc::now().to_string();
+
+                        println!("chef v0 farm lastUpdatedAtUTC {}", timestamp.clone());
+
+                        let ff = doc! {
+                            "id": pid as i32,
                             "chef": p.5.clone(),
                             "chain": p.2.clone(),
                             "protocol": p.3.clone(),
-                            "farmType": farm_type.to_string(),
-                            "farmImpl": farm_implementation.to_string(),
-                            "asset": {
-                                "symbol": "",
-                                "address": "",
-                                "price": 0,
-                                "logos": [],
-                            },
-                            "tvl": 0,
-                            "apr.reward": 0,
-                            "apr.base": 0,
-                            "rewards": [],
-                            "allocPoint": ap,
-                            "lastUpdatedAtUTC": timestamp.clone(),
-                        }
-                    };
-                    let options = FindOneAndUpdateOptions::builder()
-                        .upsert(Some(true))
-                        .build();
-                    farms_collection
-                        .find_one_and_update(ff, fu, Some(options))
-                        .await?;
+                        };
+                        let fu = doc! {
+                            "$set" : {
+                                "id": pid,
+                                "chef": p.5.clone(),
+                                "chain": p.2.clone(),
+                                "protocol": p.3.clone(),
+                                "farmType": farm_type.to_string(),
+                                "farmImpl": farm_implementation.to_string(),
+                                "asset": {
+                                    "symbol": asset.clone().unwrap().symbol,
+                                    "address": asset_addr.clone(),
+                                    "price": asset.clone().unwrap().price,
+                                    "logos": asset.clone().unwrap().logos,
+                                },
+                                "tvl": asset_tvl as f64,
+                                "apr.reward": total_reward_apr,
+                                "apr.base": base_apr,
+                                "rewards": rewards,
+                                "allocPoint": ap,
+                                "lastUpdatedAtUTC": timestamp.clone(),
+                            }
+                        };
+                        let options = FindOneAndUpdateOptions::builder()
+                            .upsert(Some(true))
+                            .build();
+                        farms_collection
+                            .find_one_and_update(ff, fu, Some(options))
+                            .await?;
+                    }
                 }
+                // } else {
+                //     println!("allocPoint = 0");
+
+                //     let timestamp = Utc::now().to_string();
+
+                //     println!("chef v0 farm lastUpdatedAtUTC {}", timestamp.clone());
+
+                //     let ff = doc! {
+                //         "id": pid as i32,
+                //         "chef": p.5.clone(),
+                //         "chain": p.2.clone(),
+                //         "protocol": p.3.clone(),
+                //     };
+                //     let fu = doc! {
+                //         "$set" : {
+                //             "id": pid,
+                //             "chef": p.5.clone(),
+                //             "chain": p.2.clone(),
+                //             "protocol": p.3.clone(),
+                //             "farmType": farm_type.to_string(),
+                //             "farmImpl": farm_implementation.to_string(),
+                //             "asset": {
+                //                 "symbol": "",
+                //                 "address": "",
+                //                 "price": 0,
+                //                 "logos": [],
+                //             },
+                //             "tvl": 0,
+                //             "apr.reward": 0,
+                //             "apr.base": 0,
+                //             "rewards": [],
+                //             "allocPoint": ap,
+                //             "lastUpdatedAtUTC": timestamp.clone(),
+                //         }
+                //     };
+                //     let options = FindOneAndUpdateOptions::builder()
+                //         .upsert(Some(true))
+                //         .build();
+                //     farms_collection
+                //         .find_one_and_update(ff, fu, Some(options))
+                //         .await?;
+                // }
             } else {
                 let (
                     lp_token,
