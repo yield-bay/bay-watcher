@@ -435,11 +435,14 @@ pub mod utils {
 
 pub mod addresses {
     pub mod arthswap_on_astar {
-        pub const ARSW: &str = "0xDe2578Edec4669BA7F41c5d5D2386300bcEA4678";
         pub const ARTHSWAP_CHEF: &str = "0xc5b016c5597D298Fe9eD22922CE290A048aA5B75";
+        pub const ARTHSWAP_ROUTER: &str = "0xE915D2393a08a00c5A463053edD31bAe2199b9e7";
+
+        pub const ARSW: &str = "0xDe2578Edec4669BA7F41c5d5D2386300bcEA4678";
     }
     pub mod solarbeam_on_moonriver {
         pub const SOLARBEAM_CHEF: &str = "0x0329867a8c457e9F75e25b0685011291CD30904F";
+        pub const SOLARBEAM_ROUTER: &str = "0xAA30eF758139ae4a7f798112902Bf6d65612045f";
 
         pub const SOLAR: &str = "0x6bD193Ee6D2104F14F94E2cA6efefae561A4334B";
         pub const BUSD: &str = "0x5D9ab5522c64E1F6ef5e3627ECCc093f56167818";
@@ -465,18 +468,22 @@ pub mod addresses {
     }
     pub mod solarflare_on_moonbeam {
         pub const SOLARFLARE_CHEF: &str = "0x995da7dfB96B4dd1e2bd954bE384A1e66cBB4b8c";
+        pub const SOLARFLARE_ROUTER: &str = "0xd3B02Ff30c218c7f7756BA14bcA075Bf7C2C951e";
     }
     pub mod zenlink_on_moonriver {
         pub const ZENLINK_CHEF: &str = "0xf4Ec122d32F2117674Ce127b72c40506c52A72F8";
+        pub const ZENLINK_ROUTER: &str = "0x1006Fff14E20fCc7D5975D4e81421bEcfb242Fa6";
 
         pub const USDC: &str = "0xE3F5a90F9cb311505cd691a46596599aA1A0AD7D";
         pub const XCAUSD: &str = "0xFfFffFFfa1B026a00FbAA67c86D5d1d5BF8D8228";
     }
     pub mod zenlink_on_moonbeam {
         pub const ZENLINK_CHEF: &str = "0xD6708344553cd975189cf45AAe2AB3cd749661f4";
+        pub const ZENLINK_ROUTER: &str = "0x5C93cBF67C74daf14E36002D955eD5C7BD49887A";
     }
     pub mod zenlink_on_astar {
         pub const ZENLINK_CHEF: &str = "0x460ee9DBc82B2Be84ADE50629dDB09f6A1746545";
+        pub const ZENLINK_ROUTER: &str = "0xf5016C2DF297457a1f9b036990cc704306264B40";
 
         pub const BAI: &str = "0x733ebcC6DF85f8266349DEFD0980f8Ced9B45f35";
         pub const BUSD: &str = "0x4Bf769b05E832FCdc9053fFFBC78Ca889aCb5E1E";
@@ -486,6 +493,7 @@ pub mod addresses {
     pub mod stellaswap_on_moonbeam {
         pub const STELLA_CHEF_V1: &str = "0xEDFB330F5FA216C9D2039B99C8cE9dA85Ea91c1E";
         pub const STELLA_CHEF_V2: &str = "0xF3a5454496E26ac57da879bf3285Fa85DEBF0388";
+        pub const STELLA_ROUTER: &str = "0xd0A01ec574D1fC6652eDF79cb2F880fd47D34Ab1";
 
         pub const WGLMR: &str = "0xAcc15dC74880C9944775448304B263D191c6077F";
         pub const POOP: &str = "0xFFfffFFecB45aFD30a637967995394Cc88C0c194";
@@ -510,6 +518,7 @@ pub mod addresses {
     }
     pub mod beamswap_on_moonbeam {
         pub const BEAM_CHEF: &str = "0xC6ca172FC8BDB803c5e12731109744fb0200587b";
+        pub const BEAM_ROUTER: &str = "0x96b244391D98B62D19aE89b1A4dCcf0fc56970C7";
 
         pub const WGLMR: &str = "0xAcc15dC74880C9944775448304B263D191c6077F";
         pub const POOP: &str = "0xFFfffFFecB45aFD30a637967995394Cc88C0c194";
@@ -530,6 +539,7 @@ pub mod addresses {
     }
     pub mod sushi_on_moonriver {
         pub const SUSHI_MINI_CHEF: &str = "0x3dB01570D97631f69bbb0ba39796865456Cf89A5";
+        pub const SUSHI_ROUTER: &str = "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506";
 
         pub const SUSHI_COMPLEX_REWARDER: &str = "0x1334c8e873E1cae8467156e2A81d1C8b566B2da1";
 

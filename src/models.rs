@@ -30,6 +30,7 @@ pub struct Asset {
 pub struct Farm {
     pub id: i32,
     pub chef: String,
+    pub router: String,
     pub chain: String,
     pub protocol: String,
     pub farm_type: String,
@@ -50,11 +51,12 @@ pub struct Farm {
     pub rewards_score: Option<f64>,
 }
 
-// #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct UnderlyingAsset {
-//     pub symbol: String,
-// }
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UnderlyingAsset {
+    pub symbol: String,
+    pub decimals: u32,
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -63,7 +65,7 @@ pub struct FarmAsset {
     pub address: String,
     pub price: f64,
     pub logos: Vec<String>,
-    // pub underlying_assets: Vec<FarmAsset>,
+    pub underlying_assets: Vec<UnderlyingAsset>,
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]

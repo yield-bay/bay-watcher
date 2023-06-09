@@ -11,7 +11,7 @@ use ethers::{
 };
 use gql_client::Client;
 use mongodb::{
-    bson::{bson, doc},
+    bson::{bson, doc, Bson},
     options::{ClientOptions, FindOneAndUpdateOptions},
     Client as MongoClient,
 };
@@ -583,6 +583,7 @@ async fn chef_contract_jobs(
             zenlink_astar_subsquid_client.clone(),
             constants::subgraph_urls::ZENLINK_ASTAR_SUBSQUID.clone(),
             astar_client.clone(),
+            constants::addresses::arthswap_on_astar::ARTHSWAP_ROUTER.to_string(),
         ),
         (
             zenlink_moonbeam_chef_address,
@@ -594,6 +595,7 @@ async fn chef_contract_jobs(
             zenlink_moonbeam_subsquid_client.clone(),
             constants::subgraph_urls::ZENLINK_MOONBEAM_SUBSQUID.clone(),
             moonbeam_client.clone(),
+            constants::addresses::zenlink_on_moonbeam::ZENLINK_ROUTER.to_string(),
         ),
         (
             solarflare_chef_address,
@@ -605,6 +607,7 @@ async fn chef_contract_jobs(
             solarflare_subgraph_client.clone(),
             constants::subgraph_urls::SOLARFLARE_SUBGRAPH.clone(),
             moonbeam_client.clone(),
+            constants::addresses::solarflare_on_moonbeam::SOLARFLARE_ROUTER.to_string(),
         ),
         (
             zenlink_moonriver_chef_address,
@@ -616,6 +619,7 @@ async fn chef_contract_jobs(
             zenlink_moonriver_subsquid_client.clone(),
             constants::subgraph_urls::ZENLINK_MOONRIVER_SUBSQUID.clone(),
             moonriver_client.clone(),
+            constants::addresses::zenlink_on_moonriver::ZENLINK_ROUTER.to_string(),
         ),
         (
             sushi_mini_chef_address,
@@ -627,6 +631,7 @@ async fn chef_contract_jobs(
             sushi_subgraph_client.clone(),
             constants::subgraph_urls::SUSHI_SUBGRAPH.clone(),
             moonriver_client.clone(),
+            constants::addresses::sushi_on_moonriver::SUSHI_ROUTER.to_string(),
         ),
         (
             beam_chef_address,
@@ -638,6 +643,7 @@ async fn chef_contract_jobs(
             beamswap_subgraph_client.clone(),
             constants::subgraph_urls::BEAMSWAP_SUBGRAPH.clone(),
             moonbeam_client.clone(),
+            constants::addresses::beamswap_on_moonbeam::BEAM_ROUTER.to_string(),
         ),
         (
             stella_chef_v1_address,
@@ -649,6 +655,7 @@ async fn chef_contract_jobs(
             stellaswap_subgraph_client.clone(),
             constants::subgraph_urls::STELLASWAP_SUBGRAPH.clone(),
             moonbeam_client.clone(),
+            constants::addresses::stellaswap_on_moonbeam::STELLA_ROUTER.to_string(),
         ),
         (
             stella_chef_v2_address,
@@ -660,6 +667,7 @@ async fn chef_contract_jobs(
             stellaswap_subgraph_client.clone(),
             constants::subgraph_urls::STELLASWAP_SUBGRAPH.clone(),
             moonbeam_client.clone(),
+            constants::addresses::stellaswap_on_moonbeam::STELLA_ROUTER.to_string(),
         ),
         (
             solarbeam_chef_address,
@@ -671,6 +679,7 @@ async fn chef_contract_jobs(
             solarbeam_subgraph_client.clone(),
             constants::subgraph_urls::SOLARBEAM_SUBGRAPH.clone(),
             moonriver_client.clone(),
+            constants::addresses::solarbeam_on_moonriver::SOLARBEAM_ROUTER.to_string(),
         ),
         (
             zenlink_astar_chef_address,
@@ -682,6 +691,7 @@ async fn chef_contract_jobs(
             zenlink_astar_subsquid_client.clone(),
             constants::subgraph_urls::ZENLINK_ASTAR_SUBSQUID.clone(),
             astar_client.clone(),
+            constants::addresses::zenlink_on_astar::ZENLINK_ROUTER.to_string(),
         ),
     ];
 
@@ -696,6 +706,8 @@ async fn chef_contract_jobs(
                 p.4.clone(),
                 pid
             );
+
+            let mut router = p.9.clone();
 
             if p.3.clone() == "arthswap".to_string() {
                 if pid != 31 && pid < 35 {
@@ -735,6 +747,7 @@ async fn chef_contract_jobs(
                     let farm_type = models::FarmType::StandardAmm;
                     let farm_implementation = models::FarmImplementation::Solidity;
 
+                    let mut underlying_assets: Vec<Bson> = vec![];
                     let mut rewards = vec![];
                     let mut total_reward_apr = 0.0;
 
@@ -817,11 +830,13 @@ async fn chef_contract_jobs(
                             "protocol": p.3.clone(),
                             "farmType": farm_type.to_string(),
                             "farmImpl": farm_implementation.to_string(),
+                            "router": router,
                             "asset": {
                                 "symbol": asset.clone().unwrap().symbol,
                                 "address": asset_addr.clone(),
                                 "price": asset.clone().unwrap().price,
                                 "logos": asset.clone().unwrap().logos,
+                                "underlyingAssets": underlying_assets,
                             },
                             "tvl": asset_tvl,
                             "apr.reward": total_reward_apr,
@@ -882,6 +897,15 @@ async fn chef_contract_jobs(
 
                 let mut farm_type = models::FarmType::StandardAmm;
 
+                // let mut router = "".to_string();
+                // if p.2.clone() == "moonriver".to_string() {
+                //     router = constants::addresses::zenlink_on_moonriver::ZENLINK_ROUTER.to_string();
+                // } else if p.2.clone() == "moonbeam".to_string() {
+                //     router = constants::addresses::zenlink_on_moonbeam::ZENLINK_ROUTER.to_string();
+                // } else if p.2.clone() == "astar".to_string() {
+                //     router = constants::addresses::zenlink_on_astar::ZENLINK_ROUTER.to_string();
+                // }
+
                 if pid == 3 && p.2.clone() == "astar".to_string() {
                     farm_type = models::FarmType::StableAmm;
 
@@ -889,6 +913,9 @@ async fn chef_contract_jobs(
                         contracts::IStableLpToken::new(farming_token, Arc::clone(&p.8.clone()));
 
                     let owner_addr: Address = stable_asset.owner().call().await?;
+                    let stable_owner_addr =
+                        ethers::utils::to_checksum(&owner_addr.to_owned(), None);
+                    router = stable_owner_addr.clone();
 
                     let owner =
                         contracts::IStableLpTokenOwner::new(owner_addr, Arc::clone(&p.8.clone()));
@@ -1006,6 +1033,9 @@ async fn chef_contract_jobs(
                         contracts::IStableLpToken::new(farming_token, Arc::clone(&p.8.clone()));
 
                     let owner_addr: Address = stable_asset.owner().call().await?;
+                    let stable_owner_addr =
+                        ethers::utils::to_checksum(&owner_addr.to_owned(), None);
+                    router = stable_owner_addr.clone();
 
                     let owner =
                         contracts::IStableLpTokenOwner::new(owner_addr, Arc::clone(&p.8.clone()));
@@ -1400,6 +1430,7 @@ async fn chef_contract_jobs(
                                     "protocol": "zenlink".to_string(),
                                     "farmType": farm_type.to_string(),
                                     "farmImpl": models::FarmImplementation::Solidity.to_string(),
+                                    "router": router,
                                     "asset": {
                                         "symbol": asset.clone().unwrap().symbol,
                                         "address": asset.clone().unwrap().address,
@@ -1639,6 +1670,7 @@ async fn chef_contract_jobs(
                                 "protocol": p.3.clone(),
                                 "farmType": farm_type.to_string(),
                                 "farmImpl": farm_implementation.to_string(),
+                                "router": router,
                                 "asset": {
                                     "symbol": asset.clone().unwrap().symbol,
                                     "address": asset_addr.clone(),
@@ -1861,6 +1893,7 @@ async fn chef_contract_jobs(
                                         "protocol": p.3.clone(),
                                         "farmType": farm_type.to_string(),
                                         "farmImpl": farm_implementation.to_string(),
+                                        "router": router,
                                         "asset": {
                                             "symbol": asset.clone().unwrap().symbol,
                                             "address": asset_addr.clone(),
@@ -1914,6 +1947,7 @@ async fn chef_contract_jobs(
                             let owner_addr: Address = stable_asset.owner().call().await?;
                             stable_owner_addr =
                                 ethers::utils::to_checksum(&owner_addr.to_owned(), None);
+                            router = stable_owner_addr.clone();
 
                             let owner = contracts::IStableLpTokenOwner::new(
                                 owner_addr,
@@ -2378,6 +2412,10 @@ async fn chef_contract_jobs(
                             let symbol: String = stable_asset.symbol().call().await?;
 
                             let owner_addr: Address = stable_asset.owner().call().await?;
+                            stable_owner_addr =
+                                ethers::utils::to_checksum(&owner_addr.to_owned(), None);
+                            router = stable_owner_addr.clone();
+
                             let owner = contracts::IStableLpTokenOwner::new(
                                 owner_addr,
                                 Arc::clone(&p.8.clone()),
@@ -2520,6 +2558,8 @@ async fn chef_contract_jobs(
                             let owner_addr: Address = stable_asset.owner().call().await?;
                             stable_owner_addr =
                                 ethers::utils::to_checksum(&owner_addr.to_owned(), None);
+                            router = stable_owner_addr.clone();
+
                             let owner = contracts::IStableLpTokenOwner::new(
                                 owner_addr,
                                 Arc::clone(&p.8.clone()),
@@ -3480,6 +3520,7 @@ async fn chef_contract_jobs(
                                             "protocol": p.3.clone(),
                                             "farmType": farm_type.to_string(),
                                             "farmImpl": farm_implementation.to_string(),
+                                            "router": router,
                                             "asset": {
                                                 "symbol": asset.clone().unwrap().symbol,
                                                 "address": asset_addr.clone(),
@@ -3527,6 +3568,7 @@ async fn chef_contract_jobs(
                             "protocol": p.3.clone(),
                             "farmType": farm_type.to_string(),
                             "farmImpl": farm_implementation.to_string(),
+                            "router": router,
                             "asset": {
                                 "symbol": "",
                                 "address": "",
