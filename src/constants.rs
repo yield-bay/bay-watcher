@@ -469,6 +469,8 @@ pub mod addresses {
     pub mod solarflare_on_moonbeam {
         pub const SOLARFLARE_CHEF: &str = "0x995da7dfB96B4dd1e2bd954bE384A1e66cBB4b8c";
         pub const SOLARFLARE_ROUTER: &str = "0xd3B02Ff30c218c7f7756BA14bcA075Bf7C2C951e";
+
+        pub const WGLMR: &str = "0xAcc15dC74880C9944775448304B263D191c6077F";
     }
     pub mod zenlink_on_moonriver {
         pub const ZENLINK_CHEF: &str = "0xf4Ec122d32F2117674Ce127b72c40506c52A72F8";
@@ -476,10 +478,13 @@ pub mod addresses {
 
         pub const USDC: &str = "0xE3F5a90F9cb311505cd691a46596599aA1A0AD7D";
         pub const XCAUSD: &str = "0xFfFffFFfa1B026a00FbAA67c86D5d1d5BF8D8228";
+        pub const ZLK: &str = "0x0f47ba9d9Bde3442b42175e51d6A367928A1173B";
     }
     pub mod zenlink_on_moonbeam {
         pub const ZENLINK_CHEF: &str = "0xD6708344553cd975189cf45AAe2AB3cd749661f4";
         pub const ZENLINK_ROUTER: &str = "0x5C93cBF67C74daf14E36002D955eD5C7BD49887A";
+
+        pub const ZLK: &str = "0x3Fd9b6C9A24E09F67b7b706d72864aEbb439100C";
     }
     pub mod zenlink_on_astar {
         pub const ZENLINK_CHEF: &str = "0x460ee9DBc82B2Be84ADE50629dDB09f6A1746545";
@@ -489,6 +494,7 @@ pub mod addresses {
         pub const BUSD: &str = "0x4Bf769b05E832FCdc9053fFFBC78Ca889aCb5E1E";
         pub const DAI: &str = "0x6De33698e9e9b787e09d3Bd7771ef63557E148bb";
         pub const USDC: &str = "0x6a2d262D56735DbA19Dd70682B39F6bE9a931D98";
+        pub const ZLK: &str = "0x998082C488e548820F970Df5173bD2061Ce90635";
     }
     pub mod stellaswap_on_moonbeam {
         pub const STELLA_CHEF_V1: &str = "0xEDFB330F5FA216C9D2039B99C8cE9dA85Ea91c1E";

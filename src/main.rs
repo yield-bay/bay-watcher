@@ -508,8 +508,16 @@ async fn chef_contract_jobs(
             "isLP": true,
             "feesAPR": 0.0,
             "underlyingAssets": [
-                wglmr_stellaswap_asset.clone().unwrap().address,
-                poop_stellaswap_asset.clone().unwrap().address,
+                bson!({
+                    "symbol": wglmr_stellaswap_asset.clone().unwrap().symbol,
+                    "address":  wglmr_stellaswap_asset.clone().unwrap().address,
+                    "decimals": wglmr_stellaswap_asset.clone().unwrap().decimals,
+                }),
+                bson!({
+                    "symbol": poop_stellaswap_asset.clone().unwrap().symbol,
+                    "address":  poop_stellaswap_asset.clone().unwrap().address,
+                    "decimals": poop_stellaswap_asset.clone().unwrap().decimals,
+                }),
             ],
             "underlyingAssetsAlloc": [],
             "lastUpdatedAtUTC": timestamp.clone(),
@@ -557,8 +565,16 @@ async fn chef_contract_jobs(
             "isLP": true,
             "feesAPR": 0.0,
             "underlyingAssets": [
-                wglmr_beamswap_asset.clone().unwrap().address,
-                poop_beamswap_asset.clone().unwrap().address,
+                bson!({
+                    "symbol": wglmr_beamswap_asset.clone().unwrap().symbol,
+                    "address":  wglmr_beamswap_asset.clone().unwrap().address,
+                    "decimals": wglmr_beamswap_asset.clone().unwrap().decimals,
+                }),
+                bson!({
+                    "symbol": poop_beamswap_asset.clone().unwrap().symbol,
+                    "address":  poop_beamswap_asset.clone().unwrap().address,
+                    "decimals": poop_beamswap_asset.clone().unwrap().decimals,
+                }),
             ],
             "underlyingAssetsAlloc": [],
             "lastUpdatedAtUTC": timestamp.clone(),
@@ -895,6 +911,7 @@ async fn chef_contract_jobs(
 
                 let ft_addr = ethers::utils::to_checksum(&farming_token.to_owned(), None);
 
+                let mut underlying_assets: Vec<Bson> = vec![];
                 let mut farm_type = models::FarmType::StandardAmm;
 
                 // let mut router = "".to_string();
@@ -967,6 +984,29 @@ async fn chef_contract_jobs(
                     );
                     let _4pool_bal: U256 = _4pool.balance_of(owner_addr).call().await?;
 
+                    underlying_assets = vec![
+                        bson!({
+                            "symbol": bai_asset.clone().unwrap().symbol,
+                            "address":  bai_asset.clone().unwrap().address,
+                            "decimals": bai_asset.clone().unwrap().decimals,
+                        }),
+                        bson!({
+                            "symbol": busd_asset.clone().unwrap().symbol,
+                            "address":  busd_asset.clone().unwrap().address,
+                            "decimals": busd_asset.clone().unwrap().decimals,
+                        }),
+                        bson!({
+                            "symbol": dai_asset.clone().unwrap().symbol,
+                            "address":  dai_asset.clone().unwrap().address,
+                            "decimals": dai_asset.clone().unwrap().decimals,
+                        }),
+                        bson!({
+                            "symbol": usdc_asset.clone().unwrap().symbol,
+                            "address":  usdc_asset.clone().unwrap().address,
+                            "decimals": usdc_asset.clone().unwrap().decimals,
+                        }),
+                    ];
+
                     let usd_pool_liq = bai_bal.as_u128() as f64 * bai_asset.clone().unwrap().price
                         / constants::utils::TEN_F64.powf(18.0)
                         + busd_bal.as_u128() as f64 * busd_asset.clone().unwrap().price
@@ -1009,12 +1049,7 @@ async fn chef_contract_jobs(
                             "totalSupply": ts,
                             "isLP": true,
                             "feesAPR": 0.0,
-                            "underlyingAssets": [
-                                bai_asset.clone().unwrap().address,
-                                busd_asset.clone().unwrap().address,
-                                dai_asset.clone().unwrap().address,
-                                usdc_asset.clone().unwrap().address,
-                            ],
+                            "underlyingAssets": underlying_assets,
                             "underlyingAssetsAlloc": [],
                             "lastUpdatedAtUTC": timestamp.clone(),
                         }
@@ -1087,6 +1122,29 @@ async fn chef_contract_jobs(
                     );
                     let _4pool_bal: U256 = _4pool.balance_of(owner_addr).call().await?;
 
+                    underlying_assets = vec![
+                        bson!({
+                            "symbol": usdt_asset.clone().unwrap().symbol,
+                            "address":  usdt_asset.clone().unwrap().address,
+                            "decimals": usdt_asset.clone().unwrap().decimals,
+                        }),
+                        bson!({
+                            "symbol": frax_asset.clone().unwrap().symbol,
+                            "address":  frax_asset.clone().unwrap().address,
+                            "decimals": frax_asset.clone().unwrap().decimals,
+                        }),
+                        bson!({
+                            "symbol": usdc_asset.clone().unwrap().symbol,
+                            "address":  usdc_asset.clone().unwrap().address,
+                            "decimals": usdc_asset.clone().unwrap().decimals,
+                        }),
+                        bson!({
+                            "symbol": xcausd_asset.clone().unwrap().symbol,
+                            "address":  xcausd_asset.clone().unwrap().address,
+                            "decimals": xcausd_asset.clone().unwrap().decimals,
+                        }),
+                    ];
+
                     let usd_pool_liq = usdt_bal.as_u128() as f64
                         * usdt_asset.clone().unwrap().price
                         / constants::utils::TEN_F64.powf(6.0)
@@ -1130,12 +1188,7 @@ async fn chef_contract_jobs(
                             "totalSupply": ts,
                             "isLP": true,
                             "feesAPR": 0.0,
-                            "underlyingAssets": [
-                                usdt_asset.clone().unwrap().address,
-                                frax_asset.clone().unwrap().address,
-                                usdc_asset.clone().unwrap().address,
-                                xcausd_asset.clone().unwrap().address,
-                            ],
+                            "underlyingAssets": underlying_assets,
                             "underlyingAssetsAlloc": [],
                             "lastUpdatedAtUTC": timestamp.clone(),
                         }
@@ -1150,9 +1203,19 @@ async fn chef_contract_jobs(
                 } else if pid == 1 && p.2.clone() == "moonriver".to_string() {
                     // zlk on moonriver
                     farm_type = models::FarmType::SingleStaking;
+                    underlying_assets = vec![bson!({
+                        "symbol": "ZLK",
+                        "address":  constants::addresses::zenlink_on_moonriver::ZLK,
+                        "decimals": 18,
+                    })];
                 } else if pid == 1 && p.2.clone() == "moonbeam".to_string() {
                     // zlk on moonbeam
                     farm_type = models::FarmType::SingleStaking;
+                    underlying_assets = vec![bson!({
+                        "symbol": "ZLK",
+                        "address":  constants::addresses::zenlink_on_moonbeam::ZLK,
+                        "decimals": 18,
+                    })];
                 }
 
                 let asset_filter = doc! { "address": ft_addr.clone(), "chain": p.2.clone(), "protocol": p.3.clone() };
@@ -1483,6 +1546,7 @@ async fn chef_contract_jobs(
 
                 let ap = alloc_point as u32;
 
+                let mut underlying_assets: Vec<Bson> = vec![];
                 let farm_type = models::FarmType::StandardAmm;
                 let farm_implementation = models::FarmImplementation::Solidity;
 
@@ -1507,6 +1571,9 @@ async fn chef_contract_jobs(
 
                 if asset.is_some() {
                     println!("asset: {:?}", asset.clone().unwrap().symbol);
+                    // asset.clone().unwrap().under
+                    let lp = contracts::ILpToken::new(lp_token, Arc::clone(&moonriver_client));
+                    lp.token_0().call().await;
                     let sps: U256 = sushi_mini_chef.sushi_per_second().call().await?;
                     let tap: U256 = sushi_mini_chef.total_alloc_point().call().await?;
                     let rps: U256 = sushi_complex_rewarder.reward_per_second().call().await?;
@@ -1761,6 +1828,7 @@ async fn chef_contract_jobs(
 
                 let ap = alloc_point.as_u32();
 
+                let mut underlying_assets: Vec<Bson> = vec![];
                 let mut farm_type = models::FarmType::StandardAmm;
                 let farm_implementation = models::FarmImplementation::Solidity;
 
@@ -2067,6 +2135,24 @@ async fn chef_contract_jobs(
                             // TODO: calculate underlyingAssetsAlloc
 
                             if symbol == "3pool".to_string() {
+                                underlying_assets = vec![
+                                    bson!({
+                                        "symbol": busd_asset.clone().unwrap().symbol,
+                                        "address":  busd_asset.clone().unwrap().address,
+                                        "decimals": busd_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": usdc_asset.clone().unwrap().symbol,
+                                        "address":  usdc_asset.clone().unwrap().address,
+                                        "decimals": usdc_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": usdt_asset.clone().unwrap().symbol,
+                                        "address":  usdt_asset.clone().unwrap().address,
+                                        "decimals": usdt_asset.clone().unwrap().decimals,
+                                    }),
+                                ];
+
                                 let usd_pool_liq = busd_bal.as_u128() as f64
                                     * busd_asset.clone().unwrap().price
                                     / constants::utils::TEN_F64.powf(18.0)
@@ -2108,11 +2194,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": [
-                                            busd_asset.clone().unwrap().address,
-                                            usdc_asset.clone().unwrap().address,
-                                            usdt_asset.clone().unwrap().address,
-                                        ],
+                                        "underlyingAssets": underlying_assets,
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -2125,6 +2207,29 @@ async fn chef_contract_jobs(
                                     .find_one_and_update(f, u, Some(options))
                                     .await?;
                             } else if symbol == "FRAX-3pool".to_string() {
+                                underlying_assets = vec![
+                                    bson!({
+                                        "symbol": frax_asset.clone().unwrap().symbol,
+                                        "address":  frax_asset.clone().unwrap().address,
+                                        "decimals": frax_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": busd_asset.clone().unwrap().symbol,
+                                        "address":  busd_asset.clone().unwrap().address,
+                                        "decimals": busd_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": usdc_asset.clone().unwrap().symbol,
+                                        "address":  usdc_asset.clone().unwrap().address,
+                                        "decimals": usdc_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": usdt_asset.clone().unwrap().symbol,
+                                        "address":  usdt_asset.clone().unwrap().address,
+                                        "decimals": usdt_asset.clone().unwrap().decimals,
+                                    }),
+                                ];
+
                                 let usd_pool_liq = _3pool_bal.as_u128() as f64
                                     / constants::utils::TEN_F64.powf(18.0)
                                     + frax_bal.as_u128() as f64 * frax_asset.clone().unwrap().price
@@ -2163,12 +2268,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": [
-                                            frax_asset.clone().unwrap().address,
-                                            busd_asset.clone().unwrap().address,
-                                            usdc_asset.clone().unwrap().address,
-                                            usdt_asset.clone().unwrap().address,
-                                        ],
+                                        "underlyingAssets": underlying_assets,
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -2181,6 +2281,29 @@ async fn chef_contract_jobs(
                                     .find_one_and_update(f, u, Some(options))
                                     .await?;
                             } else if symbol == "MAI-3pool".to_string() {
+                                underlying_assets = vec![
+                                    bson!({
+                                        "symbol": mai_asset.clone().unwrap().symbol,
+                                        "address":  mai_asset.clone().unwrap().address,
+                                        "decimals": mai_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": busd_asset.clone().unwrap().symbol,
+                                        "address":  busd_asset.clone().unwrap().address,
+                                        "decimals": busd_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": usdc_asset.clone().unwrap().symbol,
+                                        "address":  usdc_asset.clone().unwrap().address,
+                                        "decimals": usdc_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": usdt_asset.clone().unwrap().symbol,
+                                        "address":  usdt_asset.clone().unwrap().address,
+                                        "decimals": usdt_asset.clone().unwrap().decimals,
+                                    }),
+                                ];
+
                                 let usd_pool_liq = _3pool_bal.as_u128() as f64
                                     / constants::utils::TEN_F64.powf(18.0)
                                     + mai_bal.as_u128() as f64 * mai_asset.clone().unwrap().price
@@ -2219,12 +2342,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": [
-                                            mai_asset.clone().unwrap().address,
-                                            busd_asset.clone().unwrap().address,
-                                            usdc_asset.clone().unwrap().address,
-                                            usdt_asset.clone().unwrap().address,
-                                        ],
+                                        "underlyingAssets": underlying_assets,
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -2237,6 +2355,29 @@ async fn chef_contract_jobs(
                                     .find_one_and_update(f, u, Some(options))
                                     .await?;
                             } else if symbol == "MIM-3pool".to_string() {
+                                underlying_assets = vec![
+                                    bson!({
+                                        "symbol": mim_asset.clone().unwrap().symbol,
+                                        "address":  mim_asset.clone().unwrap().address,
+                                        "decimals": mim_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": busd_asset.clone().unwrap().symbol,
+                                        "address":  busd_asset.clone().unwrap().address,
+                                        "decimals": busd_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": usdc_asset.clone().unwrap().symbol,
+                                        "address":  usdc_asset.clone().unwrap().address,
+                                        "decimals": usdc_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": usdt_asset.clone().unwrap().symbol,
+                                        "address":  usdt_asset.clone().unwrap().address,
+                                        "decimals": usdt_asset.clone().unwrap().decimals,
+                                    }),
+                                ];
+
                                 let usd_pool_liq = _3pool_bal.as_u128() as f64
                                     / constants::utils::TEN_F64.powf(18.0)
                                     + mim_bal.as_u128() as f64 * mim_asset.clone().unwrap().price
@@ -2275,12 +2416,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": [
-                                            mim_asset.clone().unwrap().address,
-                                            busd_asset.clone().unwrap().address,
-                                            usdc_asset.clone().unwrap().address,
-                                            usdt_asset.clone().unwrap().address,
-                                        ],
+                                        "underlyingAssets": underlying_assets,
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -2293,6 +2429,19 @@ async fn chef_contract_jobs(
                                     .find_one_and_update(f, u, Some(options))
                                     .await?;
                             } else if symbol == "kBTC-BTC".to_string() {
+                                underlying_assets = vec![
+                                    bson!({
+                                        "symbol": wbtc_asset.clone().unwrap().symbol,
+                                        "address":  wbtc_asset.clone().unwrap().address,
+                                        "decimals": wbtc_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": xckbtc_asset.clone().unwrap().symbol,
+                                        "address":  xckbtc_asset.clone().unwrap().address,
+                                        "decimals": xckbtc_asset.clone().unwrap().decimals,
+                                    }),
+                                ];
+
                                 let wbtc_price = wbtc_asset.clone().unwrap().price;
                                 let xckbtc_price = xckbtc_asset.clone().unwrap().price;
                                 let pool_liq = wbtc_bal.as_u128() as f64 * wbtc_price
@@ -2331,10 +2480,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": [
-                                            wbtc_asset.clone().unwrap().address,
-                                            xckbtc_asset.clone().unwrap().address,
-                                        ],
+                                        "underlyingAssets": underlying_assets,
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -2347,6 +2493,19 @@ async fn chef_contract_jobs(
                                     .find_one_and_update(f, u, Some(options))
                                     .await?;
                             } else if symbol == "stKSM".to_string() {
+                                underlying_assets = vec![
+                                    bson!({
+                                        "symbol": xcksm_asset.clone().unwrap().symbol,
+                                        "address":  xcksm_asset.clone().unwrap().address,
+                                        "decimals": xcksm_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": stksm_asset.clone().unwrap().symbol,
+                                        "address":  stksm_asset.clone().unwrap().address,
+                                        "decimals": stksm_asset.clone().unwrap().decimals,
+                                    }),
+                                ];
+
                                 let pool_liq = xcksm_bal.as_u128() as f64
                                     * xcksm_asset.clone().unwrap().price
                                     / constants::utils::TEN_F64.powf(12.0)
@@ -2385,10 +2544,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": [
-                                            xcksm_asset.clone().unwrap().address,
-                                            stksm_asset.clone().unwrap().address,
-                                        ],
+                                        "underlyingAssets": underlying_assets,
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -2474,6 +2630,29 @@ async fn chef_contract_jobs(
                             );
 
                             if symbol == "4pool".to_string() {
+                                underlying_assets = vec![
+                                    bson!({
+                                        "symbol": busd_asset.clone().unwrap().symbol,
+                                        "address":  busd_asset.clone().unwrap().address,
+                                        "decimals": busd_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": usdc_asset.clone().unwrap().symbol,
+                                        "address":  usdc_asset.clone().unwrap().address,
+                                        "decimals": usdc_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": usdt_asset.clone().unwrap().symbol,
+                                        "address":  usdt_asset.clone().unwrap().address,
+                                        "decimals": usdt_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": dai_asset.clone().unwrap().symbol,
+                                        "address":  dai_asset.clone().unwrap().address,
+                                        "decimals": dai_asset.clone().unwrap().decimals,
+                                    }),
+                                ];
+
                                 let usd_pool_liq = busd_bal.as_u128() as f64
                                     * busd_asset.clone().unwrap().price
                                     / constants::utils::TEN_F64.powf(18.0)
@@ -2518,12 +2697,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": [
-                                            busd_asset.clone().unwrap().address,
-                                            usdc_asset.clone().unwrap().address,
-                                            usdt_asset.clone().unwrap().address,
-                                            dai_asset.clone().unwrap().address,
-                                        ],
+                                        "underlyingAssets": underlying_assets,
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -2652,6 +2826,29 @@ async fn chef_contract_jobs(
                             let tripool_bal: U256 = tripool.balance_of(owner_addr).call().await?;
 
                             if symbol == "stella4pool".to_string() {
+                                underlying_assets = vec![
+                                    bson!({
+                                        "symbol": busd_asset.clone().unwrap().symbol,
+                                        "address":  busd_asset.clone().unwrap().address,
+                                        "decimals": busd_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": usdc_asset.clone().unwrap().symbol,
+                                        "address":  usdc_asset.clone().unwrap().address,
+                                        "decimals": usdc_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": usdt_asset.clone().unwrap().symbol,
+                                        "address":  usdt_asset.clone().unwrap().address,
+                                        "decimals": usdt_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": frax_asset.clone().unwrap().symbol,
+                                        "address":  frax_asset.clone().unwrap().address,
+                                        "decimals": frax_asset.clone().unwrap().decimals,
+                                    }),
+                                ];
+
                                 let usd_pool_liq = busd_bal.as_u128() as f64
                                     * busd_asset.clone().unwrap().price
                                     / constants::utils::TEN_F64.powf(18.0)
@@ -2696,12 +2893,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": [
-                                            frax_asset.clone().unwrap().address,
-                                            busd_asset.clone().unwrap().address,
-                                            usdc_asset.clone().unwrap().address,
-                                            usdt_asset.clone().unwrap().address,
-                                        ],
+                                        "underlyingAssets": underlying_assets,
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -2714,6 +2906,34 @@ async fn chef_contract_jobs(
                                     .find_one_and_update(f, u, Some(options))
                                     .await?;
                             } else if symbol == "stellaMAI-4pool" {
+                                underlying_assets = vec![
+                                    bson!({
+                                        "symbol": mai_asset.clone().unwrap().symbol,
+                                        "address":mai_asset.clone().unwrap().address,
+                                        "decimals": mai_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": busd_asset.clone().unwrap().symbol,
+                                        "address":  busd_asset.clone().unwrap().address,
+                                        "decimals": busd_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": usdc_asset.clone().unwrap().symbol,
+                                        "address":  usdc_asset.clone().unwrap().address,
+                                        "decimals": usdc_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": usdt_asset.clone().unwrap().symbol,
+                                        "address":  usdt_asset.clone().unwrap().address,
+                                        "decimals": usdt_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": frax_asset.clone().unwrap().symbol,
+                                        "address":  frax_asset.clone().unwrap().address,
+                                        "decimals": frax_asset.clone().unwrap().decimals,
+                                    }),
+                                ];
+
                                 let usd_pool_liq = mai_bal.as_u128() as f64
                                     * mai_asset.clone().unwrap().price
                                     / constants::utils::TEN_F64.powf(18.0)
@@ -2756,13 +2976,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": [
-                                            mai_asset.clone().unwrap().address,
-                                            frax_asset.clone().unwrap().address,
-                                            busd_asset.clone().unwrap().address,
-                                            usdc_asset.clone().unwrap().address,
-                                            usdt_asset.clone().unwrap().address,
-                                        ],
+                                        "underlyingAssets": underlying_assets,
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -2775,6 +2989,34 @@ async fn chef_contract_jobs(
                                     .find_one_and_update(f, u, Some(options))
                                     .await?;
                             } else if symbol == "stella-athUSD-4pool" {
+                                underlying_assets = vec![
+                                    bson!({
+                                        "symbol": athusd_asset.clone().unwrap().symbol,
+                                        "address":athusd_asset.clone().unwrap().address,
+                                        "decimals": athusd_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": busd_asset.clone().unwrap().symbol,
+                                        "address":  busd_asset.clone().unwrap().address,
+                                        "decimals": busd_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": usdc_asset.clone().unwrap().symbol,
+                                        "address":  usdc_asset.clone().unwrap().address,
+                                        "decimals": usdc_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": usdt_asset.clone().unwrap().symbol,
+                                        "address":  usdt_asset.clone().unwrap().address,
+                                        "decimals": usdt_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": frax_asset.clone().unwrap().symbol,
+                                        "address":  frax_asset.clone().unwrap().address,
+                                        "decimals": frax_asset.clone().unwrap().decimals,
+                                    }),
+                                ];
+
                                 let usd_pool_liq = athusd_bal.as_u128() as f64
                                     * athusd_asset.clone().unwrap().price
                                     / constants::utils::TEN_F64.powf(18.0)
@@ -2817,13 +3059,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": [
-                                            athusd_asset.clone().unwrap().address,
-                                            frax_asset.clone().unwrap().address,
-                                            busd_asset.clone().unwrap().address,
-                                            usdc_asset.clone().unwrap().address,
-                                            usdt_asset.clone().unwrap().address,
-                                        ],
+                                        "underlyingAssets": underlying_assets,
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -2836,6 +3072,34 @@ async fn chef_contract_jobs(
                                     .find_one_and_update(f, u, Some(options))
                                     .await?;
                             } else if symbol == "stella-axlUSDC-4pool" {
+                                underlying_assets = vec![
+                                    bson!({
+                                        "symbol": axlusdc_asset.clone().unwrap().symbol,
+                                        "address":axlusdc_asset.clone().unwrap().address,
+                                        "decimals": axlusdc_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": busd_asset.clone().unwrap().symbol,
+                                        "address":  busd_asset.clone().unwrap().address,
+                                        "decimals": busd_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": usdc_asset.clone().unwrap().symbol,
+                                        "address":  usdc_asset.clone().unwrap().address,
+                                        "decimals": usdc_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": usdt_asset.clone().unwrap().symbol,
+                                        "address":  usdt_asset.clone().unwrap().address,
+                                        "decimals": usdt_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": frax_asset.clone().unwrap().symbol,
+                                        "address":  frax_asset.clone().unwrap().address,
+                                        "decimals": frax_asset.clone().unwrap().decimals,
+                                    }),
+                                ];
+
                                 let usd_pool_liq = axlusdc_bal.as_u128() as f64
                                     * axlusdc_asset.clone().unwrap().price
                                     / constants::utils::TEN_F64.powf(6.0)
@@ -2878,13 +3142,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": [
-                                            axlusdc_asset.clone().unwrap().address,
-                                            frax_asset.clone().unwrap().address,
-                                            busd_asset.clone().unwrap().address,
-                                            usdc_asset.clone().unwrap().address,
-                                            usdt_asset.clone().unwrap().address,
-                                        ],
+                                        "underlyingAssets": underlying_assets,
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -2897,6 +3155,24 @@ async fn chef_contract_jobs(
                                     .find_one_and_update(f, u, Some(options))
                                     .await?;
                             } else if symbol == "stella-tripool" {
+                                underlying_assets = vec![
+                                    bson!({
+                                        "symbol": usdc_asset.clone().unwrap().symbol,
+                                        "address":  usdc_asset.clone().unwrap().address,
+                                        "decimals": usdc_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": frax_asset.clone().unwrap().symbol,
+                                        "address":  frax_asset.clone().unwrap().address,
+                                        "decimals": frax_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": usdt_asset.clone().unwrap().symbol,
+                                        "address":  usdt_asset.clone().unwrap().address,
+                                        "decimals": usdt_asset.clone().unwrap().decimals,
+                                    }),
+                                ];
+
                                 let usd_pool_liq = usdc_bal.as_u128() as f64
                                     * usdc_asset.clone().unwrap().price
                                     / constants::utils::TEN_F64.powf(6.0)
@@ -2938,11 +3214,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": [
-                                            usdc_asset.clone().unwrap().address,
-                                            usdt_asset.clone().unwrap().address,
-                                            frax_asset.clone().unwrap().address,
-                                        ],
+                                        "underlyingAssets": underlying_assets,
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -2955,6 +3227,19 @@ async fn chef_contract_jobs(
                                     .find_one_and_update(f, u, Some(options))
                                     .await?;
                             } else if symbol == "stella-axlDualPool" {
+                                underlying_assets = vec![
+                                    bson!({
+                                        "symbol": axlusdc_asset.clone().unwrap().symbol,
+                                        "address":  axlusdc_asset.clone().unwrap().address,
+                                        "decimals": axlusdc_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": usdc_asset.clone().unwrap().symbol,
+                                        "address":  usdc_asset.clone().unwrap().address,
+                                        "decimals": usdc_asset.clone().unwrap().decimals,
+                                    }),
+                                ];
+
                                 let usd_pool_liq = axlusdc_bal.as_u128() as f64
                                     * axlusdc_asset.clone().unwrap().price
                                     / constants::utils::TEN_F64.powf(6.0)
@@ -2993,10 +3278,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": [
-                                            axlusdc_asset.clone().unwrap().address,
-                                            usdc_asset.clone().unwrap().address,
-                                        ],
+                                        "underlyingAssets": underlying_assets,
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -3009,6 +3291,29 @@ async fn chef_contract_jobs(
                                     .find_one_and_update(f, u, Some(options))
                                     .await?;
                             } else if symbol == "stellaMAI-tripool" {
+                                underlying_assets = vec![
+                                    bson!({
+                                        "symbol": mai_asset.clone().unwrap().symbol,
+                                        "address":  mai_asset.clone().unwrap().address,
+                                        "decimals": mai_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": usdc_asset.clone().unwrap().symbol,
+                                        "address":  usdc_asset.clone().unwrap().address,
+                                        "decimals": usdc_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": frax_asset.clone().unwrap().symbol,
+                                        "address":  frax_asset.clone().unwrap().address,
+                                        "decimals": frax_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": usdt_asset.clone().unwrap().symbol,
+                                        "address":  usdt_asset.clone().unwrap().address,
+                                        "decimals": usdt_asset.clone().unwrap().decimals,
+                                    }),
+                                ];
+
                                 let usd_pool_liq = mai_bal.as_u128() as f64
                                     * mai_asset.clone().unwrap().price
                                     / constants::utils::TEN_F64.powf(18.0)
@@ -3049,12 +3354,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": [
-                                            mai_asset.clone().unwrap().address,
-                                            usdc_asset.clone().unwrap().address,
-                                            usdt_asset.clone().unwrap().address,
-                                            frax_asset.clone().unwrap().address,
-                                        ],
+                                        "underlyingAssets": underlying_assets,
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -3079,6 +3379,11 @@ async fn chef_contract_jobs(
                             && pid == 3
                         {
                             farm_type = models::FarmType::SingleStaking;
+                            underlying_assets = vec![bson!({
+                                "symbol": "WGLMR",
+                                "address":  constants::addresses::solarflare_on_moonbeam::WGLMR,
+                                "decimals": 18,
+                            })];
                         }
 
                         if rewards_per_sec.len() > 0 {
@@ -3794,7 +4099,7 @@ async fn subgraph_jobs(
                     "address": pair_addr.clone(),
                     "chain": "astar",
                     "protocol": "arthswap",
-                    "name": format!("{}-{} LP", pair.base_token.name, pair.quote_token .name),
+                    "name": format!("{}-{} LP", pair.base_token.name, pair.quote_token.name),
                     "symbol": format!("{}-{} LP", pair.base_token.symbol, pair.quote_token.symbol),
                     "decimals": decimals,
                     "logos": [
@@ -3806,7 +4111,18 @@ async fn subgraph_jobs(
                     "totalSupply": total_supply,
                     "isLP": true,
                     "feesAPR": fees_apr,
-                    "underlyingAssets": [token0_addr.clone(), token1_addr.clone()],
+                    "underlyingAssets": [
+                        bson!({
+                            "symbol": pair.base_token.symbol,
+                            "address": token0_addr.clone(),
+                            "decimals": token0decimals,
+                        }),
+                        bson!({
+                            "symbol": pair.quote_token.symbol,
+                            "address": token1_addr.clone(),
+                            "decimals": token1decimals,
+                        })
+                    ],
                     "underlyingAssetsAlloc": [],
                     "lastUpdatedAtUTC": timestamp.clone(),
                 }
@@ -4279,7 +4595,18 @@ async fn subgraph_jobs(
                             "totalSupply": total_supply,
                             "isLP": true,
                             "feesAPR": fees_apr,
-                            "underlyingAssets": [token0_addr.clone(), token1_addr.clone()],
+                            "underlyingAssets": [
+                                bson!({
+                                    "symbol": pair.token0.symbol,
+                                    "address": token0_addr.clone(),
+                                    "decimals": token0decimals,
+                                }),
+                                bson!({
+                                    "symbol": pair.token1.symbol,
+                                    "address": token1_addr.clone(),
+                                    "decimals": token1decimals,
+                                })
+                            ],
                             "underlyingAssetsAlloc": [],
                             "lastUpdatedAtUTC": timestamp.clone(),
                         }
@@ -4384,7 +4711,18 @@ async fn subgraph_jobs(
                             "totalSupply": total_supply,
                             "isLP": true,
                             "feesAPR": fees_apr,
-                            "underlyingAssets": [token0_addr.clone(), token1_addr.clone()],
+                            "underlyingAssets": [
+                                bson!({
+                                    "symbol": pair.token0.symbol,
+                                    "address": token0_addr.clone(),
+                                    "decimals": token0decimals,
+                                }),
+                                bson!({
+                                    "symbol": pair.token1.symbol,
+                                    "address": token1_addr.clone(),
+                                    "decimals": token1decimals,
+                                })
+                            ],
                             "underlyingAssetsAlloc": [],
                             "lastUpdatedAtUTC": timestamp.clone(),
                         }
@@ -4506,7 +4844,18 @@ async fn subgraph_jobs(
                             "totalSupply": total_supply,
                             "isLP": true,
                             "feesAPR": fees_apr,
-                            "underlyingAssets": [token0_addr.clone(), token1_addr.clone()],
+                            "underlyingAssets": [
+                                bson!({
+                                    "symbol": pair.token0.symbol,
+                                    "address": token0_addr.clone(),
+                                    "decimals": token0decimals,
+                                }),
+                                bson!({
+                                    "symbol": pair.token1.symbol,
+                                    "address": token1_addr.clone(),
+                                    "decimals": token1decimals,
+                                })
+                            ],
                             "underlyingAssetsAlloc": [],
                             "lastUpdatedAtUTC": timestamp.clone(),
                         }

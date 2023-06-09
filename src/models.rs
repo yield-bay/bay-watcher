@@ -19,7 +19,7 @@ pub struct Asset {
     pub is_lp: bool,
     #[serde(rename = "feesAPR")]
     pub fees_apr: f64,
-    pub underlying_assets: Vec<String>,
+    pub underlying_assets: Vec<UnderlyingAsset>,
     pub underlying_assets_alloc: Vec<f64>,
     #[serde(rename = "lastUpdatedAtUTC")]
     pub last_updated_at_utc: String,
@@ -55,6 +55,7 @@ pub struct Farm {
 #[serde(rename_all = "camelCase")]
 pub struct UnderlyingAsset {
     pub symbol: String,
+    pub address: String,
     pub decimals: u32,
 }
 
