@@ -96,11 +96,13 @@ pub async fn demeter_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::E
                 "protocol": "demeter".to_string(),
                 "farmType": models::FarmType::StandardAmm.to_string(),
                 "farmImpl": models::FarmImplementation::Pallet.to_string(),
+                "router": "".to_string(),
                 "asset": {
                     "symbol": ele.underlying_asset_name.to_string(),
                     "address": ele.underlying_asset_name.to_string(),
                     "price": 0 as f64,
                     "logos": logos,
+                    "underlyingAssets": [],
                 },
                 "tvl": ele.tvl as f64,
                 "apr.reward": ele.apr,

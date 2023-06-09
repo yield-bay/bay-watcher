@@ -195,19 +195,19 @@ pub async fn pulsar_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Er
                                 );
                                 if rt_asset.is_some() {
                                     rewards.push(bson!({
-                                    "amount": rr * 86400.0 / constants::utils::TEN_F64.powf(rt_asset.clone().unwrap().decimals as f64) as f64,
-                                    "asset":  rt_asset.clone().unwrap().symbol,
-                                    "valueUSD": (rr * 86400.0 / constants::utils::TEN_F64.powf(rt_asset.clone().unwrap().decimals as f64) as f64) * rt_asset.clone().unwrap().price,
-                                    "freq": models::Freq::Daily.to_string(),
-                                }))
+                                        "amount": rr * 86400.0 / constants::utils::TEN_F64.powf(rt_asset.clone().unwrap().decimals as f64) as f64,
+                                        "asset":  rt_asset.clone().unwrap().symbol,
+                                        "valueUSD": (rr * 86400.0 / constants::utils::TEN_F64.powf(rt_asset.clone().unwrap().decimals as f64) as f64) * rt_asset.clone().unwrap().price,
+                                        "freq": models::Freq::Daily.to_string(),
+                                    }))
                                 }
                                 if brt_asset.is_some() {
                                     rewards.push(bson!({
-                                    "amount": brr * 86400.0 / constants::utils::TEN_F64.powf(brt_asset.clone().unwrap().decimals as f64) as f64,
-                                    "asset":  brt_asset.clone().unwrap().symbol,
-                                    "valueUSD": (brr * 86400.0 / constants::utils::TEN_F64.powf(brt_asset.clone().unwrap().decimals as f64) as f64) * brt_asset.clone().unwrap().price,
-                                    "freq": models::Freq::Daily.to_string(),
-                                }))
+                                        "amount": brr * 86400.0 / constants::utils::TEN_F64.powf(brt_asset.clone().unwrap().decimals as f64) as f64,
+                                        "asset":  brt_asset.clone().unwrap().symbol,
+                                        "valueUSD": (brr * 86400.0 / constants::utils::TEN_F64.powf(brt_asset.clone().unwrap().decimals as f64) as f64) * brt_asset.clone().unwrap().price,
+                                        "freq": models::Freq::Daily.to_string(),
+                                    }))
                                 }
                             }
 
@@ -235,11 +235,13 @@ pub async fn pulsar_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Er
                                     "protocol": "Stellaswap Pulsar".to_string(),
                                     "farmType": models::FarmType::ConcentratedLiquidity.to_string(),
                                     "farmImpl": models::FarmImplementation::Solidity.to_string(),
+                                    "router": "".to_string(),
                                     "asset": {
                                         "symbol": format!("{}-{} LP", pool.token0.symbol, pool.token1.symbol),
                                         "address": pool.id.clone(),
                                         "price": 0 as f64,
                                         "logos": [token0logo, token1logo],
+                                        "underlyingAssets": [],
                                     },
                                     "tvl": tvl,
                                     "apr.reward": reward_apr,

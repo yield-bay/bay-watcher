@@ -923,6 +923,20 @@ async fn chef_contract_jobs(
                 //     router = constants::addresses::zenlink_on_astar::ZENLINK_ROUTER.to_string();
                 // }
 
+                let asset_filter = doc! { "address": ft_addr.clone(), "chain": p.2.clone(), "protocol": p.3.clone() };
+
+                let asset = assets_collection.find_one(asset_filter, None).await?;
+
+                if asset.is_some() {
+                    for ua in asset.clone().unwrap().underlying_assets {
+                        underlying_assets.push(bson!({
+                            "symbol": ua.symbol,
+                            "address": ua.address,
+                            "decimals": ua.decimals,
+                        }))
+                    }
+                }
+
                 if pid == 3 && p.2.clone() == "astar".to_string() {
                     farm_type = models::FarmType::StableAmm;
 
@@ -1049,7 +1063,7 @@ async fn chef_contract_jobs(
                             "totalSupply": ts,
                             "isLP": true,
                             "feesAPR": 0.0,
-                            "underlyingAssets": underlying_assets,
+                            "underlyingAssets": underlying_assets.clone(),
                             "underlyingAssetsAlloc": [],
                             "lastUpdatedAtUTC": timestamp.clone(),
                         }
@@ -1188,7 +1202,7 @@ async fn chef_contract_jobs(
                             "totalSupply": ts,
                             "isLP": true,
                             "feesAPR": 0.0,
-                            "underlyingAssets": underlying_assets,
+                            "underlyingAssets": underlying_assets.clone(),
                             "underlyingAssetsAlloc": [],
                             "lastUpdatedAtUTC": timestamp.clone(),
                         }
@@ -1217,10 +1231,6 @@ async fn chef_contract_jobs(
                         "decimals": 18,
                     })];
                 }
-
-                let asset_filter = doc! { "address": ft_addr.clone(), "chain": p.2.clone(), "protocol": p.3.clone() };
-
-                let asset = assets_collection.find_one(asset_filter, None).await?;
 
                 let mut asset_price: f64 = 0.0;
                 let mut asset_tvl: u128 = 0;
@@ -1499,6 +1509,7 @@ async fn chef_contract_jobs(
                                         "address": asset.clone().unwrap().address,
                                         "price": asset.clone().unwrap().price,
                                         "logos": asset.clone().unwrap().logos,
+                                        "underlyingAssets": underlying_assets.clone(),
                                     },
                                     "tvl": atvl,
                                     "apr.reward": total_reward_apr,
@@ -1719,6 +1730,15 @@ async fn chef_contract_jobs(
                             base_apr = 0.0;
                         }
 
+                        let mut uas = vec![];
+                        for ua in asset.clone().unwrap().underlying_assets {
+                            uas.push(bson!({
+                                "symbol": ua.symbol,
+                                "address": ua.address,
+                                "decimals": ua.decimals,
+                            }))
+                        }
+
                         let timestamp = Utc::now().to_string();
 
                         println!("chef v0 farm lastUpdatedAtUTC {}", timestamp.clone());
@@ -1743,6 +1763,7 @@ async fn chef_contract_jobs(
                                     "address": asset_addr.clone(),
                                     "price": asset.clone().unwrap().price,
                                     "logos": asset.clone().unwrap().logos,
+                                    "underlyingAssets": uas,
                                 },
                                 "tvl": asset_tvl as f64,
                                 "apr.reward": total_reward_apr,
@@ -1903,6 +1924,15 @@ async fn chef_contract_jobs(
                                 }
                                 println!("reward_apr: {}", reward_apr);
 
+                                let mut uas = vec![];
+                                for ua in asset.clone().unwrap().underlying_assets {
+                                    uas.push(bson!({
+                                        "symbol": ua.symbol,
+                                        "address": ua.address,
+                                        "decimals": ua.decimals,
+                                    }))
+                                }
+
                                 // base_apr/trading_apr
                                 let mut base_apr = 0.0;
                                 #[derive(Serialize)]
@@ -1967,6 +1997,7 @@ async fn chef_contract_jobs(
                                             "address": asset_addr.clone(),
                                             "price": asset.clone().unwrap().price,
                                             "logos": asset.clone().unwrap().logos,
+                                            "underlyingAssets": uas,
                                         },
                                         "tvl": asset_tvl as f64 * asset_price / constants::utils::TEN_F64.powf(18.0),
                                         "apr.reward": reward_apr,
@@ -2194,7 +2225,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": underlying_assets,
+                                        "underlyingAssets": underlying_assets.clone(),
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -2268,7 +2299,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": underlying_assets,
+                                        "underlyingAssets": underlying_assets.clone(),
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -2342,7 +2373,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": underlying_assets,
+                                        "underlyingAssets": underlying_assets.clone(),
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -2416,7 +2447,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": underlying_assets,
+                                        "underlyingAssets": underlying_assets.clone(),
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -2480,7 +2511,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": underlying_assets,
+                                        "underlyingAssets": underlying_assets.clone(),
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -2544,7 +2575,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": underlying_assets,
+                                        "underlyingAssets": underlying_assets.clone(),
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -2697,7 +2728,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": underlying_assets,
+                                        "underlyingAssets": underlying_assets.clone(),
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -2893,7 +2924,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": underlying_assets,
+                                        "underlyingAssets": underlying_assets.clone(),
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -2976,7 +3007,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": underlying_assets,
+                                        "underlyingAssets": underlying_assets.clone(),
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -3059,7 +3090,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": underlying_assets,
+                                        "underlyingAssets": underlying_assets.clone(),
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -3142,7 +3173,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": underlying_assets,
+                                        "underlyingAssets": underlying_assets.clone(),
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -3214,7 +3245,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": underlying_assets,
+                                        "underlyingAssets": underlying_assets.clone(),
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -3278,7 +3309,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": underlying_assets,
+                                        "underlyingAssets": underlying_assets.clone(),
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -3354,7 +3385,7 @@ async fn chef_contract_jobs(
                                         "totalSupply": ts,
                                         "isLP": true,
                                         "feesAPR": 0.0,
-                                        "underlyingAssets": underlying_assets,
+                                        "underlyingAssets": underlying_assets.clone(),
                                         "underlyingAssetsAlloc": [],
                                         "lastUpdatedAtUTC": timestamp.clone(),
                                     }
@@ -3394,6 +3425,15 @@ async fn chef_contract_jobs(
 
                             let asset_filter = doc! { "address": asset_addr.clone(), "protocol": p.3.clone(), "chain": p.2.clone() };
                             let asset = assets_collection.find_one(asset_filter, None).await?;
+
+                            // let mut uas = vec![];
+                            for ua in asset.clone().unwrap().underlying_assets {
+                                underlying_assets.push(bson!({
+                                    "symbol": ua.symbol,
+                                    "address": ua.address,
+                                    "decimals": ua.decimals,
+                                }))
+                            }
 
                             let mut asset_price: f64 = 0.0;
                             let mut asset_tvl: u128 = 0;
@@ -3716,8 +3756,8 @@ async fn chef_contract_jobs(
                                                     .iter()
                                                     .enumerate()
                                                 {
-                                                    println!("dv {:?} {:?}", i, ua.clone());
-                                                    let ua_filter = doc! { "address": ua.clone(), "protocol": p.3.clone(), "chain": p.2.clone() };
+                                                    println!("dv {:?} {:?}", i, ua.clone().address);
+                                                    let ua_filter = doc! { "address": ua.clone().address, "protocol": p.3.clone(), "chain": p.2.clone() };
                                                     let ua_obj = assets_collection
                                                         .find_one(ua_filter, None)
                                                         .await?;
@@ -3831,6 +3871,7 @@ async fn chef_contract_jobs(
                                                 "address": asset_addr.clone(),
                                                 "price": asset.clone().unwrap().price,
                                                 "logos": asset.clone().unwrap().logos,
+                                                "underlyingAssets": underlying_assets,
                                             },
                                             "tvl": asset_tvl as f64 * asset_price / constants::utils::TEN_F64.powf(18.0),
                                             "apr.reward": total_reward_apr,
@@ -3879,6 +3920,7 @@ async fn chef_contract_jobs(
                                 "address": "",
                                 "price": 0,
                                 "logos": [],
+                                "underlyingAssets": [],
                             },
                             "tvl": 0,
                             "apr.reward": 0,
@@ -4041,7 +4083,7 @@ async fn subgraph_jobs(
 
     arthswap_pairs.pairs.append(&mut arthswap_pairs_2.pairs);
 
-    println!("apl {:?}\n{:?}", arthswap_pairs.pairs.len(), arthswap_pairs);
+    println!("apl {:?}", arthswap_pairs.pairs.len());
 
     if arthswap_pairs.pairs.len() > 0 {
         for pair in arthswap_pairs.clone().pairs.clone() {
@@ -4069,8 +4111,8 @@ async fn subgraph_jobs(
                 token1logo.clone()
             );
 
-            let token0decimals = 18; //: u32 = pair.base_token.decimals.parse().unwrap_or_default();
-            let token1decimals = 18; //: u32 = pair.quote_token.decimals.parse().unwrap_or_default();
+            let token0decimals: u32 = 18; //: u32 = pair.base_token.decimals.parse().unwrap_or_default();
+            let token1decimals: u32 = 18; //: u32 = pair.quote_token.decimals.parse().unwrap_or_default();
 
             let mut decimals = token0decimals;
             if token1decimals > token0decimals {
@@ -4093,6 +4135,8 @@ async fn subgraph_jobs(
             };
 
             let timestamp = Utc::now().to_string();
+
+            println!("beforeset {:?}", pair_addr.clone());
 
             let u = doc! {
                 "$set" : {
@@ -4136,6 +4180,8 @@ async fn subgraph_jobs(
                 .await?;
         }
     }
+
+    println!("arthswapdone");
 
     for p in protocols {
         println!("subgraph data for {} on {}", p.0.clone(), p.1.clone());
@@ -4652,9 +4698,10 @@ async fn subgraph_jobs(
                     );
 
                     println!(
-                        "token0logo {:?} token1logo {:?}",
+                        "zlkpairtoken0logo {:?} token1logo {:?} paa {:?}",
                         token0logo.clone(),
-                        token1logo.clone()
+                        token1logo.clone(),
+                        pair_addr.clone(),
                     );
 
                     let token0decimals: u32 = pair.token0.decimals as u32;
