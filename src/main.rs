@@ -3426,13 +3426,20 @@ async fn chef_contract_jobs(
                             let asset_filter = doc! { "address": asset_addr.clone(), "protocol": p.3.clone(), "chain": p.2.clone() };
                             let asset = assets_collection.find_one(asset_filter, None).await?;
 
-                            // let mut uas = vec![];
+                            let mut uas = vec![];
                             for ua in asset.clone().unwrap().underlying_assets {
-                                underlying_assets.push(bson!({
+                                uas.push(bson!({
                                     "symbol": ua.symbol,
                                     "address": ua.address,
                                     "decimals": ua.decimals,
                                 }))
+                            }
+                            if farm_type.to_string() == "StableAmm" {
+                                println!("uassss {:?}", uas);
+                            }
+
+                            if underlying_assets.len() == 0 {
+                                underlying_assets = uas;
                             }
 
                             let mut asset_price: f64 = 0.0;
