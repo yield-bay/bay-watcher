@@ -763,8 +763,15 @@ async fn chef_contract_jobs(
                     let farm_type = models::FarmType::StandardAmm;
                     let farm_implementation = models::FarmImplementation::Solidity;
 
-                    let mut underlying_assets: Vec<Bson> = vec![];
-                    let mut rewards = vec![];
+                    let mut underlying_assets = vec![];
+                    for ua in asset.clone().unwrap().underlying_assets {
+                        underlying_assets.push(bson!({
+                            "symbol": ua.symbol,
+                            "address": ua.address,
+                            "decimals": ua.decimals,
+                        }))
+                    }
+                    let mut rewards: Vec<Bson> = vec![];
                     let mut total_reward_apr = 0.0;
 
                     let arsw_filter = doc! { "address": constants::addresses::arthswap_on_astar::ARSW, "protocol": p.3.clone(), "chain": p.2.clone() };
