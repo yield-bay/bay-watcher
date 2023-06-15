@@ -1891,7 +1891,7 @@ async fn chef_contract_jobs(
                             let tap: U256 = stella_chef_v1.total_alloc_point().call().await?;
 
                             let average_block_time = 12.4;
-                            let stella_filter = doc! {"address":constants::addresses::stellaswap_on_moonbeam::STELLA};
+                            let stella_filter = doc! {"address":constants::addresses::stellaswap_on_moonbeam::STELLA, "protocol":p.3.clone(), "chain":p.2.clone()};
                             let stella = assets_collection.find_one(stella_filter, None).await?;
 
                             if stella.is_some() {
