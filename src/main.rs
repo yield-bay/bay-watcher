@@ -58,10 +58,10 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
     println!("------------------------------\ncurve_jobs");
     custom::curve::curve_jobs(mongo_uri.clone()).await.unwrap();
 
-    println!("------------------------------\ntapio_taiga_jobs");
-    custom::tapio_taiga::tapio_taiga_jobs(mongo_uri.clone())
-        .await
-        .unwrap();
+    // println!("------------------------------\ntapio_taiga_jobs");
+    // custom::tapio_taiga::tapio_taiga_jobs(mongo_uri.clone())
+    //     .await
+    //     .unwrap();
 
     let solarbeam_subgraph_client = Client::new_with_headers(
         constants::subgraph_urls::SOLARBEAM_SUBGRAPH.clone(),
