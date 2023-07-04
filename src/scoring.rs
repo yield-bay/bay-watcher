@@ -41,10 +41,28 @@ pub async fn safety_score(mongo_uri: String) -> Result<(), Box<dyn std::error::E
             .unwrap();
     }
 
+    // let f = doc! {
+    //     "allocPoint" : {
+    //         "$ne": 0,
+    //     }
+    // };
+
     let f = doc! {
-        "allocPoint" : {
-            "$ne": 0,
-        }
+        "$and": [
+            {
+                "$or": [
+                    { "protocol": "sushiswap" },
+                    { "protocol": { "$nin": ["sushiswap"] }, "allocPoint": { "$exists": true, "$gt": 0 } }
+                ]
+            },
+            {
+                "$or": [
+                    { "id": { "$nin": [31, 34, 10, 29, 30, 28] } },
+                    { "chef": { "$nin": ["0xF3a5454496E26ac57da879bf3285Fa85DEBF0388"] } },
+                ]
+            }
+        ],
+        "asset.symbol": { "$nin": ["xStella", "veSOLAR", "veFLARE", "veFLARE-veSOLAR LP"] },
     };
 
     let options = FindOptions::builder().build();
@@ -127,7 +145,7 @@ pub async fn safety_score(mongo_uri: String) -> Result<(), Box<dyn std::error::E
         })
     }
 
-    println!("fl {:?}", farms.len());
+    println!("fl: {:?}", farms.len());
 
     fn reward_scores(farms: Vec<Farm>) -> Vec<f64> {
         let mut scores = vec![];
@@ -140,7 +158,14 @@ pub async fn safety_score(mongo_uri: String) -> Result<(), Box<dyn std::error::E
         }
 
         for farm in farms {
-            scores.push(farm.rewards_usd / max_reward)
+            if farm.rewards_usd == max_reward && max_reward != 0.0 {
+                scores.push(1.0)
+            } else if max_reward != 0.0 {
+                scores.push(farm.rewards_usd / max_reward)
+            } else {
+                scores.push(0.0);
+                println!("edge case reward_scores");
+            }
         }
         scores
     }
@@ -156,7 +181,14 @@ pub async fn safety_score(mongo_uri: String) -> Result<(), Box<dyn std::error::E
         }
 
         for farm in farms {
-            scores.push(farm.reward_apr / max_apr)
+            if farm.reward_apr == max_apr && max_apr != 0.0 {
+                scores.push(1.0)
+            } else if max_apr != 0.0 {
+                scores.push(farm.reward_apr / max_apr)
+            } else {
+                scores.push(0.0);
+                println!("edge case reward_apr_scores");
+            }
         }
         scores
     }
@@ -177,10 +209,13 @@ pub async fn safety_score(mongo_uri: String) -> Result<(), Box<dyn std::error::E
             } else if farm.farm_type == "SingleStaking" {
                 scores.push(0.3)
             } else {
-                if max_apr != 0.0 {
+                if farm.base_apr == max_apr && max_apr != 0.0 {
+                    scores.push(1.0)
+                } else if max_apr != 0.0 {
                     scores.push(farm.base_apr / max_apr)
                 } else {
-                    scores.push(0.5)
+                    scores.push(0.0);
+                    println!("edge case base_apr_scores");
                 }
             }
         }
@@ -274,6 +309,13 @@ pub async fn safety_score(mongo_uri: String) -> Result<(), Box<dyn std::error::E
             (safety_scores[i].total_score - min_score) / ((max_score - min_score) * 1.01);
 
         let obj = safety_scores[i].clone();
+
+        println!(
+            "idx {:?} ss {:?} fs {:?}",
+            i,
+            safety_scores[i].total_score,
+            obj.total_score.clone()
+        );
 
         let ff = doc! {
             "id": obj.id.clone(),
