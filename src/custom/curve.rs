@@ -113,6 +113,18 @@ pub async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Err
                                         let mut logo0 = "xcDOT";
                                         let mut logo1 = "stDOT";
                                         let mut chef = "0xC106C836771B0B4f4a0612Bd68163Ca93be1D340";
+                                        let mut underlyingAssets = vec![
+                                            bson!({
+                                                "symbol": "xcDOT",
+                                                "address":  "0xFfFFfFff1FcaCBd218EDc0EbA20Fc2308C778080",
+                                                "decimals": 10,
+                                            }),
+                                            bson!({
+                                                "symbol": "stDOT",
+                                                "address":  "0xFA36Fe1dA08C89eC72Ea1F0143a35bFd5DAea108",
+                                                "decimals": 10,
+                                            }),
+                                        ];
                                         if pd.pool_address.clone()
                                             == moonbeam_curve_d2o_xcusdt.clone()
                                         {
@@ -120,6 +132,18 @@ pub async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Err
                                             logo0 = "d2o";
                                             logo1 = "xcUSDT";
                                             chef = "0x4efb9942e50aB8bBA4953F71d8Bebd7B2dcdE657";
+                                            underlyingAssets = vec![
+                                                bson!({
+                                                    "symbol": "d2O",
+                                                    "address":  "0xc806B0600cbAfA0B197562a9F7e3B9856866E9bF",
+                                                    "decimals": 18,
+                                                }),
+                                                bson!({
+                                                    "symbol": "xcUSDT",
+                                                    "address":  "0xFFFFFFfFea09FB06d082fd1275CD48b191cbCD1d",
+                                                    "decimals": 6,
+                                                }),
+                                            ];
                                             println!("case2 total_apy {}", total_apy);
                                         }
 
@@ -153,7 +177,7 @@ pub async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Err
                                                         format!("https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png", logo0),
                                                         format!("https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png", logo1),
                                                     ],
-                                                    "underlyingAssets": [],
+                                                    "underlyingAssets": underlyingAssets.clone(),
                                                 },
                                                 "tvl": pda.usd_total as f64,
                                                 "apr.reward": total_apy,
@@ -193,7 +217,7 @@ pub async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Err
                                                 "totalSupply": total_supply,
                                                 "isLP": true,
                                                 "feesAPR": pd.apy,
-                                                "underlyingAssets": [],
+                                                "underlyingAssets": underlyingAssets,
                                                 "underlyingAssetsAlloc": [],
                                                 "lastUpdatedAtUTC": timestamp.clone(),
                                             }
@@ -288,6 +312,18 @@ pub async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Err
                                         let mut logo0 = "xcDOT";
                                         let mut logo1 = "stDOT";
                                         let mut chef = "0xC106C836771B0B4f4a0612Bd68163Ca93be1D340";
+                                        let mut underlyingAssets = vec![
+                                            bson!({
+                                                "symbol": "xcDOT",
+                                                "address":  "0xFfFFfFff1FcaCBd218EDc0EbA20Fc2308C778080",
+                                                "decimals": 10,
+                                            }),
+                                            bson!({
+                                                "symbol": "stDOT",
+                                                "address":  "0xFA36Fe1dA08C89eC72Ea1F0143a35bFd5DAea108",
+                                                "decimals": 10,
+                                            }),
+                                        ];
                                         if pd.pool_address.clone()
                                             == moonbeam_curve_d2o_xcusdt.clone()
                                         {
@@ -295,6 +331,18 @@ pub async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Err
                                             logo0 = "d2o";
                                             logo1 = "xcUSDT";
                                             chef = "0x4efb9942e50aB8bBA4953F71d8Bebd7B2dcdE657";
+                                            underlyingAssets = vec![
+                                                bson!({
+                                                    "symbol": "d2O",
+                                                    "address":  "0xc806B0600cbAfA0B197562a9F7e3B9856866E9bF",
+                                                    "decimals": 18,
+                                                }),
+                                                bson!({
+                                                    "symbol": "xcUSDT",
+                                                    "address":  "0xFFFFFFfFea09FB06d082fd1275CD48b191cbCD1d",
+                                                    "decimals": 6,
+                                                }),
+                                            ];
                                             println!("case2 total_apy {}", total_apy);
                                         }
 
@@ -328,7 +376,7 @@ pub async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Err
                                                         format!("https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png", logo0),
                                                         format!("https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png", logo1),
                                                     ],
-                                                    "underlyingAssets": [],
+                                                    "underlyingAssets": underlyingAssets.clone(),
                                                 },
                                                 "tvl": pda.usd_total as f64,
                                                 "apr.reward": total_apy,
@@ -368,7 +416,7 @@ pub async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Err
                                                 "totalSupply": total_supply,
                                                 "isLP": true,
                                                 "feesAPR": pd.apy,
-                                                "underlyingAssets": [],
+                                                "underlyingAssets": underlyingAssets,
                                                 "underlyingAssetsAlloc": [],
                                                 "lastUpdatedAtUTC": timestamp.clone(),
                                             }
