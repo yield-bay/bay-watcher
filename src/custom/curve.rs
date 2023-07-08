@@ -144,7 +144,7 @@ pub async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Err
                                                 "protocol": "curve",
                                                 "farmType": models::FarmType::StableAmm.to_string(),
                                                 "farmImpl": models::FarmImplementation::Vyper.to_string(),
-                                                "router": "".to_string(),
+                                                "router": pd.pool_address.clone(),
                                                 "asset": {
                                                     "symbol": symbol,
                                                     "address": pd.pool_address.clone(),
@@ -319,7 +319,7 @@ pub async fn curve_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Err
                                                 "protocol": "curve",
                                                 "farmType": models::FarmType::StableAmm.to_string(),
                                                 "farmImpl": models::FarmImplementation::Vyper.to_string(),
-                                                "router": "".to_string(),
+                                                "router": pd.pool_address.clone(),
                                                 "asset": {
                                                     "symbol": symbol,
                                                     "address": pd.pool_address.clone(),
