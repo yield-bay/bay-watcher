@@ -921,14 +921,14 @@ async fn chef_contract_jobs(
                 let mut underlying_assets: Vec<Bson> = vec![];
                 let mut farm_type = models::FarmType::StandardAmm;
 
-                // let mut router = "".to_string();
-                // if p.2.clone() == "moonriver".to_string() {
-                //     router = constants::addresses::zenlink_on_moonriver::ZENLINK_ROUTER.to_string();
-                // } else if p.2.clone() == "moonbeam".to_string() {
-                //     router = constants::addresses::zenlink_on_moonbeam::ZENLINK_ROUTER.to_string();
-                // } else if p.2.clone() == "astar".to_string() {
-                //     router = constants::addresses::zenlink_on_astar::ZENLINK_ROUTER.to_string();
-                // }
+                let mut router = "".to_string();
+                if p.2.clone() == "moonriver".to_string() {
+                    router = constants::addresses::zenlink_on_moonriver::ZENLINK_ROUTER.to_string();
+                } else if p.2.clone() == "moonbeam".to_string() {
+                    router = constants::addresses::zenlink_on_moonbeam::ZENLINK_ROUTER.to_string();
+                } else if p.2.clone() == "astar".to_string() {
+                    router = constants::addresses::zenlink_on_astar::ZENLINK_ROUTER.to_string();
+                }
 
                 let asset_filter = doc! { "address": ft_addr.clone(), "chain": p.2.clone(), "protocol": p.3.clone() };
 
@@ -1445,6 +1445,12 @@ async fn chef_contract_jobs(
                                 )
                                 .await;
 
+                            if pid == 11 && p.2.clone() == "moonriver".to_string() {
+                                router = "0xE04B18eFF27B55A3BB7E4451C0829Daf594843fD".to_string();
+                            } else if pid == 3 && p.2.clone() == "astar".to_string() {
+                                router = "0x7F12564eca712fa59b0EEdfE56EABC8b53a7B0cd".to_string();
+                            }
+
                             if zenlink_stable_swaps.is_ok() {
                                 let mut daily_volume_lw: f64 = 0.0;
                                 if zenlink_stable_swaps.clone().unwrap().stable_swaps.len() > 0 {
@@ -1490,49 +1496,49 @@ async fn chef_contract_jobs(
 
                         let timestamp = Utc::now().to_string();
 
-                        if pid != 12 && p.2.clone() == "moonriver".to_string() {
-                            println!(
-                                "zenlink chef v3 farm lastUpdatedAtUTC {}",
-                                timestamp.clone()
-                            );
+                        // if pid != 12 && p.2.clone() == "moonriver".to_string() {
+                        println!(
+                            "zenlink chef v3 farm lastUpdatedAtUTC {}",
+                            timestamp.clone()
+                        );
 
-                            let ff = doc! {
-                                "id": pid as i32,
+                        let ff = doc! {
+                            "id": pid as i32,
+                            "chef": p.5.clone(),
+                            "chain": p.2.clone(),
+                            "protocol": "zenlink".to_string(),
+                        };
+                        let fu = doc! {
+                            "$set" : {
+                                "id": pid,
                                 "chef": p.5.clone(),
                                 "chain": p.2.clone(),
                                 "protocol": "zenlink".to_string(),
-                            };
-                            let fu = doc! {
-                                "$set" : {
-                                    "id": pid,
-                                    "chef": p.5.clone(),
-                                    "chain": p.2.clone(),
-                                    "protocol": "zenlink".to_string(),
-                                    "farmType": farm_type.to_string(),
-                                    "farmImpl": models::FarmImplementation::Solidity.to_string(),
-                                    "router": router,
-                                    "asset": {
-                                        "symbol": asset.clone().unwrap().symbol,
-                                        "address": asset.clone().unwrap().address,
-                                        "price": asset.clone().unwrap().price,
-                                        "logos": asset.clone().unwrap().logos,
-                                        "underlyingAssets": underlying_assets.clone(),
-                                    },
-                                    "tvl": atvl,
-                                    "apr.reward": total_reward_apr,
-                                    "apr.base": base_apr,
-                                    "rewards": rewards,
-                                    "allocPoint": 1,
-                                    "lastUpdatedAtUTC": timestamp.clone(),
-                                }
-                            };
-                            let options = FindOneAndUpdateOptions::builder()
-                                .upsert(Some(true))
-                                .build();
-                            farms_collection
-                                .find_one_and_update(ff, fu, Some(options))
-                                .await?;
-                        }
+                                "farmType": farm_type.to_string(),
+                                "farmImpl": models::FarmImplementation::Solidity.to_string(),
+                                "router": router,
+                                "asset": {
+                                    "symbol": asset.clone().unwrap().symbol,
+                                    "address": asset.clone().unwrap().address,
+                                    "price": asset.clone().unwrap().price,
+                                    "logos": asset.clone().unwrap().logos,
+                                    "underlyingAssets": underlying_assets.clone(),
+                                },
+                                "tvl": atvl,
+                                "apr.reward": total_reward_apr,
+                                "apr.base": base_apr,
+                                "rewards": rewards,
+                                "allocPoint": 1,
+                                "lastUpdatedAtUTC": timestamp.clone(),
+                            }
+                        };
+                        let options = FindOneAndUpdateOptions::builder()
+                            .upsert(Some(true))
+                            .build();
+                        farms_collection
+                            .find_one_and_update(ff, fu, Some(options))
+                            .await?;
+                        // }
                     }
                 }
             } else if p.4.clone() == "v0".to_string() {
