@@ -305,14 +305,21 @@ pub async fn safety_score(mongo_uri: String) -> Result<(), Box<dyn std::error::E
     println!("safety_scores {:?}", safety_scores.clone());
 
     for i in 0..safety_scores.len() {
+        println!("min_score {:?} max_score {:?}", min_score, max_score);
         safety_scores[i].total_score =
             (safety_scores[i].total_score - min_score) / ((max_score - min_score) * 1.01);
 
         let obj = safety_scores[i].clone();
 
         println!(
-            "idx {:?} ss {:?} fs {:?}",
+            "idx {:?} {:?} {:?} baseapr {:?} rewardapr {:?} rewards {:?} tvl {:?} ts {:?} fs {:?}",
             i,
+            obj.id,
+            obj.asset.clone(),
+            safety_scores[i].base_apr_score,
+            safety_scores[i].reward_apr_score,
+            safety_scores[i].rewards_score,
+            safety_scores[i].tvl_score,
             safety_scores[i].total_score,
             obj.total_score.clone()
         );
