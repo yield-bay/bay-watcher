@@ -1007,9 +1007,9 @@ async fn chef_contract_jobs(
 
                     underlying_assets = vec![
                         bson!({
-                            "symbol": bai_asset.clone().unwrap().symbol,
-                            "address":  bai_asset.clone().unwrap().address,
-                            "decimals": bai_asset.clone().unwrap().decimals,
+                            "symbol": usdc_asset.clone().unwrap().symbol,
+                            "address":  usdc_asset.clone().unwrap().address,
+                            "decimals": usdc_asset.clone().unwrap().decimals,
                         }),
                         bson!({
                             "symbol": busd_asset.clone().unwrap().symbol,
@@ -1017,14 +1017,14 @@ async fn chef_contract_jobs(
                             "decimals": busd_asset.clone().unwrap().decimals,
                         }),
                         bson!({
+                            "symbol": bai_asset.clone().unwrap().symbol,
+                            "address":  bai_asset.clone().unwrap().address,
+                            "decimals": bai_asset.clone().unwrap().decimals,
+                        }),
+                        bson!({
                             "symbol": dai_asset.clone().unwrap().symbol,
                             "address":  dai_asset.clone().unwrap().address,
                             "decimals": dai_asset.clone().unwrap().decimals,
-                        }),
-                        bson!({
-                            "symbol": usdc_asset.clone().unwrap().symbol,
-                            "address":  usdc_asset.clone().unwrap().address,
-                            "decimals": usdc_asset.clone().unwrap().decimals,
                         }),
                     ];
 
@@ -1060,10 +1060,10 @@ async fn chef_contract_jobs(
                             "symbol": "4pool".to_string(),
                             "decimals": 18,
                             "logos": [
-                                bai_asset.clone().unwrap().logos.get(0),
+                                usdc_asset.clone().unwrap().logos.get(0),
                                 busd_asset.clone().unwrap().logos.get(0),
                                 dai_asset.clone().unwrap().logos.get(0),
-                                usdc_asset.clone().unwrap().logos.get(0),
+                                bai_asset.clone().unwrap().logos.get(0),
                             ],
                             "price": usd_pool_price,
                             "liquidity": usd_pool_liq,
@@ -1150,11 +1150,6 @@ async fn chef_contract_jobs(
                             "decimals": usdt_asset.clone().unwrap().decimals,
                         }),
                         bson!({
-                            "symbol": frax_asset.clone().unwrap().symbol,
-                            "address":  frax_asset.clone().unwrap().address,
-                            "decimals": frax_asset.clone().unwrap().decimals,
-                        }),
-                        bson!({
                             "symbol": usdc_asset.clone().unwrap().symbol,
                             "address":  usdc_asset.clone().unwrap().address,
                             "decimals": usdc_asset.clone().unwrap().decimals,
@@ -1163,6 +1158,11 @@ async fn chef_contract_jobs(
                             "symbol": xcausd_asset.clone().unwrap().symbol,
                             "address":  xcausd_asset.clone().unwrap().address,
                             "decimals": xcausd_asset.clone().unwrap().decimals,
+                        }),
+                        bson!({
+                            "symbol": frax_asset.clone().unwrap().symbol,
+                            "address":  frax_asset.clone().unwrap().address,
+                            "decimals": frax_asset.clone().unwrap().decimals,
                         }),
                     ];
 
@@ -1200,9 +1200,9 @@ async fn chef_contract_jobs(
                             "decimals": 18,
                             "logos": [
                                 usdt_asset.clone().unwrap().logos.get(0),
-                                frax_asset.clone().unwrap().logos.get(0),
                                 usdc_asset.clone().unwrap().logos.get(0),
                                 xcausd_asset.clone().unwrap().logos.get(0),
+                                frax_asset.clone().unwrap().logos.get(0),
                             ],
                             "price": usd_pool_price,
                             "liquidity": usd_pool_liq,
@@ -2181,14 +2181,14 @@ async fn chef_contract_jobs(
                             if symbol == "3pool".to_string() {
                                 underlying_assets = vec![
                                     bson!({
-                                        "symbol": busd_asset.clone().unwrap().symbol,
-                                        "address":  busd_asset.clone().unwrap().address,
-                                        "decimals": busd_asset.clone().unwrap().decimals,
-                                    }),
-                                    bson!({
                                         "symbol": usdc_asset.clone().unwrap().symbol,
                                         "address":  usdc_asset.clone().unwrap().address,
                                         "decimals": usdc_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": busd_asset.clone().unwrap().symbol,
+                                        "address":  busd_asset.clone().unwrap().address,
+                                        "decimals": busd_asset.clone().unwrap().decimals,
                                     }),
                                     bson!({
                                         "symbol": usdt_asset.clone().unwrap().symbol,
@@ -2229,8 +2229,8 @@ async fn chef_contract_jobs(
                                         "symbol": "3pool".to_string(),
                                         "decimals": 18,
                                         "logos": [
-                                            busd_asset.clone().unwrap().logos.get(0),
                                             usdc_asset.clone().unwrap().logos.get(0),
+                                            busd_asset.clone().unwrap().logos.get(0),
                                             usdt_asset.clone().unwrap().logos.get(0),
                                         ],
                                         "price": usd_pool_price,
@@ -2258,14 +2258,14 @@ async fn chef_contract_jobs(
                                         "decimals": frax_asset.clone().unwrap().decimals,
                                     }),
                                     bson!({
-                                        "symbol": busd_asset.clone().unwrap().symbol,
-                                        "address":  busd_asset.clone().unwrap().address,
-                                        "decimals": busd_asset.clone().unwrap().decimals,
-                                    }),
-                                    bson!({
                                         "symbol": usdc_asset.clone().unwrap().symbol,
                                         "address":  usdc_asset.clone().unwrap().address,
                                         "decimals": usdc_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": busd_asset.clone().unwrap().symbol,
+                                        "address":  busd_asset.clone().unwrap().address,
+                                        "decimals": busd_asset.clone().unwrap().decimals,
                                     }),
                                     bson!({
                                         "symbol": usdt_asset.clone().unwrap().symbol,
@@ -2303,8 +2303,8 @@ async fn chef_contract_jobs(
                                         "decimals": 18,
                                         "logos": [
                                             frax_asset.clone().unwrap().logos.get(0),
-                                            busd_asset.clone().unwrap().logos.get(0),
                                             usdc_asset.clone().unwrap().logos.get(0),
+                                            busd_asset.clone().unwrap().logos.get(0),
                                             usdt_asset.clone().unwrap().logos.get(0),
                                         ],
                                         "price": usd_pool_price,
@@ -2332,14 +2332,14 @@ async fn chef_contract_jobs(
                                         "decimals": mai_asset.clone().unwrap().decimals,
                                     }),
                                     bson!({
-                                        "symbol": busd_asset.clone().unwrap().symbol,
-                                        "address":  busd_asset.clone().unwrap().address,
-                                        "decimals": busd_asset.clone().unwrap().decimals,
-                                    }),
-                                    bson!({
                                         "symbol": usdc_asset.clone().unwrap().symbol,
                                         "address":  usdc_asset.clone().unwrap().address,
                                         "decimals": usdc_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": busd_asset.clone().unwrap().symbol,
+                                        "address":  busd_asset.clone().unwrap().address,
+                                        "decimals": busd_asset.clone().unwrap().decimals,
                                     }),
                                     bson!({
                                         "symbol": usdt_asset.clone().unwrap().symbol,
@@ -2377,8 +2377,8 @@ async fn chef_contract_jobs(
                                         "decimals": 18,
                                         "logos": [
                                             mai_asset.clone().unwrap().logos.get(0),
-                                            busd_asset.clone().unwrap().logos.get(0),
                                             usdc_asset.clone().unwrap().logos.get(0),
+                                            busd_asset.clone().unwrap().logos.get(0),
                                             usdt_asset.clone().unwrap().logos.get(0),
                                         ],
                                         "price": usd_pool_price,
@@ -2406,14 +2406,14 @@ async fn chef_contract_jobs(
                                         "decimals": mim_asset.clone().unwrap().decimals,
                                     }),
                                     bson!({
-                                        "symbol": busd_asset.clone().unwrap().symbol,
-                                        "address":  busd_asset.clone().unwrap().address,
-                                        "decimals": busd_asset.clone().unwrap().decimals,
-                                    }),
-                                    bson!({
                                         "symbol": usdc_asset.clone().unwrap().symbol,
                                         "address":  usdc_asset.clone().unwrap().address,
                                         "decimals": usdc_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": busd_asset.clone().unwrap().symbol,
+                                        "address":  busd_asset.clone().unwrap().address,
+                                        "decimals": busd_asset.clone().unwrap().decimals,
                                     }),
                                     bson!({
                                         "symbol": usdt_asset.clone().unwrap().symbol,
@@ -2451,8 +2451,8 @@ async fn chef_contract_jobs(
                                         "decimals": 18,
                                         "logos": [
                                             mim_asset.clone().unwrap().logos.get(0),
-                                            busd_asset.clone().unwrap().logos.get(0),
                                             usdc_asset.clone().unwrap().logos.get(0),
+                                            busd_asset.clone().unwrap().logos.get(0),
                                             usdt_asset.clone().unwrap().logos.get(0),
                                         ],
                                         "price": usd_pool_price,
@@ -2475,14 +2475,14 @@ async fn chef_contract_jobs(
                             } else if symbol == "kBTC-BTC".to_string() {
                                 underlying_assets = vec![
                                     bson!({
-                                        "symbol": wbtc_asset.clone().unwrap().symbol,
-                                        "address":  wbtc_asset.clone().unwrap().address,
-                                        "decimals": wbtc_asset.clone().unwrap().decimals,
-                                    }),
-                                    bson!({
                                         "symbol": xckbtc_asset.clone().unwrap().symbol,
                                         "address":  xckbtc_asset.clone().unwrap().address,
                                         "decimals": xckbtc_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": wbtc_asset.clone().unwrap().symbol,
+                                        "address":  wbtc_asset.clone().unwrap().address,
+                                        "decimals": wbtc_asset.clone().unwrap().decimals,
                                     }),
                                 ];
 
@@ -2516,8 +2516,8 @@ async fn chef_contract_jobs(
                                         "symbol": "kBTC-BTC".to_string(),
                                         "decimals": 18,
                                         "logos": [
-                                            wbtc_asset.clone().unwrap().logos.get(0),
                                             xckbtc_asset.clone().unwrap().logos.get(0),
+                                            wbtc_asset.clone().unwrap().logos.get(0),
                                         ],
                                         "price": pool_price,
                                         "liquidity": pool_liq,
@@ -2872,11 +2872,6 @@ async fn chef_contract_jobs(
                             if symbol == "stella4pool".to_string() {
                                 underlying_assets = vec![
                                     bson!({
-                                        "symbol": busd_asset.clone().unwrap().symbol,
-                                        "address":  busd_asset.clone().unwrap().address,
-                                        "decimals": busd_asset.clone().unwrap().decimals,
-                                    }),
-                                    bson!({
                                         "symbol": usdc_asset.clone().unwrap().symbol,
                                         "address":  usdc_asset.clone().unwrap().address,
                                         "decimals": usdc_asset.clone().unwrap().decimals,
@@ -2885,6 +2880,11 @@ async fn chef_contract_jobs(
                                         "symbol": usdt_asset.clone().unwrap().symbol,
                                         "address":  usdt_asset.clone().unwrap().address,
                                         "decimals": usdt_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": busd_asset.clone().unwrap().symbol,
+                                        "address":  busd_asset.clone().unwrap().address,
+                                        "decimals": busd_asset.clone().unwrap().decimals,
                                     }),
                                     bson!({
                                         "symbol": frax_asset.clone().unwrap().symbol,
@@ -2927,10 +2927,10 @@ async fn chef_contract_jobs(
                                         "symbol": "4pool".to_string(),
                                         "decimals": 18,
                                         "logos": [
-                                            frax_asset.clone().unwrap().logos.get(0),
-                                            busd_asset.clone().unwrap().logos.get(0),
                                             usdc_asset.clone().unwrap().logos.get(0),
                                             usdt_asset.clone().unwrap().logos.get(0),
+                                            busd_asset.clone().unwrap().logos.get(0),
+                                            frax_asset.clone().unwrap().logos.get(0),
                                         ],
                                         "price": usd_pool_price,
                                         "liquidity": usd_pool_liq,
@@ -2957,11 +2957,6 @@ async fn chef_contract_jobs(
                                         "decimals": mai_asset.clone().unwrap().decimals,
                                     }),
                                     bson!({
-                                        "symbol": busd_asset.clone().unwrap().symbol,
-                                        "address":  busd_asset.clone().unwrap().address,
-                                        "decimals": busd_asset.clone().unwrap().decimals,
-                                    }),
-                                    bson!({
                                         "symbol": usdc_asset.clone().unwrap().symbol,
                                         "address":  usdc_asset.clone().unwrap().address,
                                         "decimals": usdc_asset.clone().unwrap().decimals,
@@ -2970,6 +2965,11 @@ async fn chef_contract_jobs(
                                         "symbol": usdt_asset.clone().unwrap().symbol,
                                         "address":  usdt_asset.clone().unwrap().address,
                                         "decimals": usdt_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": busd_asset.clone().unwrap().symbol,
+                                        "address":  busd_asset.clone().unwrap().address,
+                                        "decimals": busd_asset.clone().unwrap().decimals,
                                     }),
                                     bson!({
                                         "symbol": frax_asset.clone().unwrap().symbol,
@@ -3010,10 +3010,10 @@ async fn chef_contract_jobs(
                                         "decimals": 18,
                                         "logos": [
                                             mai_asset.clone().unwrap().logos.get(0),
-                                            frax_asset.clone().unwrap().logos.get(0),
-                                            busd_asset.clone().unwrap().logos.get(0),
                                             usdc_asset.clone().unwrap().logos.get(0),
                                             usdt_asset.clone().unwrap().logos.get(0),
+                                            busd_asset.clone().unwrap().logos.get(0),
+                                            frax_asset.clone().unwrap().logos.get(0),
                                         ],
                                         "price": usd_pool_price,
                                         "liquidity": usd_pool_liq,
@@ -3040,11 +3040,6 @@ async fn chef_contract_jobs(
                                         "decimals": athusd_asset.clone().unwrap().decimals,
                                     }),
                                     bson!({
-                                        "symbol": busd_asset.clone().unwrap().symbol,
-                                        "address":  busd_asset.clone().unwrap().address,
-                                        "decimals": busd_asset.clone().unwrap().decimals,
-                                    }),
-                                    bson!({
                                         "symbol": usdc_asset.clone().unwrap().symbol,
                                         "address":  usdc_asset.clone().unwrap().address,
                                         "decimals": usdc_asset.clone().unwrap().decimals,
@@ -3053,6 +3048,11 @@ async fn chef_contract_jobs(
                                         "symbol": usdt_asset.clone().unwrap().symbol,
                                         "address":  usdt_asset.clone().unwrap().address,
                                         "decimals": usdt_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": busd_asset.clone().unwrap().symbol,
+                                        "address":  busd_asset.clone().unwrap().address,
+                                        "decimals": busd_asset.clone().unwrap().decimals,
                                     }),
                                     bson!({
                                         "symbol": frax_asset.clone().unwrap().symbol,
@@ -3093,10 +3093,10 @@ async fn chef_contract_jobs(
                                         "decimals": 18,
                                         "logos": [
                                             athusd_asset.clone().unwrap().logos.get(0),
-                                            frax_asset.clone().unwrap().logos.get(0),
-                                            busd_asset.clone().unwrap().logos.get(0),
                                             usdc_asset.clone().unwrap().logos.get(0),
                                             usdt_asset.clone().unwrap().logos.get(0),
+                                            busd_asset.clone().unwrap().logos.get(0),
+                                            frax_asset.clone().unwrap().logos.get(0),
                                         ],
                                         "price": usd_pool_price,
                                         "liquidity": usd_pool_liq,
@@ -3123,11 +3123,6 @@ async fn chef_contract_jobs(
                                         "decimals": axlusdc_asset.clone().unwrap().decimals,
                                     }),
                                     bson!({
-                                        "symbol": busd_asset.clone().unwrap().symbol,
-                                        "address":  busd_asset.clone().unwrap().address,
-                                        "decimals": busd_asset.clone().unwrap().decimals,
-                                    }),
-                                    bson!({
                                         "symbol": usdc_asset.clone().unwrap().symbol,
                                         "address":  usdc_asset.clone().unwrap().address,
                                         "decimals": usdc_asset.clone().unwrap().decimals,
@@ -3136,6 +3131,11 @@ async fn chef_contract_jobs(
                                         "symbol": usdt_asset.clone().unwrap().symbol,
                                         "address":  usdt_asset.clone().unwrap().address,
                                         "decimals": usdt_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": busd_asset.clone().unwrap().symbol,
+                                        "address":  busd_asset.clone().unwrap().address,
+                                        "decimals": busd_asset.clone().unwrap().decimals,
                                     }),
                                     bson!({
                                         "symbol": frax_asset.clone().unwrap().symbol,
@@ -3176,10 +3176,10 @@ async fn chef_contract_jobs(
                                         "decimals": 18,
                                         "logos": [
                                             axlusdc_asset.clone().unwrap().logos.get(0),
-                                            frax_asset.clone().unwrap().logos.get(0),
-                                            busd_asset.clone().unwrap().logos.get(0),
                                             usdc_asset.clone().unwrap().logos.get(0),
                                             usdt_asset.clone().unwrap().logos.get(0),
+                                            busd_asset.clone().unwrap().logos.get(0),
+                                            frax_asset.clone().unwrap().logos.get(0),
                                         ],
                                         "price": usd_pool_price,
                                         "liquidity": usd_pool_liq,
@@ -3206,14 +3206,14 @@ async fn chef_contract_jobs(
                                         "decimals": usdc_asset.clone().unwrap().decimals,
                                     }),
                                     bson!({
-                                        "symbol": frax_asset.clone().unwrap().symbol,
-                                        "address":  frax_asset.clone().unwrap().address,
-                                        "decimals": frax_asset.clone().unwrap().decimals,
-                                    }),
-                                    bson!({
                                         "symbol": usdt_asset.clone().unwrap().symbol,
                                         "address":  usdt_asset.clone().unwrap().address,
                                         "decimals": usdt_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": frax_asset.clone().unwrap().symbol,
+                                        "address":  frax_asset.clone().unwrap().address,
+                                        "decimals": frax_asset.clone().unwrap().decimals,
                                     }),
                                 ];
 
@@ -3347,14 +3347,14 @@ async fn chef_contract_jobs(
                                         "decimals": usdc_asset.clone().unwrap().decimals,
                                     }),
                                     bson!({
-                                        "symbol": frax_asset.clone().unwrap().symbol,
-                                        "address":  frax_asset.clone().unwrap().address,
-                                        "decimals": frax_asset.clone().unwrap().decimals,
-                                    }),
-                                    bson!({
                                         "symbol": usdt_asset.clone().unwrap().symbol,
                                         "address":  usdt_asset.clone().unwrap().address,
                                         "decimals": usdt_asset.clone().unwrap().decimals,
+                                    }),
+                                    bson!({
+                                        "symbol": frax_asset.clone().unwrap().symbol,
+                                        "address":  frax_asset.clone().unwrap().address,
+                                        "decimals": frax_asset.clone().unwrap().decimals,
                                     }),
                                 ];
 
