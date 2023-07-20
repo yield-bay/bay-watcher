@@ -763,14 +763,242 @@ async fn chef_contract_jobs(
                     let farm_type = models::FarmType::StandardAmm;
                     let farm_implementation = models::FarmImplementation::Solidity;
 
+                    let arthswap_lp_address = asset_addr.parse::<Address>()?;
+                    let arthswap_lp = contracts::IStandardLpToken::new(
+                        arthswap_lp_address,
+                        Arc::clone(&astar_client),
+                    );
+                    let token0: Address = arthswap_lp.token_0().call().await?;
+                    let token1: Address = arthswap_lp.token_1().call().await?;
+                    println!("token 0 {:?} 1 {:?}", token0, token1);
+                    // ACA 0xfFFfFFfF00000000000000010000000000000000
+
                     let mut underlying_assets = vec![];
-                    for ua in asset.clone().unwrap().underlying_assets {
+                    let mut logos = vec![];
+                    // let mut uaidx = 0;
+                    if ethers::utils::to_checksum(&token0.to_owned(), None)
+                        == "0xfFFfFFfF00000000000000010000000000000000".to_string()
+                    {
                         underlying_assets.push(bson!({
-                            "symbol": ua.symbol,
-                            "address": ua.address,
-                            "decimals": ua.decimals,
-                        }))
+                            "symbol": "ACA",
+                            "address": "0xfFFfFFfF00000000000000010000000000000000".to_string(),
+                            "decimals": 12,
+                        }));
+                        logos.push(format!(
+                            "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+                            "ACA".to_string()
+                        ));
+                        if asset.clone().unwrap().underlying_assets[0].address
+                            == ethers::utils::to_checksum(&token1.to_owned(), None)
+                        {
+                            let mut decs = asset.clone().unwrap().underlying_assets[0].decimals;
+                            if asset.clone().unwrap().underlying_assets[0].clone().symbol == "USDC"
+                                || asset.clone().unwrap().underlying_assets[0].clone().symbol
+                                    == "USDT"
+                            {
+                                decs = 6;
+                            } else if asset.clone().unwrap().underlying_assets[0].clone().symbol
+                                == "DOT"
+                            {
+                                decs = 10;
+                            }
+                            underlying_assets.push(bson!({
+                                "symbol": asset.clone().unwrap().underlying_assets[0].clone().symbol,
+                                "address": asset.clone().unwrap().underlying_assets[0].clone().address,
+                                "decimals": decs,
+                            }));
+                            logos.push(format!(
+                                "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+                                asset.clone().unwrap().underlying_assets[0].clone().symbol
+                            ));
+                            // logos.push(asset.clone().unwrap().underlying_assets[0].clone().symbol);
+                        } else {
+                            let mut decs = asset.clone().unwrap().underlying_assets[1].decimals;
+                            if asset.clone().unwrap().underlying_assets[1].clone().symbol == "USDC"
+                                || asset.clone().unwrap().underlying_assets[1].clone().symbol
+                                    == "USDT"
+                            {
+                                decs = 6;
+                            } else if asset.clone().unwrap().underlying_assets[1].clone().symbol
+                                == "DOT"
+                            {
+                                decs = 10;
+                            }
+                            underlying_assets.push(bson!({
+                                "symbol": asset.clone().unwrap().underlying_assets[1].clone().symbol,
+                                "address": asset.clone().unwrap().underlying_assets[1].clone().address,
+                                "decimals": decs,
+                            }));
+                            logos.push(format!(
+                                "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+                                asset.clone().unwrap().underlying_assets[1].clone().symbol
+                            ));
+                            // logos.push(asset.clone().unwrap().underlying_assets[1].clone().symbol);
+                        }
+                    } else if ethers::utils::to_checksum(&token1.to_owned(), None)
+                        == "0xfFFfFFfF00000000000000010000000000000000".to_string()
+                    {
+                        if asset.clone().unwrap().underlying_assets[0].address
+                            == ethers::utils::to_checksum(&token0.to_owned(), None)
+                        {
+                            let mut decs = asset.clone().unwrap().underlying_assets[0].decimals;
+                            if asset.clone().unwrap().underlying_assets[0].clone().symbol == "USDC"
+                                || asset.clone().unwrap().underlying_assets[0].clone().symbol
+                                    == "USDT"
+                            {
+                                decs = 6;
+                            } else if asset.clone().unwrap().underlying_assets[0].clone().symbol
+                                == "DOT"
+                            {
+                                decs = 10;
+                            }
+                            underlying_assets.push(bson!({
+                                "symbol": asset.clone().unwrap().underlying_assets[0].clone().symbol,
+                                "address": asset.clone().unwrap().underlying_assets[0].clone().address,
+                                "decimals": decs,
+                            }));
+                            logos.push(format!(
+                                "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+                                asset.clone().unwrap().underlying_assets[0].clone().symbol
+                            ));
+                            // logos.push(asset.clone().unwrap().underlying_assets[0].clone().symbol);
+                        } else {
+                            let mut decs = asset.clone().unwrap().underlying_assets[1].decimals;
+                            if asset.clone().unwrap().underlying_assets[1].clone().symbol == "USDC"
+                                || asset.clone().unwrap().underlying_assets[1].clone().symbol
+                                    == "USDT"
+                            {
+                                decs = 6;
+                            } else if asset.clone().unwrap().underlying_assets[1].clone().symbol
+                                == "DOT"
+                            {
+                                decs = 10;
+                            }
+                            underlying_assets.push(bson!({
+                                "symbol": asset.clone().unwrap().underlying_assets[1].clone().symbol,
+                                "address": asset.clone().unwrap().underlying_assets[1].clone().address,
+                                "decimals": decs,
+                            }));
+                            logos.push(format!(
+                                "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+                                asset.clone().unwrap().underlying_assets[1].clone().symbol
+                            ));
+                            // logos.push(asset.clone().unwrap().underlying_assets[1].clone().symbol);
+                        }
+                        underlying_assets.push(bson!({
+                            "symbol": "ACA",
+                            "address": "0xfFFfFFfF00000000000000010000000000000000".to_string(),
+                            "decimals": 12,
+                        }));
+                        logos.push(format!(
+                            "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+                            "ACA".to_string()
+                        ));
+                        // logos.push("ACA".to_string());
+                    } else if asset.clone().unwrap().underlying_assets[0].address
+                        == ethers::utils::to_checksum(&token0.to_owned(), None)
+                    {
+                        let ua = asset.clone().unwrap().underlying_assets[0].clone();
+                        let ua1 = asset.clone().unwrap().underlying_assets[1].clone();
+                        let mut sym = ua.symbol.clone();
+                        let mut addr = ua.address.clone();
+                        let mut decs = ua.decimals;
+                        let mut sym1 = ua1.symbol.clone();
+                        let mut addr1 = ua1.address.clone();
+                        let mut decs1 = ua1.decimals;
+                        if ua.symbol == "USDC" || ua.symbol == "USDT" {
+                            decs = 6;
+                        } else if ua.symbol == "DOT" {
+                            decs = 10;
+                        }
+                        if ua1.symbol == "USDC" || ua1.symbol == "USDT" {
+                            decs1 = 6;
+                        } else if ua1.symbol == "DOT" {
+                            decs1 = 10;
+                        }
+                        underlying_assets.push(bson!({
+                            "symbol": sym.clone(),
+                            "address": addr,
+                            "decimals": decs,
+                        }));
+                        logos.push(format!(
+                            "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+                            sym
+                        ));
+                        // logos.push(sym);
+                        underlying_assets.push(bson!({
+                            "symbol": sym1.clone(),
+                            "address": addr1,
+                            "decimals": decs1,
+                        }));
+                        logos.push(format!(
+                            "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+                            sym1
+                        ));
+                        // logos.push(sym1);
+                    } else {
+                        let ua = asset.clone().unwrap().underlying_assets[0].clone();
+                        let ua1 = asset.clone().unwrap().underlying_assets[1].clone();
+                        let mut sym = ua.symbol.clone();
+                        let mut addr = ua.address.clone();
+                        let mut decs = ua.decimals;
+                        let mut sym1 = ua1.symbol.clone();
+                        let mut addr1 = ua1.address.clone();
+                        let mut decs1 = ua1.decimals;
+                        if ua.symbol == "USDC" || ua.symbol == "USDT" {
+                            decs = 6;
+                        } else if ua.symbol == "DOT" {
+                            decs = 10;
+                        }
+                        if ua1.symbol == "USDC" || ua1.symbol == "USDT" {
+                            decs1 = 6;
+                        } else if ua1.symbol == "DOT" {
+                            decs1 = 10;
+                        }
+                        underlying_assets.push(bson!({
+                            "symbol": sym1.clone(),
+                            "address": addr1,
+                            "decimals": decs1,
+                        }));
+                        logos.push(format!(
+                            "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+                            sym1
+                        ));
+                        // logos.push(sym1);
+                        underlying_assets.push(bson!({
+                            "symbol": sym.clone(),
+                            "address": addr,
+                            "decimals": decs,
+                        }));
+                        logos.push(format!(
+                            "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+                            sym
+                        ));
+                        // logos.push(sym);
                     }
+                    // for ua in asset.clone().unwrap().underlying_assets {
+                    //     let uaa_filter =
+                    //         doc! { "address": asset_addr.clone(), "chain": p.2.clone() };
+                    //     let uaa = assets_collection.find_one(uaa_filter, None).await?;
+                    //     let mut def_decimals = uaa.unwrap_or_default().decimals;
+                    //     println!("def_decimals {:?} {:?}", ua.symbol.clone(), def_decimals);
+                    //     if def_decimals == 0 {
+                    //         def_decimals = ua.decimals;
+                    //     }
+                    //     underlying_assets.push(bson!({
+                    //         "symbol": ua.symbol,
+                    //         "address": ua.address,
+                    //         "decimals": def_decimals,
+                    //     }))
+                    // }
+                    println!("arthswap uas {:?}", underlying_assets.clone());
+                    // let mut logos = vec![];
+                    // for ua in underlying_assets.clone() {
+                    //     logos
+                    //         .push(format!(
+                    //         "https://raw.githubusercontent.com/yield-bay/assets/main/list/{}.png",
+                    //         ua));
+                    // }
                     let mut rewards: Vec<Bson> = vec![];
                     let mut total_reward_apr = 0.0;
 
@@ -858,7 +1086,7 @@ async fn chef_contract_jobs(
                                 "symbol": asset.clone().unwrap().symbol,
                                 "address": asset_addr.clone(),
                                 "price": asset.clone().unwrap().price,
-                                "logos": asset.clone().unwrap().logos,
+                                "logos": logos,
                                 "underlyingAssets": underlying_assets,
                             },
                             "tvl": asset_tvl,
@@ -4132,12 +4360,36 @@ async fn subgraph_jobs(
                 token1logo.clone()
             );
 
-            let token0decimals: u32 = 18; //: u32 = pair.base_token.decimals.parse().unwrap_or_default();
-            let token1decimals: u32 = 18; //: u32 = pair.quote_token.decimals.parse().unwrap_or_default();
+            let mut token0decimals: u32 = 18; //: u32 = pair.base_token.decimals.parse().unwrap_or_default();
+            let mut token1decimals: u32 = 18; //: u32 = pair.quote_token.decimals.parse().unwrap_or_default();
 
             let mut decimals = token0decimals;
             if token1decimals > token0decimals {
                 decimals = token1decimals;
+            }
+
+            // USDC6 USDT6 DOT10 ACA12
+            if pair.base_token.symbol == "USDC".to_string()
+                || pair.base_token.symbol == "USDT".to_string()
+            {
+                token0decimals = 6;
+            }
+            if pair.quote_token.symbol == "USDC".to_string()
+                || pair.quote_token.symbol == "USDT".to_string()
+            {
+                token1decimals = 6;
+            }
+            if pair.base_token.symbol == "DOT".to_string() {
+                token0decimals = 10;
+            }
+            if pair.quote_token.symbol == "DOT".to_string() {
+                token1decimals = 10;
+            }
+            if pair.base_token.symbol == "ACA".to_string() {
+                token0decimals = 12;
+            }
+            if pair.quote_token.symbol == "ACA".to_string() {
+                token1decimals = 12;
             }
 
             let liquidity: f64 = pair.liquidity.usd as f64;
