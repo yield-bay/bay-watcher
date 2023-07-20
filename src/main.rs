@@ -4394,9 +4394,29 @@ async fn subgraph_jobs(
 
             let liquidity: f64 = pair.liquidity.usd as f64;
 
-            let price_usd: f64 = pair.price_usd.parse().unwrap_or_default();
+            // let price_usd: f64 = pair.price_usd.parse().unwrap_or_default();
+            // let price_usd =
+            let pk = dotenv::var("PRIVATE_KEY").unwrap();
+            let wallet: LocalWallet = pk.parse().expect("fail parse");
 
-            let total_supply: f64 = liquidity / price_usd;
+            let astar_url = dotenv::var("ASTAR_URL").unwrap();
+
+            let astar_provider_service =
+                Provider::<Http>::try_from(astar_url.clone()).expect("failed");
+            let astar_provider = SignerMiddleware::new(astar_provider_service, wallet.clone());
+
+            let astar_client = SignerMiddleware::new(astar_provider.clone(), wallet.clone());
+            let astar_client = Arc::new(astar_client);
+
+            let arthswap_lp_address = pair_addr.parse::<Address>()?;
+            let arthswap_lp =
+                contracts::IStandardLpToken::new(arthswap_lp_address, Arc::clone(&astar_client));
+            let lp_total_supply: U256 = arthswap_lp.total_supply().call().await?;
+
+            let total_supply: f64 = lp_total_supply.as_u128() as f64; // / constants::utils::TEN_F64.powf(18.0);
+            println!("arthswaplpts {:?} {:?}", lp_total_supply, total_supply);
+            let price_usd = liquidity / total_supply * constants::utils::TEN_F64.powf(18.0);
+            println!("arthprice_usd {:?}", price_usd);
 
             let odv = pair.volume.h24;
             let fees_apr = odv * 0.0025 * 365.0 * 100.0 / liquidity;

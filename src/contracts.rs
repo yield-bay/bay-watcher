@@ -70,6 +70,7 @@ abigen!(
         function symbol() external view returns (string)
         function token0() external view returns (address)
         function token1() external view returns (address)
+        function totalSupply() external view returns (uint256)
     ]"#,
 );
 
