@@ -1185,7 +1185,8 @@ async fn chef_contract_jobs(
 
                     let owner =
                         contracts::IStableLpTokenOwner::new(owner_addr, Arc::clone(&p.8.clone()));
-                    let stable_lp_underlying_tokens = owner.get_tokens().call().await?;
+                    let stable_lp_underlying_tokens: Vec<Address> =
+                        owner.get_tokens().call().await?;
                     let stable_lp_underlying_balances = owner.get_token_balances().call().await?;
                     println!(
                         "stable_lp_underlying_tokens: {:#?}",
@@ -1323,7 +1324,8 @@ async fn chef_contract_jobs(
 
                     let owner =
                         contracts::IStableLpTokenOwner::new(owner_addr, Arc::clone(&p.8.clone()));
-                    let stable_lp_underlying_tokens = owner.get_tokens().call().await?;
+                    let stable_lp_underlying_tokens: Vec<Address> =
+                        owner.get_tokens().call().await?;
                     let stable_lp_underlying_balances = owner.get_token_balances().call().await?;
                     println!(
                         "stable_lp_underlying_tokens: {:#?}",
@@ -2293,7 +2295,8 @@ async fn chef_contract_jobs(
                                 owner_addr,
                                 Arc::clone(&p.8.clone()),
                             );
-                            let stable_lp_underlying_tokens = owner.get_tokens().call().await?;
+                            let stable_lp_underlying_tokens: Vec<Address> =
+                                owner.get_tokens().call().await?;
                             let stable_lp_underlying_balances =
                                 owner.get_token_balances().call().await?;
                             println!(
@@ -2486,20 +2489,25 @@ async fn chef_contract_jobs(
                                         "decimals": frax_asset.clone().unwrap().decimals,
                                     }),
                                     bson!({
-                                        "symbol": usdc_asset.clone().unwrap().symbol,
-                                        "address":  usdc_asset.clone().unwrap().address,
-                                        "decimals": usdc_asset.clone().unwrap().decimals,
+                                        "symbol": "3pool",
+                                        "address": ethers::utils::to_checksum(&stable_lp_underlying_tokens[1].to_owned(), None),
+                                        "decimals": 18,
                                     }),
-                                    bson!({
-                                        "symbol": busd_asset.clone().unwrap().symbol,
-                                        "address":  busd_asset.clone().unwrap().address,
-                                        "decimals": busd_asset.clone().unwrap().decimals,
-                                    }),
-                                    bson!({
-                                        "symbol": usdt_asset.clone().unwrap().symbol,
-                                        "address":  usdt_asset.clone().unwrap().address,
-                                        "decimals": usdt_asset.clone().unwrap().decimals,
-                                    }),
+                                    // bson!({
+                                    //     "symbol": usdc_asset.clone().unwrap().symbol,
+                                    //     "address":  usdc_asset.clone().unwrap().address,
+                                    //     "decimals": usdc_asset.clone().unwrap().decimals,
+                                    // }),
+                                    // bson!({
+                                    //     "symbol": busd_asset.clone().unwrap().symbol,
+                                    //     "address":  busd_asset.clone().unwrap().address,
+                                    //     "decimals": busd_asset.clone().unwrap().decimals,
+                                    // }),
+                                    // bson!({
+                                    //     "symbol": usdt_asset.clone().unwrap().symbol,
+                                    //     "address":  usdt_asset.clone().unwrap().address,
+                                    //     "decimals": usdt_asset.clone().unwrap().decimals,
+                                    // }),
                                 ];
 
                                 let usd_pool_liq = _3pool_bal.as_u128() as f64
@@ -2560,20 +2568,25 @@ async fn chef_contract_jobs(
                                         "decimals": mai_asset.clone().unwrap().decimals,
                                     }),
                                     bson!({
-                                        "symbol": usdc_asset.clone().unwrap().symbol,
-                                        "address":  usdc_asset.clone().unwrap().address,
-                                        "decimals": usdc_asset.clone().unwrap().decimals,
+                                        "symbol": "3pool",
+                                        "address": ethers::utils::to_checksum(&stable_lp_underlying_tokens[1].to_owned(), None),
+                                        "decimals": 18,
                                     }),
-                                    bson!({
-                                        "symbol": busd_asset.clone().unwrap().symbol,
-                                        "address":  busd_asset.clone().unwrap().address,
-                                        "decimals": busd_asset.clone().unwrap().decimals,
-                                    }),
-                                    bson!({
-                                        "symbol": usdt_asset.clone().unwrap().symbol,
-                                        "address":  usdt_asset.clone().unwrap().address,
-                                        "decimals": usdt_asset.clone().unwrap().decimals,
-                                    }),
+                                    // bson!({
+                                    //     "symbol": usdc_asset.clone().unwrap().symbol,
+                                    //     "address":  usdc_asset.clone().unwrap().address,
+                                    //     "decimals": usdc_asset.clone().unwrap().decimals,
+                                    // }),
+                                    // bson!({
+                                    //     "symbol": busd_asset.clone().unwrap().symbol,
+                                    //     "address":  busd_asset.clone().unwrap().address,
+                                    //     "decimals": busd_asset.clone().unwrap().decimals,
+                                    // }),
+                                    // bson!({
+                                    //     "symbol": usdt_asset.clone().unwrap().symbol,
+                                    //     "address":  usdt_asset.clone().unwrap().address,
+                                    //     "decimals": usdt_asset.clone().unwrap().decimals,
+                                    // }),
                                 ];
 
                                 let usd_pool_liq = _3pool_bal.as_u128() as f64
@@ -2634,20 +2647,25 @@ async fn chef_contract_jobs(
                                         "decimals": mim_asset.clone().unwrap().decimals,
                                     }),
                                     bson!({
-                                        "symbol": usdc_asset.clone().unwrap().symbol,
-                                        "address":  usdc_asset.clone().unwrap().address,
-                                        "decimals": usdc_asset.clone().unwrap().decimals,
+                                        "symbol": "3pool",
+                                        "address": ethers::utils::to_checksum(&stable_lp_underlying_tokens[1].to_owned(), None),
+                                        "decimals": 18,
                                     }),
-                                    bson!({
-                                        "symbol": busd_asset.clone().unwrap().symbol,
-                                        "address":  busd_asset.clone().unwrap().address,
-                                        "decimals": busd_asset.clone().unwrap().decimals,
-                                    }),
-                                    bson!({
-                                        "symbol": usdt_asset.clone().unwrap().symbol,
-                                        "address":  usdt_asset.clone().unwrap().address,
-                                        "decimals": usdt_asset.clone().unwrap().decimals,
-                                    }),
+                                    // bson!({
+                                    //     "symbol": usdc_asset.clone().unwrap().symbol,
+                                    //     "address":  usdc_asset.clone().unwrap().address,
+                                    //     "decimals": usdc_asset.clone().unwrap().decimals,
+                                    // }),
+                                    // bson!({
+                                    //     "symbol": busd_asset.clone().unwrap().symbol,
+                                    //     "address":  busd_asset.clone().unwrap().address,
+                                    //     "decimals": busd_asset.clone().unwrap().decimals,
+                                    // }),
+                                    // bson!({
+                                    //     "symbol": usdt_asset.clone().unwrap().symbol,
+                                    //     "address":  usdt_asset.clone().unwrap().address,
+                                    //     "decimals": usdt_asset.clone().unwrap().decimals,
+                                    // }),
                                 ];
 
                                 let usd_pool_liq = _3pool_bal.as_u128() as f64
@@ -2848,7 +2866,8 @@ async fn chef_contract_jobs(
                                 owner_addr,
                                 Arc::clone(&p.8.clone()),
                             );
-                            let stable_lp_underlying_tokens = owner.get_tokens().call().await?;
+                            let stable_lp_underlying_tokens: Vec<Address> =
+                                owner.get_tokens().call().await?;
                             let stable_lp_underlying_balances =
                                 owner.get_token_balances().call().await?;
                             println!(
@@ -3010,7 +3029,8 @@ async fn chef_contract_jobs(
                                 owner_addr,
                                 Arc::clone(&p.8.clone()),
                             );
-                            let stable_lp_underlying_tokens = owner.get_tokens().call().await?;
+                            let stable_lp_underlying_tokens: Vec<Address> =
+                                owner.get_tokens().call().await?;
                             let stable_lp_underlying_balances =
                                 owner.get_token_balances().call().await?;
                             println!(
@@ -3570,20 +3590,25 @@ async fn chef_contract_jobs(
                                         "decimals": mai_asset.clone().unwrap().decimals,
                                     }),
                                     bson!({
-                                        "symbol": usdc_asset.clone().unwrap().symbol,
-                                        "address":  usdc_asset.clone().unwrap().address,
-                                        "decimals": usdc_asset.clone().unwrap().decimals,
+                                        "symbol": "tripool",
+                                        "address": ethers::utils::to_checksum(&stable_lp_underlying_tokens[1].to_owned(), None),
+                                        "decimals": 18,
                                     }),
-                                    bson!({
-                                        "symbol": usdt_asset.clone().unwrap().symbol,
-                                        "address":  usdt_asset.clone().unwrap().address,
-                                        "decimals": usdt_asset.clone().unwrap().decimals,
-                                    }),
-                                    bson!({
-                                        "symbol": frax_asset.clone().unwrap().symbol,
-                                        "address":  frax_asset.clone().unwrap().address,
-                                        "decimals": frax_asset.clone().unwrap().decimals,
-                                    }),
+                                    // bson!({
+                                    //     "symbol": usdc_asset.clone().unwrap().symbol,
+                                    //     "address":  usdc_asset.clone().unwrap().address,
+                                    //     "decimals": usdc_asset.clone().unwrap().decimals,
+                                    // }),
+                                    // bson!({
+                                    //     "symbol": usdt_asset.clone().unwrap().symbol,
+                                    //     "address":  usdt_asset.clone().unwrap().address,
+                                    //     "decimals": usdt_asset.clone().unwrap().decimals,
+                                    // }),
+                                    // bson!({
+                                    //     "symbol": frax_asset.clone().unwrap().symbol,
+                                    //     "address":  frax_asset.clone().unwrap().address,
+                                    //     "decimals": frax_asset.clone().unwrap().decimals,
+                                    // }),
                                 ];
 
                                 let usd_pool_liq = mai_bal.as_u128() as f64
