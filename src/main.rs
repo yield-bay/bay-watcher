@@ -46,22 +46,48 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
     headers.insert("content-type", "application/json");
 
     println!("------------------------------\npulsar_jobs");
-    custom::pulsar::pulsar_jobs(mongo_uri.clone())
-        .await
-        .unwrap();
+    match custom::pulsar::pulsar_jobs(mongo_uri.clone()).await {
+        Ok(_) => println!("Pulsar jobs succeeded!"),
+        Err(e) => {
+            println!("An error occurred in pulsar jobs: {}", e);
+            // You can take further actions here, such as logging the error,
+            // retrying the operation, or exiting the program with a specific status code.
+            // std::process::exit(1);
+        }
+    };
 
-    // println!("------------------------------\ndemeter_jobs");
-    // custom::demeter::demeter_jobs(mongo_uri.clone())
-    //     .await
-    //     .unwrap();
+    println!("------------------------------\ndemeter_jobs");
+    match custom::demeter::demeter_jobs(mongo_uri.clone()).await {
+        Ok(_) => println!("Demeter jobs succeeded!"),
+        Err(e) => {
+            println!("An error occurred in demeter jobs: {}", e);
+            // You can take further actions here, such as logging the error,
+            // retrying the operation, or exiting the program with a specific status code.
+            // std::process::exit(1);
+        }
+    };
 
     println!("------------------------------\ncurve_jobs");
-    custom::curve::curve_jobs(mongo_uri.clone()).await.unwrap();
+    match custom::curve::curve_jobs(mongo_uri.clone()).await {
+        Ok(_) => println!("Curve jobs succeeded!"),
+        Err(e) => {
+            println!("An error occurred in curve jobs: {}", e);
+            // You can take further actions here, such as logging the error,
+            // retrying the operation, or exiting the program with a specific status code.
+            std::process::exit(1);
+        }
+    };
 
-    // println!("------------------------------\ntapio_taiga_jobs");
-    // custom::tapio_taiga::tapio_taiga_jobs(mongo_uri.clone())
-    //     .await
-    //     .unwrap();
+    println!("------------------------------\ntapio_taiga_jobs");
+    match custom::tapio_taiga::tapio_taiga_jobs(mongo_uri.clone()).await {
+        Ok(_) => println!("Tapio-Taiga jobs succeeded!"),
+        Err(e) => {
+            println!("An error occurred in tapio-taiga jobs: {}", e);
+            // You can take further actions here, such as logging the error,
+            // retrying the operation, or exiting the program with a specific status code.
+            // std::process::exit(1);
+        }
+    };
 
     let solarbeam_subgraph_client = Client::new_with_headers(
         constants::subgraph_urls::SOLARBEAM_SUBGRAPH.clone(),
@@ -180,14 +206,20 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     println!("------------------------------\nsubgraph_jobs");
-    subgraph_jobs(mongo_uri.clone(), protocols, headers.clone())
-        .await
-        .unwrap();
+    match subgraph_jobs(mongo_uri.clone(), protocols, headers.clone()).await {
+        Ok(_) => println!("Subgraph jobs succeeded!"),
+        Err(e) => {
+            println!("An error occurred in subgraph jobs: {}", e);
+            // You can take further actions here, such as logging the error,
+            // retrying the operation, or exiting the program with a specific status code.
+            // std::process::exit(1);
+        }
+    };
 
     // smart contract fetching jobs
 
     println!("------------------------------\nchef_contract_jobs");
-    chef_contract_jobs(
+    match chef_contract_jobs(
         mongo_uri.clone(),
         sushi_subgraph_client.clone(),
         beamswap_subgraph_client.clone(),
@@ -201,9 +233,25 @@ async fn run_jobs() -> Result<(), Box<dyn std::error::Error>> {
         stellaswap_stable_subgraph_client.clone(),
     )
     .await
-    .unwrap();
+    {
+        Ok(_) => println!("Chef contract jobs succeeded!"),
+        Err(e) => {
+            println!("An error occurred in chef contract jobs: {}", e);
+            // You can take further actions here, such as logging the error,
+            // retrying the operation, or exiting the program with a specific status code.
+            // std::process::exit(1);
+        }
+    };
 
-    scoring::safety_score(mongo_uri.clone()).await.unwrap();
+    match scoring::safety_score(mongo_uri.clone()).await {
+        Ok(_) => println!("Safety score job succeeded!"),
+        Err(e) => {
+            println!("An error occurred in safety score job: {}", e);
+            // You can take further actions here, such as logging the error,
+            // retrying the operation, or exiting the program with a specific status code.
+            // std::process::exit(1);
+        }
+    };
 
     Ok(())
 }

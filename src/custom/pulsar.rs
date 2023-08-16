@@ -23,6 +23,7 @@ use crate::models;
 use crate::subgraph;
 
 pub async fn pulsar_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Error>> {
+    println!("starting pulsar");
     let mut client_options = ClientOptions::parse(mongo_uri).await?;
     client_options.app_name = Some("Bay Watcher".to_string());
     let client = MongoClient::with_options(client_options)?;
@@ -264,5 +265,6 @@ pub async fn pulsar_jobs(mongo_uri: String) -> Result<(), Box<dyn std::error::Er
         }
     }
 
+    println!("finished pulsar");
     Ok(())
 }
