@@ -4510,7 +4510,7 @@ async fn subgraph_jobs(
                     "chain": "astar",
                     "protocol": "arthswap",
                     "name": format!("{}-{} LP", pair.base_token.name, pair.quote_token.name),
-                    "symbol": format!("{}-{} LP", pair.base_token.symbol, pair.quote_token.symbol),
+                    "symbol": format!("{}-{} LP", if token0_addr.clone() == "0x3795C36e7D12A8c252A20C5a7B455f7c57b60283" { "ceUSDT".to_string() } else { pair.base_token.symbol.clone() }, if token1_addr.clone() == "0x3795C36e7D12A8c252A20C5a7B455f7c57b60283" { "ceUSDT".to_string() } else { pair.quote_token.symbol.clone() }),
                     "decimals": decimals,
                     "logos": [
                         token0logo.clone(),
@@ -4523,12 +4523,12 @@ async fn subgraph_jobs(
                     "feesAPR": fees_apr,
                     "underlyingAssets": [
                         bson!({
-                            "symbol": pair.base_token.symbol,
+                            "symbol": if token0_addr.clone() == "0x3795C36e7D12A8c252A20C5a7B455f7c57b60283" { "ceUSDT".to_string() } else { pair.base_token.symbol.clone() },
                             "address": token0_addr.clone(),
                             "decimals": token0decimals,
                         }),
                         bson!({
-                            "symbol": pair.quote_token.symbol,
+                            "symbol": if token1_addr.clone() == "0x3795C36e7D12A8c252A20C5a7B455f7c57b60283" { "ceUSDT".to_string() } else { pair.quote_token.symbol.clone() },
                             "address": token1_addr.clone(),
                             "decimals": token1decimals,
                         })
